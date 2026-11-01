@@ -1830,22 +1830,41 @@ ${userActionText || '（玩家静静等待对方说话）'}
             }
         }
 
-        // 整理 AI 输出：补全格式、过滤“替玩家说话”的行、把过长台词拆成适合对话框的小段
+        // 整理 AI 输出：超强兼容版，绝不误吞字
         function normalizeAILines(reply, playerName) {
             const MAX_LEN = 60;
             const out = [];
-            const rawLines = reply.split('\n').map(s => s.trim()).filter(Boolean);
+            if (!reply) return out;
+
+            // 1. 先把可能存在的 markdown 符号、多余空行清理掉
+            let cleanReply = reply.replace(/\*\*/g, '').replace(/###/g, '');
+            const rawLines = cleanReply.split('\n').map(s => s.trim()).filter(Boolean);
+
             for (let line of rawLines) {
-                if (!line.startsWith('[发言]')) line = `[发言] 旁白: ${line}`;
-                const m = line.match(/^[发言]\s*([^(（:：]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*([\s\S]*)\$/);
-                if (!m) continue;
-                const speaker = m[1].trim();
-                const action = m[2] ? m[2].trim() : '';
-                const content = m[3].trim();
-                if (!content) continue;
-                // 玩家台词一律丢弃，保证不替玩家说话
+                // 如果模型输出了“好的”、“接下来是”这种废话开场白，直接跳过
+                if (line.startsWith('好的') || line.startsWith('以下是') || line.startsWith('```')) continue;
+
+                // 尝试抓取 [发言] 角色(动作): 台词
+                let m = line.match(/(?:\[发言\]|\(发言\))?\s*([^(（:：\s]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*([\s\S]*)/);
+                
+                let speaker = "旁白";
+                let action = "";
+                let content = line;
+
+                if (m && m[3] && m[3].trim()) {
+                    speaker = m[1].trim();
+                    action = m[2] ? m[2].trim() : '';
+                    content = m[3].trim();
+                } else {
+                    // 如果模型完全没按规则写冒号，直接全当成旁白剧情，绝不丢弃！
+                    speaker = "旁白";
+                    content = line.replace(/^\[发言\]\s*/, '');
+                }
+
+                // 过滤替玩家说话的行
                 if (playerName && speaker === playerName.trim()) continue;
 
+                // 拆分过长句子，避免对话框被撑爆
                 const sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
                 let buf = '';
                 const chunks = [];
@@ -1854,11 +1873,18 @@ ${userActionText || '（玩家静静等待对方说话）'}
                     else buf += sen;
                 }
                 if (buf) chunks.push(buf);
+
                 chunks.forEach((c, i) => {
                     const act = (i === 0 && action) ? `(${action})` : '';
                     out.push(`[发言] ${speaker}${act}: ${c}`);
                 });
             }
+
+            // 兜底保障：万一无论怎么解析还是空，直接把原文硬塞进去当旁白，绝对不报错！
+            if (out.length === 0 && reply.trim()) {
+                out.push(`[发言] 旁白: ${reply.trim().slice(0, 80)}`);
+            }
+
             return out;
         }
 
