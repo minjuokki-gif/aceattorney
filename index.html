@@ -1468,18 +1468,50 @@
                 content = match[3].trim();
             }
 
-            document.getElementById('speaker-name').innerText = speaker;
+            // 统一在对话框上方展示标准官方称呼（如果是成步堂/龙一，对话框统一只显示原作姓氏“成步堂”）
+            let displaySpeaker = speaker;
+            if (speaker.includes('成步堂') || speaker === '龙一') displaySpeaker = '成步堂';
+            else if (speaker.includes('御剑')) displaySpeaker = '御剑';
+            else if (speaker.includes('真宵')) displaySpeaker = '真宵';
+            else if (speaker.includes('春美')) displaySpeaker = '春美';
+            else if (speaker.includes('千寻')) displaySpeaker = '千寻';
+            else if (speaker.includes('冥')) displaySpeaker = '狩魔冥';
+            else if (speaker.includes('响也')) displaySpeaker = '牙琉响也';
+
+            document.getElementById('speaker-name').innerText = displaySpeaker;
             document.getElementById('dialogue-content').innerText = content;
 
             // 自动归档进【剧情回放】
             if (!historyLog.some(l => l.raw === rawLine)) {
-                historyLog.push({ id: Date.now() + Math.random(), speaker, content, raw: rawLine });
+                historyLog.push({ id: Date.now() + Math.random(), speaker: displaySpeaker, content, raw: rawLine });
             }
 
             const isCourtScene = gameState.currentLocation.includes('法庭');
 
-            // 1. 御剑：日常正面 vs 法庭侧身
-            if (speaker.includes('御剑')) {
+            // ================= 智能名字识别与立绘分发 =================
+            // 1. 成步堂（成步堂、龙一、成步堂龙一 通吃）
+            if (speaker.includes('成步堂') || speaker === '龙一') {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('思考')) actionKey = "Thinking";
+                else if (action.includes('拍桌')) actionKey = "Slamming Desk";
+                else if (action.includes('指认')) actionKey = "Pointing";
+                else if (action.includes('文件') || action.includes('卷宗')) actionKey = "Document";
+                else if (action.includes('汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
+                else if (action.includes('震惊') || action.includes('受创')) actionKey = "Shocked";
+                else if (action.includes('傻笑') || action.includes('摸头')) actionKey = "Embarrassed Laugh";
+                else if (action.includes('自信') || action.includes('叉腰') || action.includes('微笑')) actionKey = "Confident";
+                else if (action.includes('喝咖啡')) actionKey = "Drinking Coffee";
+                else if (action.includes('端咖啡')) actionKey = "Holding Coffee";
+                else if (action.includes('点头')) actionKey = "Nodding";
+                else if (action.includes('摇头')) actionKey = "Shaking Head";
+                else if (action.includes('弯腰')) actionKey = "Bent Over";
+                else if (action.includes('泼咖啡') || action.includes('咖啡泼')) actionKey = "Coffee Head";
+                else if (action.includes('异议')) actionKey = "Objection!";
+                animator.playFromRegistry("成步堂_法庭", actionKey);
+            }
+            // 2. 御剑（御剑、御剑怜侍 通吃）
+            else if (speaker.includes('御剑')) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
                     let actionKey = "Normal";
@@ -1503,8 +1535,8 @@
                     else if (action.includes('烦躁') || action.includes('擦汗') || action.includes('头疼')) actionKey = "Irritated";
                     animator.playFromRegistry("御剑_正面", actionKey);
                 }
-            } 
-            // 2. 绫里千寻：日常正面 vs 法庭侧身
+            }
+            // 3. 绫里千寻（千寻）
             else if (speaker.includes('千寻')) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
@@ -1521,7 +1553,7 @@
                     animator.playFromRegistry("千寻_正面", actionKey);
                 }
             }
-            // 3. 绫里真宵：日常正面 vs 法庭侧身
+            // 4. 绫里真宵（真宵）
             else if (speaker.includes('真宵')) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
@@ -1534,9 +1566,9 @@
                 } else {
                     let actionKey = "Normal";
                     if (action.includes('抱头') || action.includes('狂晃') || action.includes('116')) {
-                        actionKey = "Shocked_Hold"; // 116 停在最后一张！
+                        actionKey = "Shocked_Hold";
                     } else if (action.includes('点头') || action.includes('117')) {
-                        actionKey = "Nodding"; // 117 点头后回到第一张！
+                        actionKey = "Nodding";
                     } else if (action.includes('开心') || action.includes('拉面') || action.includes('高兴')) {
                         actionKey = "Happy";
                     } else if (action.includes('自信') || action.includes('叉腰')) {
@@ -1563,28 +1595,7 @@
                     animator.playFromRegistry("真宵_正面", actionKey);
                 }
             }
-            // 4. 成步堂龙一：法庭辩护姿态
-            else if (speaker.includes('成步堂')) {
-                viewport.style.display = 'flex';
-                let actionKey = "Normal";
-                if (action.includes('思考')) actionKey = "Thinking";
-                else if (action.includes('拍桌')) actionKey = "Slamming Desk";
-                else if (action.includes('指认')) actionKey = "Pointing";
-                else if (action.includes('文件') || action.includes('卷宗')) actionKey = "Document";
-                else if (action.includes('汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
-                else if (action.includes('震惊') || action.includes('受创')) actionKey = "Shocked";
-                else if (action.includes('傻笑') || action.includes('摸头')) actionKey = "Embarrassed Laugh";
-                else if (action.includes('自信') || action.includes('叉腰') || action.includes('微笑')) actionKey = "Confident";
-                else if (action.includes('喝咖啡')) actionKey = "Drinking Coffee";
-                else if (action.includes('端咖啡')) actionKey = "Holding Coffee";
-                else if (action.includes('点头')) actionKey = "Nodding";
-                else if (action.includes('摇头')) actionKey = "Shaking Head";
-                else if (action.includes('弯腰')) actionKey = "Bent Over";
-                else if (action.includes('泼咖啡') || action.includes('咖啡泼')) actionKey = "Coffee Head";
-                else if (action.includes('异议')) actionKey = "Objection!";
-                animator.playFromRegistry("成步堂_法庭", actionKey);
-            } 
-            // 5. 绫里春美：日常正面
+            // 5. 绫里春美（春美）
             else if (speaker.includes('春美')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -1599,7 +1610,7 @@
                 else if (action.includes('震惊') || action.includes('吓')) actionKey = "Shocked2";
                 animator.playFromRegistry("春美_正面", actionKey);
             }
-            // 6. 狩魔冥：法庭侧身 vs 日常正面
+            // 6. 狩魔冥（只要带“冥”字就抓，避免误伤狩魔豪）
             else if (speaker.includes('冥')) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
@@ -1623,7 +1634,7 @@
                     animator.playFromRegistry("冥_正面", actionKey);
                 }
             }
-            // 7. 牙琉响也：法庭侧身 vs 日常正面
+            // 7. 牙琉响也（响也、牙琉响也）
             else if (speaker.includes('响也')) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
@@ -1635,7 +1646,7 @@
                     else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
                     else if (action.includes('指认') || action.includes('指')) actionKey = "Pointing";
                     else if (action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
-                    else if (action.includes('敲墙') || action.includes('拍墙')) actionKey = "Slam_Start"; // 触发219，随后自动进21a
+                    else if (action.includes('敲墙') || action.includes('拍墙')) actionKey = "Slam_Start";
                     animator.playFromRegistry("响也_法庭", actionKey);
                 } else {
                     let actionKey = "Normal";
@@ -1749,16 +1760,25 @@
             const hardRules = `
 
 【输出硬性规范——优先级最高】
-1. 篇幅：每次回复的剧情总量不少于 600 个汉字（旁白+台词合计），目标 700~900 字。写成有画面感的剧情：角色之间有来有回的互动、神态动作、环境与心理描写，而不是只列几句台词。
-2. 严禁替玩家「${playerName}」说话、做决定，也不要描写他的内心想法或具体动作；只能写其他角色对玩家言行的反应。结尾停在需要玩家回应的地方。
-3. 格式：每行一句，[发言] 角色名(动作姿态): 内容。旁白/环境描写用 [发言] 旁白: 内容。单行不超过 60 字，长段请拆成多行。
-4. 动作姿态写在括号内，用下列词之一以匹配立绘：
-   - 绫里 千寻：微笑、浅笑、吃惊（法庭中：严肃、震惊、失落、悲伤）
-   - 绫里 真宵：开心、点头、抱头、担心、生气、自信、坚定、思考、消沉、伤心、含泪、震惊
-   - 绫里 春美：乖巧、哭、坚定、吃惊、思考、陶醉、开心、失落、震惊
-   - 成步堂 龙一：思考、汗、震惊、傻笑、自信、拍桌、指认、异议、端咖啡、喝咖啡、点头、摇头、弯腰、泼咖啡
-   - 御剑 怜侍：生气、思考、困惑、侧头、烦躁（法庭中：拍桌、指认、自信、抱胸）
-5. 只输出剧情行，不要解释，不要使用 markdown 或代码块。`;
+1. 篇幅严控：本次回复只写 10 至 15 句独立台词（旁白+角色发言合计 10~15 行），严禁超过 15 行，严禁大段长篇大论！
+2. 角色称谓必须严格遵守原作官方称谓，禁止乱起昵称：
+   - 必须称呼「成步堂」（禁止写“龙一”）
+   - 必须称呼「御剑」（禁止写“怜侍”）
+   - 必须称呼「真宵」
+   - 必须称呼「千寻」
+   - 必须称呼「春美」
+   - 必须称呼「狩魔冥」（严禁只写“狩魔”，必须带“冥”字）
+   - 必须称呼「牙琉响也」或「响也」
+3. 严禁替玩家「${playerName}」说话、做决定，也不要描写他的内心想法或动作；只写其他角色对玩家的反应。第 10~15 句结尾停在需要玩家回应的地方。
+4. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白/环境用 [发言] 旁白: 内容。单句严禁超长。
+5. 动作姿态写在括号内，用下列词之一：
+   - 成步堂：思考、汗、震惊、傻笑、自信、拍桌、指认、异议、端咖啡、喝咖啡、点头、摇头、弯腰、泼咖啡
+   - 御剑：生气、思考、困惑、侧头、烦躁（法庭中：拍桌、指认、自信、抱胸）
+   - 真宵：开心、点头、抱头、担心、生气、自信、坚定、思考、消沉、伤心、含泪、震惊
+   - 春美：乖巧、哭、坚定、吃惊、思考、陶醉、开心、失落、震惊
+   - 狩魔冥：闭眼、轻蔑、自信、抱胸、挥鞭、准备、流汗、行礼、破防、恢复、思考、指认、居高临下、哭、生气
+   - 牙琉响也：轻蔑、笑、思考、无语、破防、指认、流汗、敲墙、严肃、摆pose
+6. 只输出剧情行，不要解释，不要使用 markdown 或代码块。`;
 
             const recent = historyLog.slice(-30).map(l => `${l.speaker}: ${l.content}`).join('\n');
 
