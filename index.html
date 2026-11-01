@@ -2,26 +2,31 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>逆转裁判 · 终极探案模拟引擎</title>
     <style>
         * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body {
-            background-color: #04060a;
-            font-family: "Microsoft YaHei", -apple-system, sans-serif;
+            background-color: #000000;
+            /* 加入苹果苹方和安卓原生字体，解决手机端字体变怪的问题 */
+            font-family: "PingFang SC", "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
             color: #d1e2f7;
         }
 
         #game-stage {
             position: relative;
+            /* 核心修复：死死锁住 16:9 比例，自动在手机里等比居中缩放，绝对不会再被压扁 */
             width: 100vw;
-            max-width: 1280px;
-            aspect-ratio: 16 / 9;
+            height: 56.25vw; 
+            max-height: 100vh;
+            max-width: 177.78vh;
+            margin: auto;
             background-size: cover;
             background-position: center;
             box-shadow: 0 0 60px rgba(0,0,0,0.95);
