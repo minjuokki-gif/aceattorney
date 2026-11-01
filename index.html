@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>逆转裁判 · 终极探案模拟引擎</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: #04060a;
+            font-family: "Microsoft YaHei", -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            color: #d1e2f7;
+        }
+
+        #game-stage {
+            position: relative;
+            width: 100vw;
+            max-width: 1280px;
+            aspect-ratio: 16 / 9;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 0 60px rgba(0,0,0,0.95);
+            overflow: hidden;
+            background-image: url('https://i.postimg.cc/T1p1ZpPB/bg1001-(Wright-Co-Law-Offices).png');
+            transition: background-image 0.25s ease-in-out;
+        }
+
+        .shake-screen { animation: shakeAnim 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shakeAnim {
+            10%, 90% { transform: translate3d(-4px, 0, 0); }
+            20%, 80% { transform: translate3d(6px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
+
+        .character-viewport {
+            position: absolute;
+            /* 立绘大小随舞台缩放（手机/电脑一致）。想再大/小只改下面两个变量 */
+            --sprite-h: 125%;
+            --sprite-bottom: -9%;
+            bottom: var(--sprite-bottom);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            height: var(--sprite-h);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .character-sprite {
+            width: auto;
+            height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            vertical-align: bottom;
+            display: block;
+            transform-origin: bottom center;
+            filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));
+            transition: transform 0.2s ease-out;
+        }
+
+        button, input, select, textarea { font-family: inherit; outline: none; }
+        .btn-prime {
+            background: linear-gradient(180deg, #3aa3e8 0%, #1566b0 100%);
+            border: 1.5px solid #ffffff;
+            color: #ffffff;
+            padding: 8px 24px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .btn-prime:hover { background: #38a4ea; }
+        .btn-sub {
+            background: #17385c;
+            border: 1px solid #4872a0;
+            color: #ffffff;
+            padding: 7px 16px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-sub:hover { background: #265586; border-color: #72a3dc; }
+        .btn-danger {
+            background: linear-gradient(180deg, #d32f2f, #9a1a1a);
+            border: 1px solid #ff7373;
+            color: #ffffff;
+            padding: 7px 16px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .ui-view {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: none;
+            z-index: 100;
+        }
+        .ui-view.active { display: flex; }
+        .ui-center-panel {
+            background: rgba(11, 20, 36, 0.96);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid #38a4ea;
+            box-shadow: 0 0 35px rgba(0,0,0,0.9);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #view-title {
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.85)), url('https://i.postimg.cc/T1p1ZpPB/bg1001-(Wright-Co-Law-Offices).png') center/cover;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 25px;
+        }
+        .title-logo-box { text-align: center; transform: skewX(-6deg); }
+        .title-sub-text { color: #ff9900; font-size: 16px; letter-spacing: 6px; font-weight: 900; }
+        .title-main-text {
+            color: #ffffff;
+            font-size: 52px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-shadow: 0 4px 0 #000, 0 0 25px #3aa3e8;
+            -webkit-text-stroke: 1.5px #000;
+        }
+        .title-menu { display: flex; flex-direction: column; gap: 12px; width: 250px; }
+
+        #view-create { justify-content: center; align-items: center; background: rgba(4, 8, 16, 0.88); backdrop-filter: blur(5px); }
+        .create-card { width: 84%; max-width: 960px; height: 84%; padding: 22px 28px; }
+        .create-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #2d4c72; padding-bottom: 10px; margin-bottom: 15px; }
+        .create-body { display: flex; gap: 26px; flex-grow: 1; overflow: hidden; }
+        .create-left { width: 220px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .avatar-uploader-box {
+            width: 180px; height: 180px;
+            background: #0f1c30;
+            border: 2px dashed #38a4ea;
+            border-radius: 8px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer; overflow: hidden; position: relative;
+        }
+        .avatar-uploader-box img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .upload-tip { font-size: 12px; color: #7b9cc4; text-align: center; line-height: 1.5; }
+        .create-right { flex-grow: 1; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 6px; }
+        .form-row { display: flex; gap: 14px; align-items: center; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+        .form-label { font-size: 12px; color: #ff9900; font-weight: bold; }
+        .form-input, .form-select, .form-textarea {
+            background: #0d192b; border: 1px solid #2d4c72; color: #ffffff; padding: 7px 10px; border-radius: 4px; font-size: 13px;
+        }
+        .form-textarea { resize: none; height: 95px; line-height: 1.5; }
+
+        .dialogue-wrapper {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+        }
+        .dialogue-outer-frame {
+            position: relative;
+            width: 100%;
+            border-top: 1.5px solid #ffffff;
+            background: #000000;
+        }
+        .name-tag {
+            position: absolute;
+            top: -33px; left: 6%;
+            z-index: 100;
+            background: linear-gradient(180deg, #38a4ea 0%, #1566b0 100%);
+            color: #ffffff;
+            font-size: 17px;
+            font-weight: bold;
+            padding: 5px 28px;
+            clip-path: polygon(14px 0%, 100% 0%, calc(100% - 14px) 100%, 0% 100%);
+            border-top: 1.5px solid #ffffff;
+            border-bottom: 1.5px solid #0f4679;
+            letter-spacing: 2px;
+            transform: skewX(-3deg);
+        }
+        .dialogue-box {
+            position: relative;
+            width: 100%;
+            height: 130px;
+            background-color: #0b111c;
+            padding: 18px 6% 12px 6%;
+            cursor: pointer;
+        }
+        .dialogue-box.loading-lock {
+            cursor: wait !important;
+        }
+        .dialogue-text {
+            color: #ffffff;
+            font-size: 21px;
+            line-height: 1.6;
+            font-weight: 500;
+            letter-spacing: 1.5px;
+            white-space: pre-wrap;
+        }
+        .click-arrow {
+            position: absolute;
+            bottom: 12px; right: 4%;
+            color: #f7ce3b;
+            font-size: 26px;
+            font-weight: 900;
+            font-family: monospace;
+            animation: bounceRight 0.65s infinite alternate ease-in-out;
+        }
+        @keyframes bounceRight {
+            0% { transform: translateX(0); opacity: 0.6; }
+            100% { transform: translateX(6px); opacity: 1; text-shadow: 0 0 8px #f7ce3b; }
+        }
+
+        .bottom-bar {
+            width: 100%;
+            height: 32px;
+            background-color: #eef1f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 3%;
+            border-top: 1px solid #c8ced8;
+        }
+        .bottom-bar-left { display: flex; align-items: center; gap: 8px; }
+        .bottom-bar-right { display: flex; align-items: center; gap: 14px; }
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #4b5260;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .bar-item:hover { color: #1e6eb5; }
+        .bar-icon {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: #2a73ba;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .bar-icon-record { background: #235489; border-radius: 3px; font-size: 11px; width: 17px; height: 17px; }
+        .bar-speak-btn {
+            background: linear-gradient(180deg, #ff9900, #d97706);
+            color: #ffffff;
+            border: 1px solid #ffe082;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .bar-speak-btn:hover { background: #f59e0b; }
+        .auto-active { color: #d32f2f !important; }
+
+        .top-status-bar {
+            position: absolute;
+            top: 10px; left: 16px;
+            background: rgba(8, 16, 28, 0.85);
+            border: 1px solid #38a4ea;
+            border-radius: 16px;
+            padding: 4px 14px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #ffffff;
+            display: flex;
+            gap: 12px;
+            z-index: 60;
+        }
+
+        .settings-card { width: 720px; max-height: 85%; padding: 20px 24px; gap: 14px; }
+        .settings-tabs { display: flex; gap: 5px; border-bottom: 1.5px solid #28476d; padding-bottom: 8px; overflow-x: auto; }
+        .tab-btn {
+            background: #102137; border: 1px solid #305886; color: #8da5c4;
+            padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; white-space: nowrap;
+        }
+        .tab-btn.active { background: #1e6eb5; color: #ffffff; border-color: #5ea6ea; }
+        .settings-content-pane { flex-grow: 1; overflow-y: auto; display: none; flex-direction: column; gap: 12px; }
+        .settings-content-pane.active { display: flex; }
+
+        .log-list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .log-item-card {
+            background: #0d192b;
+            border: 1px solid #244368;
+            border-radius: 6px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .log-meta-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .log-speaker-badge {
+            background: #17385c;
+            color: #ff9900;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .log-item-text {
+            color: #e2ecf8;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .log-btn-group { display: flex; gap: 6px; }
+        .log-btn-tiny {
+            background: #12243d;
+            border: 1px solid #3b6594;
+            color: #d1e2f7;
+            padding: 2px 8px;
+            font-size: 11px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .log-btn-tiny:hover { background: #1e4577; }
+        .log-btn-del { border-color: #a83232; color: #ff8888; }
+        .log-btn-del:hover { background: #7a1c1c; color: #ffffff; }
+
+        .record-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px);
+            z-index: 200; display: none; justify-content: center; align-items: center;
+        }
+        .record-overlay.active { display: flex; }
+        .record-panel {
+            position: relative; width: 80%; max-width: 960px;
+            background: #ffffff; border-radius: 6px; padding: 3px;
+            box-shadow: 0 15px 45px rgba(0,0,0,0.9); display: flex; flex-direction: column;
+        }
+        .record-header { position: absolute; top: -34px; left: 14px; display: flex; gap: 4px; z-index: 10; }
+        .rec-tab {
+            background: #1a2a40; color: #8da4c2; border: 1.5px solid #ffffff; border-bottom: none;
+            padding: 6px 28px; font-size: 15px; font-weight: bold; cursor: pointer;
+            clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+        }
+        .rec-tab.active { background: linear-gradient(180deg, #3aa3e8 0%, #1a6cb5 100%); color: #ffffff; }
+        .record-inner {
+            width: 100%; background: linear-gradient(180deg, #2464a4 0%, #153c65 100%);
+            border-radius: 4px; padding: 16px 20px 12px 20px; display: flex; flex-direction: column; gap: 12px;
+        }
+        .record-main-card {
+            width: 100%; background: #fbfbf9; border-radius: 4px; border: 1px solid #c9d2de;
+            padding: 16px; display: flex; gap: 20px;
+        }
+        .square-image-box {
+            width: 180px; height: 180px; flex-shrink: 0; background: #ffffff;
+            border: 2px solid #b8c4d4; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        .square-image-box img { width: 100%; height: 100%; object-fit: cover; }
+        .info-content-box { flex-grow: 1; height: 180px; display: flex; flex-direction: column; }
+        .title-banner {
+            background: linear-gradient(90deg, #ffb800 0%, #ffa500 100%); color: #ffffff;
+            font-size: 18px; font-weight: bold; padding: 4px 12px; border-radius: 3px; letter-spacing: 2px;
+            margin-bottom: 8px; flex-shrink: 0;
+        }
+        .desc-text {
+            color: #2b333e; font-size: 14px; line-height: 26px; font-weight: 500; white-space: pre-wrap;
+            flex-grow: 1; background-image: repeating-linear-gradient(to bottom, transparent, transparent 25px, #dbe2ec 26px);
+            background-size: 100% 26px; overflow: hidden;
+        }
+        .thumb-nav-bar {
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; background: rgba(10, 25, 45, 0.4); border-radius: 4px; padding: 6px 10px;
+        }
+        .nav-arrow-btn {
+            background: #17385c; border: 1px solid #4872a0; color: #ffffff;
+            width: 32px; height: 46px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: bold;
+        }
+        .thumb-grid-page { display: flex; gap: 12px; flex-grow: 1; justify-content: center; }
+        .thumb-slot {
+            width: 48px; height: 48px; background: #ffffff; border: 2px solid #9bb0c9; border-radius: 4px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .thumb-slot img { width: 100%; height: 100%; object-fit: cover; }
+        .thumb-slot.active { border-color: #ff9900; box-shadow: 0 0 8px #ff9900; }
+        .record-footer { display: flex; justify-content: space-between; align-items: center; }
+
+        .speak-modal-box {
+            position: absolute;
+            bottom: 40px; left: 5%; width: 90%; max-width: 720px;
+            background: rgba(12, 22, 38, 0.98);
+            border: 2px solid #ff9900;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.95);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 180;
+        }
+        .speak-modal-box.active { display: flex; }
+        .speak-actions-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .action-tag {
+            background: #1b3558; border: 1px solid #3d6a9f; color: #a9c7eb;
+            font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer;
+        }
+        .action-tag:hover { background: #ff9900; color: #000; border-color: #ffcc00; }
+
+        .affinity-row { background: #0d192b; border: 1px solid #244368; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .phone-box { width: 100%; height: 240px; background: #08111e; border: 1px solid #1e385a; border-radius: 6px; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+        .mobile-touch-advance { position: absolute; top: 0; left: 0; width: 100%; height: 75%; z-index: 20; cursor: pointer; }
+        #avatar-file-input { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="game-stage">
+        <!-- 移动端轻触推进 -->
+        <div class="mobile-touch-advance" onclick="handleUserNextStep()"></div>
+
+        <!-- 顶部地点状态 -->
+        <div class="top-status-bar" id="game-status-bar" style="display: none;">
+            <span id="status-location">📍 成步堂法律事务所</span>
+            <span style="color: #62b5ff;">|</span>
+            <span id="status-mode" style="color: #4ade80;">🍃 平淡日常模式</span>
+        </div>
+
+        <!-- 角色动态立绘容器 -->
+        <div class="character-viewport" id="actor-viewport" style="display: none;">
+            <img id="actor-sprite" class="character-sprite" src="" alt="角色立绘">
+        </div>
+
+        <!-- ================= 1. 标题开始界面 ================= -->
+        <div class="ui-view active" id="view-title">
+            <div class="title-logo-box">
+                <div class="title-sub-text">ACE ATTORNEY ENGINE</div>
+                <div class="title-main-text">逆转裁判 · 探案模拟</div>
+            </div>
+            <div class="title-menu">
+                <button class="btn-prime" onclick="navigateTo('view-create')">新 案 件 开 始</button>
+                <button class="btn-prime" style="background: linear-gradient(180deg, #ff9900 0%, #d97706 100%); border-color: #ffe082; display: none;" id="btn-continue" onclick="loadAutoSave()">继 续 游 戏 (自动存档)</button>
+                <button class="btn-sub" onclick="openSettingsWithTab('tab-save')">载 入 案 件 存 档</button>
+                <button class="btn-sub" onclick="openSettingsWithTab('tab-api')">配 置 大 模 型 API</button>
+            </div>
+        </div>
+
+        <!-- ================= 2. 捏人开局建档 ================= -->
+        <div class="ui-view" id="view-create">
+            <div class="ui-center-panel create-card">
+                <div class="create-header">
+                    <h2 style="color: #ffffff; font-size: 19px;">👤 案件档案建档</h2>
+                    <button class="btn-sub" onclick="navigateBack()">↩ 返回</button>
+                </div>
+                <div class="create-body">
+                    <div class="create-left">
+                        <div class="avatar-uploader-box" onclick="document.getElementById('avatar-file-input').click()">
+                            <img id="avatar-preview" src="" alt="头像预览">
+                            <div class="upload-tip" id="avatar-tip">
+                                <span style="font-size: 24px;">📁</span><br>
+                                上传本地照片<br>(JPG / PNG)
+                            </div>
+                        </div>
+                        <input type="file" id="avatar-file-input" accept="image/*" onchange="handleAvatarUpload(event)">
+                        <div style="font-size: 11px; color: #7696be; text-align: center;">主角专属法庭立绘名片</div>
+                    </div>
+
+                    <div class="create-right">
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 2;">
+                                <label class="form-label">姓名 / 代号</label>
+                                <input type="text" class="form-input" id="char-name" value="绫里 零">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label class="form-label">年龄</label>
+                                <input type="number" class="form-input" id="char-age" value="21">
+                            </div>
+                            <div class="form-group" style="flex: 2;">
+                                <label class="form-label">身份职业路线 (决定专属起点与搭档)</label>
+                                <select class="form-select" id="char-role">
+                                    <option value="辩护律师">辩护律师 (事务所日常 / 成步堂线)</option>
+                                    <option value="检事">高位检事 (1202室办公室 / 御剑线)</option>
+                                    <option value="刑警">初动刑警 (警察署刑事课 / 系锯&小茜线)</option>
+                                    <option value="灵媒师">仓院灵媒师 (仓院之里本堂 / 真宵&春美线)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">个人经历与自定人设 (AI将据此深度演化专属剧情)</label>
+                            <textarea class="form-textarea" id="char-setting">性格冷静敏锐，曾在海外研修法医学，擅长从尸检报告的微小矛盾中寻找破绽。身上佩戴着一枚由长辈遗留下来的神秘吊坠，对真相抱有超乎寻常的执着。</textarea>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+                            <button class="btn-prime" onclick="initCareerAndStartGame()">进 入 职 业 日 常 ➔</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 3. 游戏主界面 ================= -->
+        <div class="ui-view" id="view-game">
+            <div class="dialogue-wrapper">
+                <div class="name-tag" id="speaker-name">成步堂 龙一</div>
+                <div class="dialogue-outer-frame">
+                    <div class="dialogue-box" id="main-dialogue-box" onclick="handleUserNextStep()">
+                        <div class="dialogue-text" id="dialogue-content">正在载入日常情境……</div>
+                        <div class="click-arrow" id="click-arrow">»</div>
+                    </div>
+                    <!-- 原版底栏 -->
+                    <div class="bottom-bar">
+                        <div class="bottom-bar-left">
+                            <button class="bar-speak-btn" id="btn-speak-action" onclick="openSpeakModal()">💬 发言 / 行动 (Enter)</button>
+                        </div>
+                        <div class="bottom-bar-right">
+                            <div class="bar-item" onclick="openSettingsModal()"><span class="bar-icon">+</span> 设定</div>
+                            <div class="bar-item" onclick="toggleRecord()"><span class="bar-icon bar-icon-record">R</span> 法庭纪录</div>
+                            <div class="bar-item" id="btn-auto-toggle" onclick="toggleAutoAdvance()"><span class="bar-icon">-</span> 自动推进文字</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 玩家发言输入弹窗 -->
+            <div class="speak-modal-box" id="speak-modal">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 12px; color: #ff9900; font-weight: bold;">【你的发言与行动】直接输入内容后按 Enter 回车发送</div>
+                    <span style="cursor: pointer; font-size: 13px; color: #7696be;" onclick="closeSpeakModal()">✕ 取消</span>
+                </div>
+                <div class="speak-actions-tags">
+                    <span class="action-tag" onclick="insertTag('[思考]')">[思考]</span>
+                    <span class="action-tag" onclick="insertTag('[拍桌]')">[拍桌]</span>
+                    <span class="action-tag" onclick="insertTag('[指认]')">[指认]</span>
+                    <span class="action-tag" onclick="insertTag('[微笑]')">[微笑]</span>
+                    <span class="action-tag" onclick="insertTag('[出示证物]')">[出示证物]</span>
+                    <span class="action-tag" onclick="insertTag('[调查现场]')">[调查现场]</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" class="form-input" id="player-input-text" placeholder="输入你想说的话、动作意图，按 Enter 发送..." style="flex: 1;" onkeydown="if(event.key==='Enter') submitPlayerInput();">
+                    <button class="btn-prime" style="padding: 4px 16px; font-size: 13px;" onclick="submitPlayerInput()">发送</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 4. 综合设定菜单 ================= -->
+        <div class="ui-view" id="settings-modal" style="justify-content: center; align-items: center; background: rgba(0,0,0,0.7);">
+            <div class="ui-center-panel settings-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="settings-tabs">
+                        <button class="tab-btn active" onclick="switchSettingsTab('tab-log')">📜 剧情回放</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('tab-case')">🚨 案件调度</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('tab-api')">⚙️ API设置</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('tab-world')">📖 世界书</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('tab-phone')">📱 手机通讯</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('tab-affinity')">💖 羁绊好感</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('tab-save')">💾 存读档</button>
+                    </div>
+                    <button class="btn-sub" style="padding: 2px 8px;" onclick="closeModal('settings-modal')">✕</button>
+                </div>
+
+                <!-- 📜 剧情回放 (支持编辑与删除) -->
+                <div class="settings-content-pane active" id="pane-tab-log">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 12px; color: #ff9900; font-weight: bold;">历史对话纪录（可自由编辑台词或删除不合理情节）</span>
+                        <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="renderHistoryLog()">🔄 刷新列表</button>
+                    </div>
+                    <div class="log-list-container" id="log-list-box"></div>
+                </div>
+
+                <!-- 0. 案件推进与搜查大地图 -->
+                <div class="settings-content-pane" id="pane-tab-case">
+                    <div style="background: #0f1c30; padding: 12px; border-radius: 6px; border: 1px solid #23436d;">
+                        <div style="font-weight: bold; color: #ff9900; margin-bottom: 6px;">当前剧本状态：<span id="pane-case-status">平淡日常篇</span></div>
+                        <div style="font-size: 12px; color: #a9c5ea; line-height: 1.6;">
+                            平时可以与搭档自由闲聊、过平淡的职场生活。准备好进入主线时，点击下方按钮，AI 将正式启动案件并分配调查现场与看守所会见！
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn-danger" onclick="triggerCaseInitiation()">🚨 触发突发案件 / 接受委托</button>
+                            <button class="btn-sub" onclick="resetToDailyMode()">🍃 返回职场日常</button>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 13px; font-weight: bold; color: #ffffff; margin-top: 6px;">🗺️ 场景快速移动 (搜查大地图)</div>
+                    <div id="location-grid" style="max-height: 46vh; overflow-y: auto;"></div>
+                </div>
+
+                <!-- 1. API 配置 -->
+                <div class="settings-content-pane" id="pane-tab-api">
+                    <div class="form-group">
+                        <label class="form-label">API 预设切换</label>
+                        <div style="display: flex; gap: 8px;">
+                            <select class="form-select" id="api-preset-select" onchange="loadPreset(this.value)">
+                                <option value="custom">当前自定义配置</option>
+                            </select>
+                            <button class="btn-sub" onclick="saveCurrentAsPreset()">保存为新预设</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">接口端点 (Endpoint Base URL)</label>
+                        <input type="text" class="form-input" id="api-endpoint" placeholder="https://api.openai.com/v1 或中转接口">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-input" id="api-key" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">模型选择 (Model)</label>
+                        <div style="display: flex; gap: 8px; margin-bottom: 4px;">
+                            <input type="text" class="form-input" id="api-model" placeholder="手动输入或在下方选取" style="flex: 2;">
+                            <button class="btn-sub" id="btn-fetch-models" onclick="fetchModelsFromEndpoint()" style="flex: 1;">拉取模型列表</button>
+                        </div>
+                        <select class="form-select" id="api-model-select" onchange="onModelSelectChange(this.value)">
+                            <option value="">-- 点击拉取后在此下拉选择 --</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button class="btn-prime" onclick="saveApiConfig()">保 存 配 置</button>
+                    </div>
+                </div>
+
+                <!-- 2. 世界书 / System Prompt 设定 -->
+                <div class="settings-content-pane" id="pane-tab-world">
+                    <div class="form-group">
+                        <label class="form-label">游戏世界书规则 (System Prompt)</label>
+                        <textarea class="form-textarea" id="world-prompt" style="height: 190px;">你现在是《逆转裁判》的探案模拟器主持人(GM)。
+铁律规则：
+1. 剧情严格按每句独立的格式输出，每行一句：
+[发言] 角色名(动作姿态): 对话内容
+2. 当处于【日常模式】时：严格描写日常闲聊、职场琐事与角色羁绊，严禁自动虚构命案发生！
+3. 当处于【案件模式】时：根据玩家出示的证据、调查动作推进破绽，给出线索提示。
+4. 保持逆转裁判严肃悬疑又带有诙谐风趣的官方台词风格。
+5. 没有接案子时一律是日常，不出现案件、案发现场、嫌疑人等内容。
+6. 每次回复写成不少于600字的完整剧情段落，多位角色互动，绝不替玩家说话。</textarea>
+                    </div>
+                </div>
+
+                <!-- 3. 手机通讯 -->
+                <div class="settings-content-pane" id="pane-tab-phone">
+                    <div style="font-size: 13px; color: #ff9900; font-weight: bold;" id="phone-contact-header">通讯录联系人：暂无未读信息</div>
+                    <div class="phone-box" id="phone-msg-container">
+                        <div style="color: #6582a8; font-size: 12px; text-align: center; margin-top: 80px;">通信录清爽整洁。随着案情展开将解锁对应角色的联系方式。</div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" class="form-input" id="phone-input" placeholder="输入短信内容..." style="flex: 1;">
+                        <button class="btn-prime" style="padding: 6px 14px;" onclick="sendPhoneSMS()">发送短信</button>
+                    </div>
+                </div>
+
+                <!-- 4. 好感度面板 -->
+                <div class="settings-content-pane" id="pane-tab-affinity">
+                    <div id="affinity-list-box" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+
+                <!-- 5. 存读档 -->
+                <div class="settings-content-pane" id="pane-tab-save">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div class="affinity-row">
+                            <div>
+                                <div style="color: #fff; font-weight: bold;">存档位 1</div>
+                                <div id="slot-info-1" style="font-size: 11px; color: #7696be;">空记录</div>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-sub" onclick="saveToSlot(1)">覆盖保存</button>
+                                <button class="btn-prime" style="padding: 6px 14px;" onclick="loadFromSlot(1)">载入</button>
+                            </div>
+                        </div>
+                        <div class="affinity-row">
+                            <div>
+                                <div style="color: #fff; font-weight: bold;">存档位 2</div>
+                                <div id="slot-info-2" style="font-size: 11px; color: #7696be;">空记录</div>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-sub" onclick="saveToSlot(2)">覆盖保存</button>
+                                <button class="btn-prime" style="padding: 6px 14px;" onclick="loadFromSlot(2)">载入</button>
+                            </div>
+                        </div>
+                        <div class="affinity-row">
+                            <div>
+                                <div style="color: #fff; font-weight: bold;">存档位 3</div>
+                                <div id="slot-info-3" style="font-size: 11px; color: #7696be;">空记录</div>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-sub" onclick="saveToSlot(3)">覆盖保存</button>
+                                <button class="btn-prime" style="padding: 6px 14px;" onclick="loadFromSlot(3)">载入</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="border-top: 1px solid #1f395b; padding-top: 8px; display: flex; justify-content: space-between;">
+                        <button class="btn-sub" onclick="exportSaveFile()">⬇ 导出 .json</button>
+                        <button class="btn-sub" onclick="document.getElementById('import-file-input').click()">⬆ 导入 .json</button>
+                        <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="importSaveFile(event)">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 5. 法庭记录簿 ================= -->
+        <div class="record-overlay" id="record-modal">
+            <div class="record-panel">
+                <div class="record-header">
+                    <button class="rec-tab active" id="tab-evidence" onclick="switchRecordTab('evidence')">证物资料</button>
+                    <button class="rec-tab" id="tab-profile" onclick="switchRecordTab('profile')">人物档案</button>
+                </div>
+
+                <div class="record-inner">
+                    <div class="record-main-card">
+                        <div class="square-image-box">
+                            <img id="detail-img" src="" alt="正方形大图">
+                        </div>
+                        <div class="info-content-box">
+                            <div class="title-banner" id="detail-name">名称</div>
+                            <div class="desc-text" id="detail-desc">介绍内容</div>
+                        </div>
+                    </div>
+
+                    <div class="thumb-nav-bar">
+                        <button class="nav-arrow-btn" id="prev-btn" onclick="changeRecordPage(-1)">◀</button>
+                        <div class="thumb-grid-page" id="thumb-container"></div>
+                        <button class="nav-arrow-btn" id="next-btn" onclick="changeRecordPage(1)">▶</button>
+                    </div>
+
+                    <div class="record-footer">
+                        <div style="color: #d1e2f7; font-size: 13px; font-weight: bold;" id="page-display">PAGE 1 / 1</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-prime" style="background: linear-gradient(180deg, #d32f2f, #9a1a1a); border-color: #ff7373;" onclick="presentCurrentEvidence()">つきつける (出示)</button>
+                            <button class="btn-sub" onclick="toggleRecord()">返回</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================================================
+           📦 角色立绘与动作动画总数据库 (CHARACTER_ANIMATION_REGISTRY)
+           包含御剑、千寻、真宵、成步堂全部正面与法庭姿态！
+           ========================================================================= */
+        // 循环动画速度总开关：1 = 原速；数字越大越慢（觉得表情切得太快就调大，比如 2）
+        const LOOP_SPEED = 1.6;
+
+        const CHARACTER_ANIMATION_REGISTRY = {
+            // 1. 御剑怜侍 · 日常/侦查正面篇
+            "御剑_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/3Jr1rbYZ/pl105100-00.png", "https://i.postimg.cc/sf4KrRdN/pl105100-01.png", "https://i.postimg.cc/bY9LhjcF/pl105100-02.png"] },
+                "Angry": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/FFVG4Q5W/pl105102-00.png", "https://i.postimg.cc/v8tXsdFX/pl105102-01.png", "https://i.postimg.cc/VsW48cQR/pl105102-02.png"] },
+                "Uncertain_GS1": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/050ZsqRd/pl105104-00.png", "https://i.postimg.cc/DfP5TKkQ/pl105104-01.png", "https://i.postimg.cc/59SpVMdw/pl105104-02.png", "https://i.postimg.cc/2j7TDfRn/pl105104-03.png"] },
+                "Looking Side": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/SQfVhpF2/pl105106-00.png", "https://i.postimg.cc/xj3g2SDk/pl105106-01.png", "https://i.postimg.cc/c1BTSNyv/pl105106-02.png"] },
+                "Thinking": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/fWf5Nhnk/pl105108-00.png", "https://i.postimg.cc/1RrMQZhz/pl105108-01.png", "https://i.postimg.cc/D06cd1PK/pl105108-02.png"] },
+                "Irritated": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/L5DVBj3F/pl10510a-00.png", "https://i.postimg.cc/QCmqkck2/pl10510a-01.png", "https://i.postimg.cc/D06cd1dt/pl10510a-02.png", "https://i.postimg.cc/7h9NMSMm/pl10510a-03.png", "https://i.postimg.cc/kGsyFWF1/pl10510a-04.png", "https://i.postimg.cc/vThvL5Lh/pl10510a-05.png", "https://i.postimg.cc/cChcMfMF/pl10510a-06.png", "https://i.postimg.cc/fyCvjYjY/pl10510a-07.png"] },
+                "Uncertain_GS2": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/xj3g2SDm/pl205104-01.png", "https://i.postimg.cc/xj3g2SDm/pl205104-01.png", "https://i.postimg.cc/NGkbcwqr/pl205104-02.png", "https://i.postimg.cc/MZmtS82Q/pl205104-03.png"] }
+            },
+            // 2. 绫里千寻 · 日常/侦查正面篇
+            "千寻_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/wvXBrVr1/pl103100-00.png", "https://i.postimg.cc/9Mdfkpkr/pl103100-01.png", "https://i.postimg.cc/3RXwqBqW/pl103100-02.png"] },
+                "Slight Smile": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/1thtMTvp/pl103102-00.png", "https://i.postimg.cc/JnVnKgpz/pl103102-01.png", "https://i.postimg.cc/JnVnKgp4/pl103102-02.png"] },
+                "Taken Aback": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/gJFJ45gc/pl103104-00.png", "https://i.postimg.cc/W3L3SK5s/pl103104-01.png", "https://i.postimg.cc/bJcJLMmX/pl103104-02.png"] },
+                "Smiling": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/DZkZ5DB9/pl103106-00.png", "https://i.postimg.cc/qRVRQYj9/pl103106-01.png", "https://i.postimg.cc/9fq0dVYV/pl103106-02.png", "https://i.postimg.cc/43hy6ZQC/pl103106-03.png"] }
+            },
+            // 3. 绫里千寻 · 辩护席侧身篇
+            "千寻_法庭": {
+                scale: 0.85,
+                "Strict": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/Bv1bTsBf/pl103300-00.png", "https://i.postimg.cc/QMWCQsk0/pl103300-01.png", "https://i.postimg.cc/6QGqrwLz/pl103300-02.png"] },
+                "Shocked": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/vZKDxD90/pl103302-00.png", "https://i.postimg.cc/pLSy5y8q/pl103302-01.png", "https://i.postimg.cc/4x0nHntP/pl103302-02.png"] },
+                "Disheartened": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/BnztPtDC/pl103304-00.png", "https://i.postimg.cc/4x0nHntc/pl103304-01.png", "https://i.postimg.cc/W1ytqtrr/pl103304-02.png"] },
+                "Sad": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/qvFg6gn8/pl103306-00.png", "https://i.postimg.cc/SxPjYj8C/pl103306-01.png", "https://i.postimg.cc/L85nsjqq/pl103306-02.png"] }
+            },
+            // 4. 绫里真宵 · 日常/侦查正面篇 (14组动作)
+            "真宵_正面": {
+                scale: 0.85, // 少女娇小体格
+                "Disheartened": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/BbCBJ2jw/pl101100-00.png", "https://i.postimg.cc/90BYcyDg/pl101100-01.png", "https://i.postimg.cc/RhTLvwWP/pl101100-02.png"] },
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/prBJPKms/pl101102-00.png", "https://i.postimg.cc/QCqJjcFm/pl101102-01.png", "https://i.postimg.cc/Gtjxbv4x/pl101102-02.png"] },
+                "Thinking": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/Hnt9Tbr4/pl101104-00.png", "https://i.postimg.cc/Y0xztQvQ/pl101104-01.png", "https://i.postimg.cc/brR9q1Zb/pl101104-02.png"] },
+                "Depressed": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/D0cP71SW/pl101106-00.png", "https://i.postimg.cc/vTvtG544/pl101106-01.png", "https://i.postimg.cc/3NZF32kW/pl101106-02.png"] },
+                "Sad": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/8cbmTL75/pl101108-00.png", "https://i.postimg.cc/Kjb5X08T/pl101108-01.png", "https://i.postimg.cc/HnmtG6kr/pl101108-02.png"] },
+                "Determined": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/HnmtG6kV/pl10110a-00.png", "https://i.postimg.cc/rsT96fws/pl10110a-01.png", "https://i.postimg.cc/HnmtG6kY/pl10110a-02.png"] },
+                "Happy": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/fb6KCz48/pl101117-00.png", "https://i.postimg.cc/NFtxhdjt/pl10110c-01.png", "https://i.postimg.cc/6qKhsMpx/pl10110c-02.png"] },
+                "Worried": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/QCDqLfx2/pl10110e-00.png", "https://i.postimg.cc/J08Qwpzw/pl10110e-01.png", "https://i.postimg.cc/Kjb5X0vV/pl10110e-02.png"] },
+                "Confident": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/gjpK9gk7/pl101110-00.png", "https://i.postimg.cc/0QDCHTPv/pl101110-01.png", "https://i.postimg.cc/4dV1FDsT/pl101110-02.png"] },
+                "Angry": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/0QDCHTPR/pl101112-00.png", "https://i.postimg.cc/gJ8KBCmb/pl101112-01.png", "https://i.postimg.cc/wvLkbCHZ/pl101112-02.png"] },
+                "Shocked_Loop": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/26hxXsm9/pl101114-00.png", "https://i.postimg.cc/gJ8KBCdS/pl101114-01.png", "https://i.postimg.cc/d1r9Sbvn/pl101114-02.png"] },
+                "Shocked_Hold": { 
+                    type: "once_hold", 
+                    frameDelays: [90, 90, 90, 90, 90, 90, 0], 
+                    shake: true, 
+                    sfx: "https://files.catbox.moe/1gcl54.flac", 
+                    frames: ["https://i.postimg.cc/d1r9Sbv6/pl101116-00.png", "https://i.postimg.cc/SsCGtBqr/pl101116-01.png", "https://i.postimg.cc/W3g7fBj7/pl101116-02.png", "https://i.postimg.cc/0QDCHTxG/pl101116-03.png", "https://i.postimg.cc/nzB1wyZ4/pl101116-04.png", "https://i.postimg.cc/FR3xnMmj/pl101116-05.png", "https://i.postimg.cc/0QDCHTxG/pl101116-03.png"] 
+                },
+                "Nodding": { 
+                    type: "once_reset", 
+                    frameDelays: [120, 120, 120, 120, 0], 
+                    frames: ["https://i.postimg.cc/fb6KCz48/pl101117-00.png", "https://i.postimg.cc/XvT8LjMw/pl101117-01.png", "https://i.postimg.cc/Dztg6vV1/pl101117-02.png", "https://i.postimg.cc/nL6k2F8D/pl101117-03.png", "https://i.postimg.cc/k5kcsJrt/pl101117-04.png"] 
+                },
+                "Teary": { type: "static", frames: ["https://i.postimg.cc/cJVmhxqK/pl101118-00.png"] }
+            },
+            // 5. 绫里真宵 · 辩护席侧身篇
+            "真宵_法庭": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/d0zB6sMh/pl101300-00.png", "https://i.postimg.cc/MGhD56kX/pl101300-01.png", "https://i.postimg.cc/XvT8LjMq/pl101300-02.png"] },
+                "Strict": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/GpZQKL0L/pl101302-00.png", "https://i.postimg.cc/Jh9qxrw1/pl101302-01.png", "https://i.postimg.cc/xdk5LkZk/pl101302-02.png"] },
+                "Glaring": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/25qGnqt1/pl101304-00.png", "https://i.postimg.cc/1zgBDgdX/pl101304-01.png", "https://i.postimg.cc/zfL7TLQB/pl101304-02.png"] },
+                "Puzzled": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/1zgBDgdz/pl101306-00.png", "https://i.postimg.cc/tg1kF1cR/pl101306-01.png", "https://i.postimg.cc/yNJj0JG4/pl101306-02.png", "https://i.postimg.cc/XvZL9ZPM/pl101306-03.png"] },
+                "Looking Forward": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/pd9CK9SH/pl101308-00.png", "https://i.postimg.cc/bvGg1G5f/pl101308-01.png", "https://i.postimg.cc/jS3vW6MV/pl101308-02.png"] }
+            },
+            // 6. 成步堂龙一 · 法庭辩护篇 (待机三帧循环)
+            "成步堂_法庭": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 340, frames: ["https://i.postimg.cc/85QnXPRt/pl100316-00.png", "https://i.postimg.cc/Y2xy87hk/pl100300-01.png", "https://i.postimg.cc/ZYLDjmCS/pl100300-02.png"] },
+                "Thinking": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/0jZWNYL3/pl100302-00.png", "https://i.postimg.cc/WzSW4GQy/pl100302-01.png", "https://i.postimg.cc/1XMCzGLj/pl100302-02.png", "https://i.postimg.cc/wMFfBXSb/pl100302-03.png", "https://i.postimg.cc/sxK62Yt6/pl100302-04.png", "https://i.postimg.cc/WzSW4GQ9/pl100302-05.png", "https://i.postimg.cc/4ywL36rP/pl100302-06.png"] },
+                "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
+                "Pointing": { type: "once_reset", frameDelays: [140, 140, 140, 200, 200, 0], voice: "https://files.catbox.moe/hov7xo.flac", shake: true, frames: ["https://i.postimg.cc/d3nH02zy/pl10030a-00.png", "https://i.postimg.cc/L5vCstrZ/pl10030a-01.png", "https://i.postimg.cc/C5JPKGWB/pl10030a-02.png", "https://i.postimg.cc/MHtPG7hX/pl10030a-03.png", "https://i.postimg.cc/QCS4MQRF/pl10030a-04.png", "https://i.postimg.cc/5yp7tBZH/pl10030a-05.png"] },
+                "Document": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/VvzZ1GHb/pl10030b-00.png", "https://i.postimg.cc/4yX2ZLFH/pl10030b-01.png", "https://i.postimg.cc/L5mQRC0q/pl10030b-02.png", "https://i.postimg.cc/j2R3KgkD/pl10030b-03.png", "https://i.postimg.cc/7hqtDsQf/pl10030b-04.png", "https://i.postimg.cc/VvzZ1GHv/pl10030b-05.png", "https://i.postimg.cc/5yfK17k0/pl10030b-06.png", "https://i.postimg.cc/HnTvHZPL/pl10030b-07.png"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/x89pYxF1/pl10030d-00.png", "https://i.postimg.cc/3N3f7Sbr/pl10030d-01.png", "https://i.postimg.cc/mkTpRX6L/pl10030d-02.png", "https://i.postimg.cc/NFQCYJPQ/pl10030d-03.png", "https://i.postimg.cc/VvzZ1GH1/pl10030d-04.png", "https://i.postimg.cc/HnTvHZPm/pl10030d-05.png", "https://i.postimg.cc/Y0tDknyH/pl10030d-06.png"] },
+                "Shocked": { type: "once_reset", frameDelays: [100, 100, 100, 150, 150, 150, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/zvq25tP1/pl10030f-00.png", "https://i.postimg.cc/7hqtDsQv/pl10030f-01.png", "https://i.postimg.cc/hvKZgyZk/pl10030f-02.png", "https://i.postimg.cc/brqV8CVK/pl10030f-03.png", "https://i.postimg.cc/tJ9vySvw/pl10030f-04.png", "https://i.postimg.cc/9Mdg651h/pl10030f-05.png", "https://i.postimg.cc/B6T7r9NG/pl10030f-06.png"] },
+                "Embarrassed Laugh": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/mDYpvfVW/pl100311-00.png", "https://i.postimg.cc/j5H3p0vV/pl100311-01.png", "https://i.postimg.cc/bJxV7cgW/pl100311-02.png"] },
+                "Confident": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/Y96D5KRV/pl100313-00.png", "https://i.postimg.cc/tT3vKQkm/pl100313-01.png", "https://i.postimg.cc/1tG7khBW/pl100313-02.png"] },
+                "Nodding": { type: "once_reset", frameDelays: [350, 0], frames: ["https://i.postimg.cc/Y2xy87hk/pl100300-01.png", "https://i.postimg.cc/Y96D5KRz/pl100315-01.png"] },
+                "Shaking Head": { type: "once_reset", frameDelays: [130, 130, 130, 130, 0], frames: ["https://i.postimg.cc/85QnXPRt/pl100316-00.png", "https://i.postimg.cc/B69w7QTC/pl100316-01.png", "https://i.postimg.cc/B69w7QT2/pl100316-02.png", "https://i.postimg.cc/B69w7QTK/pl100316-03.png", "https://i.postimg.cc/C1T6rLGB/pl100316-04.png"] },
+                "Bent Over": { type: "static", frames: ["https://i.postimg.cc/k43hYXQX/pl200318-00.png"] },
+                "Coffee Head": { type: "once_reset", frameDelays: [100, 100, 120, 120, 140, 140, 0], shake: true, frames: ["https://i.postimg.cc/XvyzgyCG/pl30031a-00.png", "https://i.postimg.cc/jjJFhJ7j/pl30031a-01.png", "https://i.postimg.cc/9fqnBq7m/pl30031a-02.png", "https://i.postimg.cc/vm6Nv6Vs/pl30031a-03.png", "https://i.postimg.cc/jjJFhJ70/pl30031a-04.png", "https://i.postimg.cc/TPW4cWWF/pl30031a-05.png", "https://i.postimg.cc/R0nDTnn8/pl30031a-06.png"] },
+                "Holding Coffee": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/x1ZZHPcD/pl30031c-00.png", "https://i.postimg.cc/0y44mCrc/pl30031c-01.png", "https://i.postimg.cc/2Sttvx3G/pl30031c-02.png"] },
+                "Drinking Coffee": { type: "drink_flow", frameDelays: [260, 320, 260], frames: ["https://i.postimg.cc/wBsGkssb/pl30031b-00.png", "https://i.postimg.cc/VNbVFbbZ/pl30031b-01.png", "https://i.postimg.cc/FKJBxJJP/pl30031b-02.png"] },
+                "Objection!": { type: "once_hold", frameDelays: [100, 100, 100, 100, 100, 0], voice: "https://files.catbox.moe/hov7xo.flac", shake: true, frames: ["https://i.postimg.cc/BnzzDCt2/pl300320-00.png", "https://i.postimg.cc/RZYYfTqH/pl300320-01.png", "https://i.postimg.cc/bw55bRdb/pl300320-02.png", "https://i.postimg.cc/vZKK9vDn/pl300320-03.png", "https://i.postimg.cc/kgHH8yDt/pl300320-04.png", "https://i.postimg.cc/Jz0gGF7c/pl300320-05.png"] }
+            },
+            // 7. 御剑怜侍 · 法庭对峙篇
+            "御剑_法庭": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/QVLm66GR/pl105300-00.png", "https://i.postimg.cc/Th80kkMB/pl105300-01.png", "https://i.postimg.cc/4nCP88kq/pl105300-02.png"] },
+                "Thinking": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/vDRhPPF5/pl105309-00.png", "https://i.postimg.cc/c6qhDDyY/pl105309-01.png", "https://i.postimg.cc/23pGHHRW/pl105309-02.png", "https://i.postimg.cc/bdXg66c2/pl105309-03.png", "https://i.postimg.cc/hhFsCCWz/pl105309-04.png", "https://i.postimg.cc/K4Xf99SR/pl105309-05.png", "https://i.postimg.cc/tJnDtKf3/pl105309-06.png", "https://i.postimg.cc/Y0L8f5V1/pl105309-07.png"] },
+                "Document": { type: "loop", frameDelay: 380, frames: ["https://i.postimg.cc/14xBWWhK/pl105307-00.png", "https://i.postimg.cc/yWqjff4y/pl105307-01.png", "https://i.postimg.cc/23pGHHRd/pl105307-02.png"] },
+                "Pointing": { type: "once_hold", frameDelays: [150, 200, 0], voice: "https://files.catbox.moe/04xmpb.flac", shake: true, frames: ["https://i.postimg.cc/PNGy66s2/pl105305-00.png", "https://i.postimg.cc/MXk5ss2t/pl105305-01.png", "https://i.postimg.cc/fk4CHHnC/pl105305-02.png"] },
+                "Slamming Desk": { type: "once_hold", frameDelays: [150, 160, 90, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Z0kHfftQ/pl105302-00.png", "https://i.postimg.cc/Cdy7vvT6/pl105302-01.png", "https://i.postimg.cc/XXML22SH/pl105302-02.png", "https://i.postimg.cc/s1Fmnndn/pl105302-03.png"] },
+                "Struggling": { type: "once_hold", frameDelays: [160, 160, 160, 0], shake: true, frames: ["https://i.postimg.cc/4yHwbDMp/pl10530b-00.png", "https://i.postimg.cc/Kj3Qr6VL/pl10530b-01.png", "https://i.postimg.cc/MHftbC4T/pl10530b-02.png", "https://i.postimg.cc/3N09Cs6J/pl10530b-03.png"] },
+                "Confident": { type: "once_hold", frameDelays: [180, 180, 0], frames: ["https://i.postimg.cc/C5nJH3th/pl10530d-00.png", "https://i.postimg.cc/GtTzJWNc/pl10530d-01.png", "https://i.postimg.cc/gjL4qC7f/pl10530d-02.png"] },
+                "Grinning": { type: "once_hold", frameDelays: [150, 150, 150, 150, 150, 150, 150, 150, 0], frames: ["https://i.postimg.cc/sXNwWjny/pl10530f-00.png", "https://i.postimg.cc/xC4tmfsQ/pl10530f-01.png", "https://i.postimg.cc/qR5jKJmf/pl10530f-02.png", "https://i.postimg.cc/xC4tmf6W/pl10530f-03.png", "https://i.postimg.cc/gJTNhzg7/pl10530f-04.png", "https://i.postimg.cc/mD589Lm5/pl10530f-05.png", "https://i.postimg.cc/nzP0mF3R/pl10530f-06.png", "https://i.postimg.cc/SsvD9Sgd/pl10530f-07.png", "https://i.postimg.cc/PxxSNpQV/pl10530f-08.png"] },
+                "Damage": { type: "once_hold", frameDelays: [100, 140, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/qRR1ghx1/pl105310-00.png", "https://i.postimg.cc/FRRT1dVg/pl105310-01.png", "https://i.postimg.cc/k44TD6vW/pl105310-02.png"] },
+                "Bowing": { type: "once_hold", frameDelays: [160, 160, 0], frames: ["https://i.postimg.cc/rmmfz0Nr/pl105311-00.png", "https://i.postimg.cc/B66mtLBF/pl105311-01.png", "https://i.postimg.cc/k44TD6vB/pl105311-02.png"] },
+                "Shrugging": { type: "once_hold", frameDelays: [150, 150, 150, 150, 0], frames: ["https://i.postimg.cc/500sjYSN/pl105312-00.png", "https://i.postimg.cc/pdk02Yzn/pl105312-01.png", "https://i.postimg.cc/26603b7S/pl105312-02.png", "https://i.postimg.cc/xdgs0yMz/pl105312-03.png", "https://i.postimg.cc/Xvx2VcdJ/pl105312-04.png"] }
+            },
+            // 8. 绫里春美 · 日常/侦查正面篇
+            "春美_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/4yNQK3HG/pl20d000-00.png", "https://i.postimg.cc/QCxJBMKG/pl20d000-01.png", "https://i.postimg.cc/j2d4Wjwm/pl20d000-02.png"] },
+                "Composed": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/J045yhDS/pl20d002-00.png", "https://i.postimg.cc/tJCN1gZc/pl20d002-01.png", "https://i.postimg.cc/PJrQLqpR/pl20d002-02.png"] },
+                "Crying": { type: "loop", frameDelay: 120, frames: ["https://i.postimg.cc/zvXFLfbp/pl20d004-00.png", "https://i.postimg.cc/NMxxfXMZ/pl20d004-01.png", "https://i.postimg.cc/JnQQ4XnF/pl20d004-02.png", "https://i.postimg.cc/3RZZJGR6/pl20d004-03.png", "https://i.postimg.cc/63hh5Z3H/pl20d004-04.png", "https://i.postimg.cc/1tKK5FtJ/pl20d004-05.png", "https://i.postimg.cc/d199tC1n/pl20d004-06.png", "https://i.postimg.cc/63hh5Z3c/pl20d004-07.png", "https://i.postimg.cc/LXVV6PX3/pl20d004-08.png", "https://i.postimg.cc/85bbPv5d/pl20d004-09.png", "https://i.postimg.cc/MTYYKBTV/pl20d004-10.png", "https://i.postimg.cc/HxttsMx5/pl20d004-11.png", "https://i.postimg.cc/Y9xxqF9W/pl20d004-12.png", "https://i.postimg.cc/gJKKkhJn/pl20d004-13.png", "https://i.postimg.cc/cHWmShsf/pl20d004-14.png", "https://i.postimg.cc/Y973HRpF/pl20d004-15.png", "https://i.postimg.cc/W3Vnv82d/pl20d004-16.png", "https://i.postimg.cc/ZRmcSHTC/pl20d004-17.png", "https://i.postimg.cc/pTvZHC2d/pl20d004-18.png", "https://i.postimg.cc/W3Vnv821/pl20d004-19.png"] },
+                "Determined": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/fLsKNCwW/pl20d006-00.png", "https://i.postimg.cc/pTvZHC2x/pl20d006-01.png", "https://i.postimg.cc/hjnrBsSW/pl20d006-02.png"] },
+                "Shocked1": { type: "static", frames: ["https://i.postimg.cc/mD4wsjT0/pl20d008-01.png"] },
+                "Thinking": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/BvHgkkG3/pl20d00a-00.png", "https://i.postimg.cc/W4gnCCcQ/pl20d00a-01.png", "https://i.postimg.cc/cJwm22GP/pl20d00a-02.png"] },
+                "Enchanted": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/rpxJ332Y/pl20d00c-00.png", "https://i.postimg.cc/HLX2RR1Z/pl20d00c-01.png", "https://i.postimg.cc/YSY3ZZBd/pl20d00c-02.png"] },
+                "Joyful": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/CKkNXXpJ/pl20d00e-00.png", "https://i.postimg.cc/q7yLSSHL/pl20d00e-01.png", "https://i.postimg.cc/q7yLSSHc/pl20d00e-02.png", "https://i.postimg.cc/3xP1L7VS/pl20d00e-03.png", "https://i.postimg.cc/0yLntxFd/pl20d00e-04.png"] },
+                "Disappointed": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/GmZKMrVG/pl20d010-00.png", "https://i.postimg.cc/Jz9xTmvX/pl20d010-01.png", "https://i.postimg.cc/P5By6h98/pl20d010-02.png"] },
+                "Shocked2": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/CxW7vYXZ/pl20d012-00.png", "https://i.postimg.cc/t41Dt7SV/pl20d012-01.png", "https://i.postimg.cc/HkfzSHRx/pl20d012-02.png", "https://i.postimg.cc/NjWDNYSf/pl20d012-03.png", "https://i.postimg.cc/wjS2WHZq/pl20d012-04.png", "https://i.postimg.cc/mgcVNhXf/pl20d012-05.png"] }
+            },
+            // 9. 狩魔冥 · 法庭对峙篇
+            "冥_法庭": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/QMvzWwp7/pl20b000-00.png", "https://i.postimg.cc/q7WFCS83/pl20b000-01.png", "https://i.postimg.cc/k5LHtzxg/pl20b000-02.png", "https://i.postimg.cc/W4xyJCMN/pl20b000-03.png", "https://i.postimg.cc/5tDrFTwx/pl20b000-04.png"] },
+                "Eyes Shut": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/N0ZnrS1v/pl20b002-00.png", "https://i.postimg.cc/fb1P0pY6/pl20b002-01.png", "https://i.postimg.cc/Gp6fsVvN/pl20b002-02.png"] },
+                "Confident": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/W4dKzTJj/pl20b004-00.png", "https://i.postimg.cc/6Q8Sqt4k/pl20b004-01.png", "https://i.postimg.cc/HLrKnd8f/pl20b004-02.png", "https://i.postimg.cc/vm4jTbxk/pl20b004-03.png", "https://i.postimg.cc/FKYqzNkn/pl20b004-04.png"] },
+                "Challenge1": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/jjD92tn8/pl20b006-01.png", "https://i.postimg.cc/N0KVFB2D/pl20b006-02.png"] },
+                "Nervous": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/FKYqzNkg/pl20b008-00.png", "https://i.postimg.cc/LsJ752gz/pl20b008-01.png", "https://i.postimg.cc/DzSD0n41/pl20b008-02.png", "https://i.postimg.cc/mgXJTtkd/pl20b008-03.png", "https://i.postimg.cc/6pjgByq0/pl20b008-04.png", "https://i.postimg.cc/jSgmRL2P/pl20b008-05.png", "https://i.postimg.cc/XYHmnpq5/pl20b008-06.png", "https://i.postimg.cc/HkZRTVn8/pl20b008-07.png"] },
+                "Whip Stance": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/13C2yfXg/pl20b00a-00.png", "https://i.postimg.cc/zGt6qVvf/pl20b00a-01.png", "https://i.postimg.cc/2ScMCVyj/pl20b00a-02.png"] },
+                "Angry": { type: "once_hold", frameDelays: [120, 120, 120, 120, 120, 0], frames: ["https://i.postimg.cc/y8Qt7kxV/pl20b00c-00.png", "https://i.postimg.cc/52NDcw4Y/pl20b00c-01.png", "https://i.postimg.cc/cL4PqQx1/pl20b00c-02.png", "https://i.postimg.cc/MpKgky6q/pl20b00c-03.png", "https://i.postimg.cc/8zPx8hpV/pl20b00c-04.png", "https://i.postimg.cc/x1TBrKfr/pl20b00c-05.png"] },
+                "Challenge2": { type: "once_hold", frameDelays: [120, 120, 120, 0], frames: ["https://i.postimg.cc/3JZzbLHs/pl20b00e-03.png", "https://i.postimg.cc/VLF2H78P/pl20b00e-02.png", "https://i.postimg.cc/nhcN8vHW/pl20b00e-01.png", "https://i.postimg.cc/kgXLrxnL/pl20b00e-00.png"] },
+                "Bowing": { type: "once_hold", frameDelays: [140, 140, 140, 140, 140, 0], frames: ["https://i.postimg.cc/28xgXHfP/pl20b00f-00.png", "https://i.postimg.cc/65hF1HNg/pl20b00f-01.png", "https://i.postimg.cc/L6VG0yMQ/pl20b00f-02.png", "https://i.postimg.cc/15KbYWZJ/pl20b00f-03.png", "https://i.postimg.cc/wTknbWdk/pl20b00f-04.png", "https://i.postimg.cc/vHvCSPdt/pl20b00f-05.png"] },
+                "Damage": { type: "once_hold", frameDelays: [100, 100, 100, 100, 100, 100, 100, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/vHvCSPdr/pl20b010-00.png", "https://i.postimg.cc/zXk4Pd1g/pl20b010-01.png", "https://i.postimg.cc/tCbL5K8z/pl20b010-02.png", "https://i.postimg.cc/NftW43Z8/pl20b010-03.png", "https://i.postimg.cc/NftW43ZX/pl20b010-04.png", "https://i.postimg.cc/PrHB4g0p/pl20b010-05.png", "https://i.postimg.cc/Yq7J35Tj/pl20b010-06.png", "https://i.postimg.cc/N0ZnrS1v/pl20b002-00.png"] },
+                "Recover": { type: "once_reset", frameDelays: [150, 150, 0], frames: ["https://i.postimg.cc/MKwhDCgp/pl20b011-00.png", "https://i.postimg.cc/65KD0kFB/pl20b011-01.png", "https://i.postimg.cc/xTQWRwBY/pl20b011-02.png"] }
+            },
+            // 10. 狩魔冥 · 日常正面篇
+            "冥_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/dtFzBbgY/pl20b013-00.png", "https://i.postimg.cc/jqPpyx3d/pl20b013-01.png", "https://i.postimg.cc/kMK0WJYJ/pl20b013-02.png"] },
+                "Pointing": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/ZYpG6b7G/pl20b015-00.png", "https://i.postimg.cc/PfYg1X3c/pl20b015-01.png", "https://i.postimg.cc/PJW0Hyvv/pl20b015-02.png"] },
+                "Condescending": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/5yBDJgQj/pl20b017-00.png", "https://i.postimg.cc/QCQvDmKd/pl20b017-01.png", "https://i.postimg.cc/Fzywvpks/pl20b017-02.png"] },
+                "Crying": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/6qrFKc2g/pl20b01a-00.png", "https://i.postimg.cc/3N5zzVR6/pl20b01a-01.png", "https://i.postimg.cc/MH2ggNTg/pl20b01a-02.png"] },
+                "Angry": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/0jRhhFQZ/pl20b01c-00.png", "https://i.postimg.cc/tJQ88wTw/pl20b01c-01.png", "https://i.postimg.cc/LXZrC2H1/pl20b01c-02.png"] }
+            },
+            // 11. 牙琉响也 · 法庭对峙篇 (侧身)
+            "响也_法庭": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["填入pl40210图1链接", "填入pl40210图2链接"] },
+                "Scornful Laugh": { type: "loop", frameDelay: 280, frames: ["填入pl40211图1链接", "填入pl40211图2链接"] },
+                "Smiling": { type: "loop", frameDelay: 300, frames: ["填入pl40212图1链接", "填入pl40212图2链接"] },
+                "Thinking": { type: "loop", frameDelay: 300, frames: ["填入pl40213图1链接", "填入pl40213图2链接"] },
+                "Spent": { type: "loop", frameDelay: 300, frames: ["填入pl40214图1链接", "填入pl40214图2链接"] },
+                "Damage": { type: "loop", frameDelay: 100, frames: ["填入pl40215图1链接", "填入pl40215图2链接"] },
+                "Pointing": { type: "loop", frameDelay: 300, frames: ["填入pl40216图1链接", "填入pl40216图2链接"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 240, frames: ["填入pl40218图1链接", "填入pl40218图2链接"] },
+                // 重点：Slam_Start (219) 是不循环的，跑完后自动触发 Slam_Loop (21a) 的无限循环
+                "Slam_Start": { type: "chain", nextAnim: "Slam_Loop", frameDelays: [120, 120, 120], frames: ["填入pl40219图1链接", "填入pl40219图2链接", "填入pl40219图3链接"] },
+                "Slam_Loop": { type: "loop", frameDelay: 280, frames: ["填入pl4021a图1链接", "填入pl4021a图2链接"] }
+            },
+            // 12. 牙琉响也 · 日常正面篇
+            "响也_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["填入pl40200图1链接", "填入pl40200图2链接"] },
+                "Serious": { type: "loop", frameDelay: 300, frames: ["填入pl40201图1链接", "填入pl40201图2链接"] },
+                "Smiling": { type: "loop", frameDelay: 300, frames: ["填入pl40202图1链接", "填入pl40202图2链接"] },
+                "Posing": { type: "loop", frameDelay: 300, frames: ["填入pl40203图1链接", "填入pl40203图2链接"] }
+            }
+        };
+
+        // 预加载全部立绘帧，避免网速慢时漏帧
+        Object.values(CHARACTER_ANIMATION_REGISTRY).forEach(c => Object.values(c).forEach(a => (a && a.frames || []).forEach(u => { new Image().src = u; })));
+
+        class UniversalAnimator {
+            constructor(imgElementId) {
+                this.imgEl = document.getElementById(imgElementId);
+                this.timer = null;
+                this.blinkTimeout = null;
+                this.lastKey = null;
+                this.token = 0; // 每次切换角色/动作就自增，旧动画的所有延时回调都会作废
+            }
+            stop() {
+                this.token++;
+                if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+                if (this.blinkTimeout) { clearTimeout(this.blinkTimeout); this.blinkTimeout = null; }
+            }
+            // 带令牌的延时：令牌变了就不再执行，防止上一个角色的帧覆盖当前角色
+            later(fn, ms, tk) {
+                return setTimeout(() => { if (tk === this.token) fn(); }, ms);
+            }
+            playFromRegistry(characterKey, animKey) {
+                const charObj = CHARACTER_ANIMATION_REGISTRY[characterKey];
+                if (!charObj) return;
+
+                this.imgEl.style.transform = `scale(${charObj.scale || 1.0})`;
+
+                const anim = charObj[animKey] || charObj["Normal"] || charObj["Smiling"] || Object.values(charObj).find(v => typeof v === 'object' && v.frames);
+                if (!anim || !anim.frames || !anim.frames.length) return;
+
+                // 喝咖啡必须接在端咖啡后面：如果上一个动作不是端咖啡，先端起来，再喝
+                if (characterKey === "成步堂_法庭" && animKey === "Drinking Coffee" &&
+                    this.lastKey !== "成步堂_法庭/Holding Coffee" && this.lastKey !== "成步堂_法庭/Drinking Coffee") {
+                    this.playFromRegistry(characterKey, "Holding Coffee");
+                    this.later(() => this.playFromRegistry(characterKey, "Drinking Coffee"), 1200, this.token);
+                    return;
+                }
+                this.lastKey = characterKey + "/" + animKey;
+
+                this.stop();
+                const tk = this.token;
+                let curFrame = 0;
+                this.imgEl.src = anim.frames[0];
+
+                const isCourt = gameState.currentLocation.includes('法庭');
+                if (anim.voice && isCourt) new Audio(anim.voice).play().catch(() => {});
+                if (anim.sfx && isCourt) new Audio(anim.sfx).play().catch(() => {});
+                if (anim.shake && isCourt) {
+                    const stage = document.getElementById('game-stage');
+                    stage.classList.remove('shake-screen');
+                    void stage.offsetWidth;
+                    stage.classList.add('shake-screen');
+                }
+
+                if (anim.type === 'static' || anim.frames.length === 1) return;
+
+                if (anim.type === 'blink') {
+                    const two = anim.frames.length === 2;
+                    const runBlink = () => {
+                        const wait = 2400 + Math.random() * 2000;
+                        this.blinkTimeout = this.later(() => {
+                            if (two) {
+                                this.imgEl.src = anim.frames[1];
+                                this.later(() => { this.imgEl.src = anim.frames[0]; runBlink(); }, 120, tk);
+                                return;
+                            }
+                            this.imgEl.src = anim.frames[1];
+                            this.later(() => {
+                                this.imgEl.src = anim.frames[2];
+                                this.later(() => {
+                                    this.imgEl.src = anim.frames[1];
+                                    this.later(() => {
+                                        this.imgEl.src = anim.frames[0];
+                                        runBlink();
+                                    }, 70, tk);
+                                }, 100, tk);
+                            }, 70, tk);
+                        }, wait, tk);
+                    };
+                    runBlink();
+                    return;
+                }
+
+                if (anim.type === 'loop') {
+                    const stepLoop = () => {
+                        let delay = anim.frameDelay || 280;
+                        if (curFrame === 0) delay += 200;
+
+                        this.timer = this.later(() => {
+                            curFrame = (curFrame + 1) % anim.frames.length;
+                            this.imgEl.src = anim.frames[curFrame];
+                            stepLoop();
+                        }, delay * LOOP_SPEED, tk);
+                    };
+                    stepLoop();
+                    return;
+                }
+
+                if (anim.type === 'once_reset') {
+                    const stepReset = () => {
+                        const delay = anim.frameDelays ? anim.frameDelays[curFrame] : 140;
+                        if (curFrame >= anim.frames.length - 1 || delay === 0) {
+                            this.later(() => { this.imgEl.src = anim.frames[0]; }, 350, tk);
+                            return;
+                        }
+                        this.timer = this.later(() => {
+                            curFrame++;
+                            this.imgEl.src = anim.frames[curFrame];
+                            stepReset();
+                        }, delay, tk);
+                    };
+                    stepReset();
+                    return;
+                }
+
+                if (anim.type === 'once_hold') {
+                    const stepHold = () => {
+                        const delay = anim.frameDelays ? anim.frameDelays[curFrame] : 130;
+                        if (curFrame >= anim.frames.length - 1 || delay === 0) {
+                            this.imgEl.src = anim.frames[anim.frames.length - 1];
+                            return;
+                        }
+                        this.timer = this.later(() => {
+                            curFrame++;
+                            this.imgEl.src = anim.frames[curFrame];
+                            stepHold();
+                        }, delay, tk);
+                    };
+                    stepHold();
+                    return;
+                }
+
+                if (anim.type === 'chain') {
+                    const stepChain = () => {
+                        const delay = (anim.frameDelays && anim.frameDelays[curFrame]) ? anim.frameDelays[curFrame] : 140;
+                        if (curFrame >= anim.frames.length - 1) {
+                            // 跑完最后一张后，自动切入 nextAnim (比如跑完219切入21a)
+                            this.later(() => { this.playFromRegistry(characterKey, anim.nextAnim); }, delay, tk);
+                            return;
+                        }
+                        this.timer = this.later(() => {
+                            curFrame++;
+                            this.imgEl.src = anim.frames[curFrame];
+                            stepChain();
+                        }, delay, tk);
+                    };
+                    stepChain();
+                    return;
+                }
+
+                if (anim.type === 'drink_flow') {
+                    const stepDrink = () => {
+                        const delay = anim.frameDelays[curFrame] || 260;
+                        if (curFrame >= anim.frames.length - 1) {
+                            this.later(() => { this.playFromRegistry("成步堂_法庭", "Holding Coffee"); }, 300, tk);
+                            return;
+                        }
+                        this.timer = this.later(() => {
+                            curFrame++;
+                            this.imgEl.src = anim.frames[curFrame];
+                            stepDrink();
+                        }, delay, tk);
+                    };
+                    stepDrink();
+                }
+            }
+        }
+        const animator = new UniversalAnimator('actor-sprite');
+
+        // ================= 2. 真实高清背景字典 =================
+        const SCENE_GROUPS = [
+            { title: "事务所·办公室", scenes: [
+                ["成步堂法律事务所", "https://i.postimg.cc/T1p1ZpPB/bg1001-(Wright-Co-Law-Offices).png"],
+                ["星影法律事务所", "https://i.postimg.cc/YCc0s2Bm/bg1027-(Grossberg-Law-Offices).png"],
+                ["哀牙侦探事务所", "https://i.postimg.cc/RhH97fhM/bg3202-(Atmey-Detective-Agency).png"],
+                ["小中文化社·社长办公室", "https://i.postimg.cc/TPJKbzSD/bg101f(j)-(Bluecorp-Inc-CEO-s-Office).png"],
+                ["KB警备公司·社长办公室", "https://i.postimg.cc/ry0tnPRh/bg3204(st)-(KB-Security-CEO-s-Office).png"],
+                ["KB警备公司·警卫室", "https://i.postimg.cc/FFdJWBJ9/bg3205(st)-(KB-Security-Security-Gaurd-Office).png"],
+            ] },
+            { title: "法庭", scenes: [
+                ["法庭·辩护席", "https://i.postimg.cc/Y0Z0kM45/bg1003-(Defense).png"],
+                ["法庭·检察席", "https://i.postimg.cc/MHNHxqMx/bg1004-(Prosecution).png"],
+                ["法庭·证人席", "https://i.postimg.cc/1X2XPsns/bg1005-(Witness).png"],
+                ["法庭·全景", "https://i.postimg.cc/gjQjdmXk/bg1006-(Courtroom).png"],
+                ["法庭·助手席", "https://i.postimg.cc/kMpBWFjT/bg1007-(Legal-Aide).png"],
+                ["法庭·审判长席", "https://i.postimg.cc/gcTn3qM4/bg1008-(Judge).png"],
+                ["地方法院·被告人休息室", "https://i.postimg.cc/C5X5YSZ2/bg1002-(Defendant-Lobby).png"],
+            ] },
+            { title: "拘留所·监狱", scenes: [
+                ["拘留所·看守所会见室", "https://i.postimg.cc/QMJF72PF/bg101e-(Detention-Center-Visitor-s-Room).png"],
+                ["中央监狱·单人牢房13号", "https://i.postimg.cc/tC8nGtW3/bg0012-(Central-Prison-Solitary-Cell-13)-(Nail-Polish).png"],
+            ] },
+            { title: "警察署·检察厅", scenes: [
+                ["警察署·入口", "https://i.postimg.cc/Bnxb9Wqv/bg1072(s)-(Police-Department-Entrance).png"],
+                ["警察署·刑事课", "https://i.postimg.cc/FRP1WjhN/bg104f(s)-(Police-Department-Criminal-Affairs).png"],
+                ["警察署·档案室", "https://i.postimg.cc/W1MzLRsY/bg1050-(Police-Department-Records-Room).png"],
+                ["警察署·署长办公室", "https://i.postimg.cc/Dz6z0qJ5/bg1075-(Police-Department-Chief-s-Office).png"],
+                ["警察署·证物室第三区", "https://i.postimg.cc/W341kh0R/bg1076(s)-(Evidence-Room-Sector-Three).png"],
+                ["警察署·证物室警卫站", "https://i.postimg.cc/j5jS7Lyt/bg1077-(Evidence-Room-Entrance-Guard-Station).png"],
+                ["地方检察厅·1202室检事局", "https://i.postimg.cc/d0w1JW13/bg1073-(High-Prosecutor-s-Office-Room-1202).png"],
+            ] },
+            { title: "仓院之里", scenes: [
+                ["仓院之里·村庄", "https://i.postimg.cc/RFbVQ4TN/bg2200(s)-(Kurain-Village).png"],
+                ["仓院之里·本堂", "https://i.postimg.cc/rs0yf3h1/bg2201(s)-(Fey-Manor-Meditation-Room).png"],
+                ["仓院之里·降灵之间", "https://i.postimg.cc/L5c9wDw8/bg2202-(Fey-Manor-Channeling-Chamber).png"],
+                ["仓院之里·回廊", "https://i.postimg.cc/nryFg2gf/bg2204-(Fey-Manor-Winding-Way).png"],
+                ["仓院之里·偏厅", "https://i.postimg.cc/xjh1XjCt/bg2205-(Fey-Manor-Side-Room).png"],
+            ] },
+            { title: "英都摄影所", scenes: [
+                ["英都摄影所·正门", "https://i.postimg.cc/rFRzj03w/bg1019-(Global-Studios-Main-Gate).png"],
+                ["摄影所·第一摄影棚入口", "https://i.postimg.cc/FswkXg3R/bg100b(s)-(Studio-One-Entrance).png"],
+                ["摄影所·第一摄影棚", "https://i.postimg.cc/MGScv6sM/bg101a-(Studio-One).png"],
+                ["摄影所·第二摄影棚拖车", "https://i.postimg.cc/CMQzbHPw/bg1013(s)-(Studio-Two-Trailer).png"],
+                ["摄影所·员工区域", "https://i.postimg.cc/VN8Sdf7k/bg100c(s)-(Employee-Area).png"],
+                ["摄影所·化妆室", "https://i.postimg.cc/DfM81dj2/bg1018(s)-(Global-Studios-Dressing-Room).png"],
+            ] },
+            { title: "葫芦湖公园", scenes: [
+                ["葫芦湖公园·入口", "https://i.postimg.cc/jSV2FqYv/bg1046(s)-(Gourd-Lake-Park-Entrance).png"],
+                ["葫芦湖公园·湖滨沙滩", "https://i.postimg.cc/x1K8Dr9P/bg1048(s)-(Gourd-Lake-Public-Beach).png"],
+                ["葫芦湖公园·租船屋", "https://i.postimg.cc/Px6N3mdp/bg104d(s)-(Boat-Rental-Shop).png"],
+                ["葫芦湖公园·管理员小屋", "https://i.postimg.cc/MTsXPyzv/bg104e(s)-(Caretaker-s-Shack).png"],
+            ] },
+            { title: "立见大马戏团", scenes: [
+                ["立见大马戏团·入口", "https://i.postimg.cc/hPmPTFQb/bg2303(s)-(Berry-Big-Circus-Circus-Entrance).png"],
+                ["立见大马戏团·主帐篷", "https://i.postimg.cc/wxZj1xMT/bg2300(s)-(Berry-Big-Circus-Big-Top).png"],
+                ["立见大马戏团·食堂", "https://i.postimg.cc/hPmPTFQD/bg2301(s)-(Big-Top-Cafeteria).png"],
+                ["立见大马戏团·团长室", "https://i.postimg.cc/J4X4ZwHk/bg2302(s)-(Big-Top-Ringmaster-s-Room).png"],
+                ["立见大马戏团·未命名场景", "https://i.postimg.cc/QdrNq6cY/bg2304(s).png"],
+                ["宿舍·广场", "https://i.postimg.cc/htbDZ90H/bg2305-(Lodging-House-Plaza).png"],
+                ["宿舍·托米的房间", "https://i.postimg.cc/52q4Kwmh/bg2306(s)-(Lodging-Hall-1st-Floor-Moe-s-Room).png"],
+            ] },
+            { title: "酒店·宅邸", scenes: [
+                ["板东酒店·大堂", "https://i.postimg.cc/q7JkPzb2/bg2405(s)-(Gatewater-Hotel-Hotel-Lobby).png"],
+                ["板东酒店·走廊", "https://i.postimg.cc/RZQSpcRZ/bg2401(s)-(Gatewater-Hotel-Hallway).png"],
+                ["板东酒店·303号房", "https://i.postimg.cc/02KrnMFK/bg1020-(Gatewater-Hotel-Room-303).png"],
+                ["王都楼宅邸·客厅", "https://i.postimg.cc/ydW7N2z6/bg2406-(Engarde-Mansion-Living-Room).png"],
+                ["王都楼宅邸·私人休息室", "https://i.postimg.cc/bJdqv4fW/bg2407-(Engarde-Mansion-Private-Lounge).png"],
+                ["王都楼宅邸·酒窖", "https://i.postimg.cc/wv39BnYn/bg2408(j)-(Engarde-Mansion-Wine-Cellar).png"],
+            ] },
+            { title: "高菱屋·其他", scenes: [
+                ["高菱屋·展厅", "https://i.postimg.cc/QtPhKSXW/bg3200(s)-(Lordly-Tailor-Main-Exibit-Hall).png"],
+                ["高菱屋·地下仓库", "https://i.postimg.cc/VvC1qM64/bg3201(s)-(Lordly-Tailor-Basement-Warehouse).png"],
+                ["假面怪盗·藏身处", "https://i.postimg.cc/RqxmXFJ0/bg3203-(Mask-De-Masque-s-Hideout).png"],
+            ] },
+            { title: "叶樱院", scenes: [
+                ["叶樱院·正门", "https://i.postimg.cc/Sxq2KQ1R/bg3500(j)-(Hazakura-Temple-Main-Gate).png"],
+                ["叶樱院·中庭", "https://i.postimg.cc/zGjLHm4L/bg3501-(Hazakura-Temple-Courtyard).png"],
+                ["叶樱院·本殿", "https://i.postimg.cc/qvLt6fWj/bg3502-(Hazakura-Temple-Main-Hall).png"],
+                ["叶樱院·内院山门", "https://i.postimg.cc/JnytFs0v/bg3507(s)-(Inner-Temple-Gate).png"],
+                ["叶樱院·内院修行堂", "https://i.postimg.cc/NMWLvQ2N/bg3509-(Inner-Temple-Training-Hall).png"],
+                ["叶樱院·内院庭园", "https://i.postimg.cc/zBd3tnqw/bg350a(st)-(Inner-Temple-Garden).png"],
+                ["叶樱院·天上殿", "https://i.postimg.cc/hGZfMLDx/bg3506(s)-(Heavenly-Hall).png"],
+                ["叶樱院·黄昏桥(一)", "https://i.postimg.cc/yN8DFQzG/bg3503(s)-(Dusky-Bridge).png"],
+                ["叶樱院·黄昏桥(二)", "https://i.postimg.cc/0NyzpWsP/bg3504(s)-(Dusky-Bridge).png"],
+                ["叶樱院·黄昏桥(三)", "https://i.postimg.cc/7LtfX3Hx/bg3505(s)-(Dusky-Bridge).png"],
+                ["叶樱院·黄昏桥地图", "https://i.postimg.cc/cCrCVrJ9/bg350f(s)-(Dusky-Bridge-Map).png"],
+                ["叶樱院·未命名场景", "https://i.postimg.cc/yxkxwkNL/bg350b(j).png"],
+            ] },
+            { title: "城市·其他", scenes: [
+                ["车站", "https://i.postimg.cc/Dwq0kV2h/bg1055-(Station).png"],
+                ["吐丽美庵 法式餐厅", "https://i.postimg.cc/59hQZSwg/bg3300(s)-(Tres-Bien).png"],
+                ["维他命广场", "https://i.postimg.cc/ncq9Z9ky/bg3302(s)-(Vitamin-Square).png"],
+                ["卡里尤借贷金融", "https://i.postimg.cc/Sxq2KQ12/bg3304(s)-(Tender-Lender).png"],
+                ["阳光竞技场", "https://i.postimg.cc/dtgZcmrV/bg0027(us)-(Sunshine-Coliseum).png"],
+                ["波鲁哈吉 罗宋汤俱乐部", "https://i.postimg.cc/qMN6FZhN/bg0035-(Borscht-Bowl-Club).png"],
+                ["宇狩外科医院", "https://i.postimg.cc/ryntQLp7/bg000a-(Hickfield-Clinic).png"],
+                ["堀田诊所·接待处", "https://i.postimg.cc/DfHwSfZM/bg2207(s)-(Hotti-Clinic-Reception).png"],
+            ] },
+        ];
+        // 自动由上面的分组生成：名字 -> 背景图。新增场景只改 SCENE_GROUPS 即可
+        const locationBgMap = {};
+        SCENE_GROUPS.forEach(g => g.scenes.forEach(([n, u]) => { locationBgMap[n] = u; }));
+
+        // 自动生成【设定→大地图】里的全部场景按钮（不用再手写按钮了）
+        function renderLocationButtons() {
+            const box = document.getElementById('location-grid');
+            if (!box) return;
+            box.innerHTML = '';
+            SCENE_GROUPS.forEach(g => {
+                
+                const h = document.createElement('div');
+                h.style.cssText = 'font-size:12px;color:#ff9900;font-weight:bold;margin:8px 0 4px;';
+                h.textContent = g.title;
+                box.appendChild(h);
+                const grid = document.createElement('div');
+                grid.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:6px;';
+                g.scenes.forEach(([name]) => {
+                    const b = document.createElement('button');
+                    b.className = 'btn-sub';
+                    b.textContent = name;
+                    b.onclick = () => changeLocation(name);
+                    grid.appendChild(b);
+                });
+                box.appendChild(grid);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', renderLocationButtons);
+
+        // ================= 3. 游戏核心全局状态 =================
+        let isAILoading = false; // AI 思考回复锁
+        let historyLog = [];    // 剧情回放库
+
+        let gameState = {
+            profile: { name: "", age: 21, role: "辩护律师", setting: "", avatar: "" },
+            mode: "daily",
+            currentLocation: "成步堂法律事务所",
+            evidence: [],
+            profiles: [],
+            affinities: {},
+            phoneContacts: []
+        };
+
+        const careerConfigs = {
+            "辩护律师": {
+                location: "成步堂法律事务所",
+                evidence: [
+                    { name: "律师徽章", desc: "证明辩护律师身份的权威徽章。\n背面刻有专属注册编号。\n经常在搜查时忍不住出示给所有人看。", icon: "https://i.postimg.cc/mk43WvqT/it40000-(Attorney-s-Badge).png" },
+                    { name: "看破手镯", desc: "由特定金属打造的神奇手镯。\n感知到证人说谎动摇时会剧烈收紧，\n借此看破对方不易察觉的微表情动作。", icon: "https://i.postimg.cc/NMm8VsNY/it4005c-(Dummy)-(Bracelet).png" }
+                ],
+                affinities: {
+                    "成步堂 龙一": { score: 65, level: "所长导师", avatar: "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png" },
+                    "绫里 真宵": { score: 75, level: "元气副所长", avatar: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
+                    "绫里 千寻": { score: 80, level: "所长前辈", avatar: "https://i.postimg.cc/bJCVyNxY/itc1012-(Mia-Fey).png" }
+                },
+                phoneContacts: ["成步堂 龙一", "绫里 真宵", "绫里 千寻"],
+                initialDailyScript: [
+                    "[发言] 成步堂 龙一(微笑): 事务所的实习合同已经替你办妥了，咖啡机里刚煮了蓝山，随意点吧。",
+                    "[发言] 绫里 千寻(微笑): 欢迎你加入事务所！不论遇到多么棘手的证词，只要从反方向思考，就一定能找到逆转的契机。",
+                    "[发言] 绫里 真宵(开心): 太好了！今天事务所还没接到委托，午餐我们可以点大份味噌拉面吗？",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。你可以点击左下角[💬 发言]与成步堂、千寻、真宵闲聊，或在[设定]中主动触发案件！"
+                ]
+            },
+            "检事": {
+                location: "地方检察厅·1202室检事局",
+                evidence: [
+                    { name: "检察官徽章", desc: "地方检察厅检事佩戴的徽章。\n象征着严密无缺的法律威严与绝对公诉权。", icon: "https://i.postimg.cc/Gt6MD7S3/itm00-000-00-(Prosecutor-s-Badge).png" },
+                    { name: "狩魔之鞭", desc: "特制皮鞭。\n象征着不容置疑的庭审掌控力与对迟钝者的惩戒。", icon: "https://i.postimg.cc/cJrPvbmb/itc2066-(Whip).png" }
+                ],
+                affinities: {
+                    "御剑 怜侍": { score: 40, level: "严谨首席", avatar: "https://i.postimg.cc/fLTgQ00H/itc101e-(Miles-Edgeworth).png" }
+                },
+                phoneContacts: ["御剑 怜侍"],
+                initialDailyScript: [
+                    "[发言] 御剑 怜侍(待机): 如果你想问今天的情况……托系锯刑警那份错漏百出的报告的福，我今晚大概又得靠特调红茶撑通宵了。",
+                    "[发言] 御剑 怜侍(思考): 检方的职责是追求无懈可击的真实，在没有凶案开庭的午后，仔细审阅法典与证据法才是检事的基本功。",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。这里是检察厅1202室办公室！可点击[💬 发言]与御剑交流判例，或在[设定]中接手重案！"
+                ]
+            },
+            "刑警": {
+                location: "警察署·刑事课",
+                evidence: [
+                    { name: "铝粉指纹套组", desc: "科学搜查器材。\n涂抹于案发现场平面，能清晰拓印潜伏指纹。", icon: "https://i.postimg.cc/W4hxdHnY/it4001c-(Fingerprint-Powder).png" },
+                    { name: "鲁米诺试剂", desc: "微量血迹显色试剂。\n喷洒在已被擦拭的地面，暗处激发出幽蓝荧光。", icon: "https://i.postimg.cc/QMHvFyb4/it40065-(Dummy)-(Luminol).png" }
+                ],
+                affinities: {
+                    "系锯 圭介": { score: 80, level: "热血课长搭档", avatar: "https://i.postimg.cc/3xvstpg9/cast001-00-(Dick-Gumshoe).png" },
+                    "宝月 茜": { score: 65, level: "科学搜查指导", avatar: "https://i.postimg.cc/HL1fRxzg/cast003-00-(Ema-Skye).png" }
+                },
+                phoneContacts: ["系锯 圭介", "宝月 茜"],
+                initialDailyScript: [
+                    "[发言] 系锯 圭介(叉腰大笑): 哟！新搭档，今天刑事课难得没有命案初动警报，真是太和平了汪！",
+                    "[发言] 宝月 茜(嚼江米棒): 趁着没有凶杀案，先把试剂箱里的鲁米诺试剂和指纹铝粉盘点一遍吧。",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。点击[💬 发言]可与搭档闲聊巡查日常，或在[设定]中接收紧急报案！"
+                ]
+            },
+            "灵媒师": {
+                location: "仓院之里·本堂",
+                evidence: [
+                    { name: "仓院流勾玉", desc: "蕴含强大精神力的古老勾玉。\n感知到对方隐瞒真相时，能够具象化显现出紧锁的心灵之锁（Psychic Lock）。", icon: "https://i.postimg.cc/wB7n1GVW/it201c-(Maya-s-Magatama).png" }
+                ],
+                affinities: {
+                    "绫里 真宵": { score: 85, level: "仓院同胞掌门", avatar: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
+                    "绫里 春美": { score: 80, level: "乖巧小表妹", avatar: "https://i.postimg.cc/TYZS5wZw/it201f-(Pearl-Fey).png" }
+                },
+                phoneContacts: ["绫里 真宵", "绫里 春美"],
+                initialDailyScript: [
+                    "[发言] 绫里 真宵(微笑): 今天的山间灵气真不错！擦拭完修行堂的灵玉后，我们去烤红薯怎么样？",
+                    "[发言] 绫里 春美(可爱拍手): 姐姐，春美刚把仓院流的修行古籍整理好了！",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。这里是仓院之里本堂！平时可以静心修行，遇到事件时再大显身手！"
+                ]
+            }
+        };
+
+        const fullRosterProfiles = [
+            { name: "成步堂 龙一 (经典)", desc: "成步堂法律事务所所长。\n逆转奇迹的缔造者，无论陷入怎样的绝境，都坚信委托人的清白。", icon: "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png" },
+            { name: "成步堂 龙一 (33岁)", desc: "沉稳内敛的前辩护律师。\n戴顶浅蓝针织帽，在俄罗斯餐馆弹钢琴度日，底细深不可测。", icon: "https://i.postimg.cc/yxGGPYxL/face40001-(Phoenix-Wright).png" },
+            { name: "成步堂 龙一 (大学)", desc: "勇盟大学艺术系学生。\n身穿粉色爱心毛衣，曾卷入感冒药投毒案。", icon: "https://i.postimg.cc/N0tzbnGK/it3008-(Phoenix-Wright).png" },
+            { name: "御剑 怜侍", desc: "地方检察厅首席检事。\n成步堂的宿敌与挚友，执着于还原纯粹的真相，严谨而高傲。", icon: "https://i.postimg.cc/fLTgQ00H/itc101e-(Miles-Edgeworth).png" },
+            { name: "绫里 千寻", desc: "成步堂的恩师，正义感极强的优秀辩护律师。\n成步堂事务所的精神支柱。", icon: "https://i.postimg.cc/bJCVyNxY/itc1012-(Mia-Fey).png" },
+            { name: "绫里 真宵", desc: "仓院流灵媒道掌门继承人。\n成步堂的得力副所长，极度热爱大江户战士与味噌拉面。", icon: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
+            { name: "绫里 春美", desc: "真宵的表妹，仓院分家之女。\n虽然年纪尚幼，却拥有超越常人的深厚灵力。", icon: "https://i.postimg.cc/TYZS5wZw/it201f-(Pearl-Fey).png" },
+            { name: "系锯 圭介", desc: "管辖警察署刑事课刑警。\n负责命案初动搜查，薪水经常面临被御剑削减的危机汪！", icon: "https://i.postimg.cc/3xvstpg9/cast001-00-(Dick-Gumshoe).png" },
+            { name: "宝月 茜 (科学搜查官)", desc: "对科学搜查充满狂热的刑警。\n精通鲁米诺试剂、铝粉指纹提取与微量足迹比对。", icon: "https://i.postimg.cc/HL1fRxzg/cast003-00-(Ema-Skye).png" },
+            { name: "宝月 茜 (幼年)", desc: "高中时代的宝月茜。\n一心梦想成为科学搜查官，曾向成步堂求助解开姐姐的悬案。", icon: "https://i.postimg.cc/Z5pQ8mSs/it1077-(Ema-Skye).png" },
+            { name: "成步堂 美贯 (幼年)", desc: "幼年时期的美贯。\n魔术师或真敷扎克的亲生女儿，性格乐观坚韧。", icon: "https://i.postimg.cc/zD245p7s/face40017-(Trucy-Enigmar).png" },
+            { name: "绘濑 真琴 (幼年)", desc: "幼年时期的真琴。\n极具临摹绘画天赋的女孩，性格内向孤僻。", icon: "https://i.postimg.cc/rFd3pWZZ/face40020-(Vera-Misham).png" },
+            { name: "一条 美云 (幼年)", desc: "幼年时期的一条美云。\n八咫乌之女，纯真活泼，深信父亲的义贼之道。", icon: "https://i.postimg.cc/yxDQk4jQ/item3024-(Kay-Faraday).png" },
+            { name: "狩魔 冥 (幼年)", desc: "幼年时期的狩魔冥。\n在严苛家规下成长，虽身材娇小，却早已显露锋芒与好胜心。", icon: "https://i.postimg.cc/nrXRCb2w/item3026-(Franziska-von-Karma).png" },
+            { name: "狩魔 冥 (检事)", desc: "天才检察官。\n法庭风格极其好胜，手中皮鞭从不留情，视对手为没用的笨蛋。", icon: "https://i.postimg.cc/W4cQC3nY/cast004-00-(Franziska-von-Karma).png" },
+            { name: "牙琉 响也 (17岁)", desc: "初出茅庐的17岁天才检事。\n摇滚乐队主唱，法庭风格华丽清爽。", icon: "https://i.postimg.cc/sfHbyKKC/face40018-(Klavier-Gavin).png" },
+            { name: "牙琉 响也 (检事)", desc: "摇滚乐队主唱兼高位检察官。\n在指控与辩护中追求真正的乐章。", icon: "https://i.postimg.cc/vTKKzHDZ/face40007-(Klavier-Gavin).png" },
+            { name: "牙琉 雾人", desc: "法律界著名辩护律师。\n举止温文尔雅，是王泥喜曾经尊敬的导师。", icon: "https://i.postimg.cc/gj77DkjN/face40000-(Kristoph-Gavin).png" },
+            { name: "王泥喜 法介", desc: "新人辩护律师。\n头顶两根标志性呆毛，嗓门极大，持有看破手镯。", icon: "https://i.postimg.cc/7YCdL7tj/face40026-(Apollo-Justice).png" },
+            { name: "一条 美云 (怪盗)", desc: "自称义贼『八咫乌』的继承者。\n随身携带模拟案发现场的秘密道具『盗乐宝』。", icon: "https://i.postimg.cc/KYhdwzfy/cast002-00-(Kay-Faraday).png" },
+            { name: "狼 士龙", desc: "西凤民国精英搜查官。\n对检察官制度抱有强烈不信任感，行动力惊人。", icon: "https://i.postimg.cc/R01jBBpT/cast100-00-(Shi-Long-Lang).png" },
+            { name: "信乐 盾之", desc: "御剑信当年的助手，现任事务所所长。\n看似玩世不恭，实则洞察秋毫。", icon: "https://i.postimg.cc/nzHNVPN0/cast104-00-(Raymond-Shields).png" },
+            { name: "一柳 弓彦", desc: "年轻的一柳检事，常将逻辑引向意想不到的方向。", icon: "https://i.postimg.cc/QtXvNyvq/cast103-00-(Sebastian-Debeste).png" },
+            { name: "裁判长", desc: "掌控法庭秩序的主审法官。\n容易受到双方辩论节奏影响，但秉承公正裁决。", icon: "https://i.postimg.cc/7h5sf89R/item3033-(The-Judge).png" }
+        ];
+
+        // ================= 4. 视图管理 =================
+        const viewHistory = ['view-title'];
+        function navigateTo(targetViewId) {
+            document.querySelectorAll('.ui-view').forEach(el => el.classList.remove('active'));
+            document.getElementById(targetViewId).classList.add('active');
+            viewHistory.push(targetViewId);
+            document.getElementById('game-status-bar').style.display = (targetViewId === 'view-game') ? 'flex' : 'none';
+        }
+        function navigateBack() {
+            if (viewHistory.length <= 1) return;
+            viewHistory.pop();
+            const prev = viewHistory[viewHistory.length - 1];
+            document.querySelectorAll('.ui-view').forEach(el => el.classList.remove('active'));
+            document.getElementById(prev).classList.add('active');
+            document.getElementById('game-status-bar').style.display = (prev === 'view-game') ? 'flex' : 'none';
+        }
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        let userAvatarBase64 = "";
+        function handleAvatarUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const r = new FileReader();
+            r.onload = (evt) => {
+                userAvatarBase64 = evt.target.result;
+                document.getElementById('avatar-preview').src = userAvatarBase64;
+                document.getElementById('avatar-preview').style.display = 'block';
+                document.getElementById('avatar-tip').style.display = 'none';
+            };
+            r.readAsDataURL(file);
+        }
+
+        function initCareerAndStartGame() {
+            const role = document.getElementById('char-role').value;
+            const cfg = careerConfigs[role];
+
+            gameState.profile.name = document.getElementById('char-name').value.trim() || "新人";
+            gameState.profile.age = document.getElementById('char-age').value || 21;
+            gameState.profile.role = role;
+            gameState.profile.setting = document.getElementById('char-setting').value.trim();
+            gameState.profile.avatar = userAvatarBase64 || "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png";
+            gameState.mode = "daily";
+            gameState.currentLocation = cfg.location;
+
+            gameState.evidence = JSON.parse(JSON.stringify(cfg.evidence));
+            gameState.affinities = JSON.parse(JSON.stringify(cfg.affinities));
+            gameState.phoneContacts = JSON.parse(JSON.stringify(cfg.phoneContacts));
+
+            gameState.profiles = [
+                { name: gameState.profile.name, desc: `【本案主角】身份：${role}。\n${gameState.profile.setting.slice(0, 50)}...`, icon: gameState.profile.avatar },
+                ...fullRosterProfiles
+            ];
+
+            historyLog = [];
+
+            changeLocation(cfg.location);
+            navigateTo('view-game');
+            updateStatusBar();
+
+            renderAffinityList();
+            renderPhoneList();
+            renderRecordAll();
+
+            loadDialogueQueue(cfg.initialDailyScript);
+        }
+
+        function updateStatusBar() {
+            document.getElementById('status-location').innerText = `📍 ${gameState.currentLocation}`;
+            const modeEl = document.getElementById('status-mode');
+            if (gameState.mode === 'daily') {
+                modeEl.innerText = "🍃 平淡日常模式";
+                modeEl.style.color = "#4ade80";
+                document.getElementById('pane-case-status').innerText = "🍃 平淡日常篇 (自由对话中)";
+            } else {
+                modeEl.innerText = "🚨 本格搜查模式";
+                modeEl.style.color = "#f87171";
+                document.getElementById('pane-case-status').innerText = "🚨 案件进行中 (现场搜查与取证)";
+            }
+        }
+
+        function changeLocation(locName) {
+            if (locName === '案发现场·高菱屋展厅') locName = '高菱屋·展厅';
+            gameState.currentLocation = locName;
+            const bgUrl = locationBgMap[locName] || locationBgMap["成步堂法律事务所"];
+            document.getElementById('game-stage').style.backgroundImage = `url('${bgUrl}')`;
+            updateStatusBar();
+            closeModal('settings-modal');
+        }
+
+        // ================= 5. 台词队列与大立绘登场调度 =================
+        let dialogueQueue = [];
+        let currentQueueIndex = 0;
+        let isAutoAdvance = false;
+        let autoAdvanceTimer = null;
+
+        function loadDialogueQueue(scriptArray) {
+            dialogueQueue = scriptArray;
+            currentQueueIndex = 0;
+            displayCurrentLine();
+        }
+
+        function displayCurrentLine() {
+            const viewport = document.getElementById('actor-viewport');
+
+            if (currentQueueIndex >= dialogueQueue.length) {
+                document.getElementById('speaker-name').innerText = "系统提示";
+                document.getElementById('dialogue-content').innerText = 
+                    (gameState.mode === 'daily')
+                    ? "【日常对话告一段落】\n点击左下角[💬 发言]继续闲聊，或在[设定]中主动触发突发案件！"
+                    : "【当前场景线索已收集】\n可点击[💬 发言]继续检证，或在[设定]中前往看守所会见嫌疑人！";
+                viewport.style.display = 'none';
+                return;
+            }
+
+            const rawLine = dialogueQueue[currentQueueIndex];
+            const match = rawLine.match(/\[发言\]\s*([^(（:：]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*(.*)/);
+
+            let speaker = "旁白";
+            let content = rawLine;
+            let action = "Normal";
+
+            if (match) {
+                speaker = match[1].trim();
+                action = match[2] ? match[2].trim() : "Normal";
+                content = match[3].trim();
+            }
+
+            document.getElementById('speaker-name').innerText = speaker;
+            document.getElementById('dialogue-content').innerText = content;
+
+            // 自动归档进【剧情回放】
+            if (!historyLog.some(l => l.raw === rawLine)) {
+                historyLog.push({ id: Date.now() + Math.random(), speaker, content, raw: rawLine });
+            }
+
+            const isCourtScene = gameState.currentLocation.includes('法庭');
+
+            // 1. 御剑：日常正面 vs 法庭侧身
+            if (speaker.includes('御剑')) {
+                viewport.style.display = 'flex';
+                if (isCourtScene) {
+                    let actionKey = "Normal";
+                    if (action.includes('思考')) actionKey = "Thinking";
+                    else if (action.includes('拍桌')) actionKey = "Slamming Desk";
+                    else if (action.includes('指认') || action.includes('异议')) actionKey = "Pointing";
+                    else if (action.includes('文件') || action.includes('卷宗')) actionKey = "Document";
+                    else if (action.includes('汗') || action.includes('咬牙')) actionKey = "Struggling";
+                    else if (action.includes('自信') || action.includes('抱胸')) actionKey = "Confident";
+                    else if (action.includes('摇手指') || action.includes('得意')) actionKey = "Grinning";
+                    else if (action.includes('破防') || action.includes('受创') || action.includes('抱头')) actionKey = "Damage";
+                    else if (action.includes('躬身')) actionKey = "Bowing";
+                    else if (action.includes('摊手')) actionKey = "Shrugging";
+                    animator.playFromRegistry("御剑_法庭", actionKey);
+                } else {
+                    let actionKey = "Normal";
+                    if (action.includes('生气') || action.includes('怒')) actionKey = "Angry";
+                    else if (action.includes('思考')) actionKey = "Thinking";
+                    else if (action.includes('困惑') || action.includes('动摇')) actionKey = "Uncertain_GS1";
+                    else if (action.includes('侧头') || action.includes('看旁边')) actionKey = "Looking Side";
+                    else if (action.includes('烦躁') || action.includes('擦汗') || action.includes('头疼')) actionKey = "Irritated";
+                    animator.playFromRegistry("御剑_正面", actionKey);
+                }
+            } 
+            // 2. 绫里千寻：日常正面 vs 法庭侧身
+            else if (speaker.includes('千寻')) {
+                viewport.style.display = 'flex';
+                if (isCourtScene) {
+                    let actionKey = "Strict";
+                    if (action.includes('震惊') || action.includes('受创')) actionKey = "Shocked";
+                    else if (action.includes('失落') || action.includes('沮丧')) actionKey = "Disheartened";
+                    else if (action.includes('悲伤') || action.includes('难过')) actionKey = "Sad";
+                    animator.playFromRegistry("千寻_法庭", actionKey);
+                } else {
+                    let actionKey = "Normal";
+                    if (action.includes('浅笑')) actionKey = "Slight Smile";
+                    else if (action.includes('微笑') || action.includes('笑')) actionKey = "Smiling";
+                    else if (action.includes('吃惊') || action.includes('动摇')) actionKey = "Taken Aback";
+                    animator.playFromRegistry("千寻_正面", actionKey);
+                }
+            }
+            // 3. 绫里真宵：日常正面 vs 法庭侧身
+            else if (speaker.includes('真宵')) {
+                viewport.style.display = 'flex';
+                if (isCourtScene) {
+                    let actionKey = "Normal";
+                    if (action.includes('严肃') || action.includes('认真')) actionKey = "Strict";
+                    else if (action.includes('瞪') || action.includes('生气')) actionKey = "Glaring";
+                    else if (action.includes('疑惑') || action.includes('困惑')) actionKey = "Puzzled";
+                    else if (action.includes('期待') || action.includes('向前')) actionKey = "Looking Forward";
+                    animator.playFromRegistry("真宵_法庭", actionKey);
+                } else {
+                    let actionKey = "Normal";
+                    if (action.includes('抱头') || action.includes('狂晃') || action.includes('116')) {
+                        actionKey = "Shocked_Hold"; // 116 停在最后一张！
+                    } else if (action.includes('点头') || action.includes('117')) {
+                        actionKey = "Nodding"; // 117 点头后回到第一张！
+                    } else if (action.includes('开心') || action.includes('拉面') || action.includes('高兴')) {
+                        actionKey = "Happy";
+                    } else if (action.includes('自信') || action.includes('叉腰')) {
+                        actionKey = "Confident";
+                    } else if (action.includes('生气') || action.includes('气呼呼')) {
+                        actionKey = "Angry";
+                    } else if (action.includes('坚定') || action.includes('决心')) {
+                        actionKey = "Determined";
+                    } else if (action.includes('担心') || action.includes('担忧')) {
+                        actionKey = "Worried";
+                    } else if (action.includes('思考')) {
+                        actionKey = "Thinking";
+                    } else if (action.includes('消沉') || action.includes('沮丧')) {
+                        actionKey = "Depressed";
+                    } else if (action.includes('伤心') || action.includes('难过')) {
+                        actionKey = "Sad";
+                    } else if (action.includes('失落')) {
+                        actionKey = "Disheartened";
+                    } else if (action.includes('含泪') || action.includes('哭')) {
+                        actionKey = "Teary";
+                    } else if (action.includes('震惊') || action.includes('吃惊')) {
+                        actionKey = "Shocked_Loop";
+                    }
+                    animator.playFromRegistry("真宵_正面", actionKey);
+                }
+            }
+            // 4. 成步堂龙一：法庭辩护姿态
+            else if (speaker.includes('成步堂')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('思考')) actionKey = "Thinking";
+                else if (action.includes('拍桌')) actionKey = "Slamming Desk";
+                else if (action.includes('指认')) actionKey = "Pointing";
+                else if (action.includes('文件') || action.includes('卷宗')) actionKey = "Document";
+                else if (action.includes('汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
+                else if (action.includes('震惊') || action.includes('受创')) actionKey = "Shocked";
+                else if (action.includes('傻笑') || action.includes('摸头')) actionKey = "Embarrassed Laugh";
+                else if (action.includes('自信') || action.includes('叉腰') || action.includes('微笑')) actionKey = "Confident";
+                else if (action.includes('喝咖啡')) actionKey = "Drinking Coffee";
+                else if (action.includes('端咖啡')) actionKey = "Holding Coffee";
+                else if (action.includes('点头')) actionKey = "Nodding";
+                else if (action.includes('摇头')) actionKey = "Shaking Head";
+                else if (action.includes('弯腰')) actionKey = "Bent Over";
+                else if (action.includes('泼咖啡') || action.includes('咖啡泼')) actionKey = "Coffee Head";
+                else if (action.includes('异议')) actionKey = "Objection!";
+                animator.playFromRegistry("成步堂_法庭", actionKey);
+            } 
+            // 5. 绫里春美：日常正面
+            else if (speaker.includes('春美')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('乖巧') || action.includes('平静')) actionKey = "Composed";
+                else if (action.includes('哭') || action.includes('泪')) actionKey = "Crying";
+                else if (action.includes('坚定') || action.includes('决心')) actionKey = "Determined";
+                else if (action.includes('吃惊') || action.includes('呆住')) actionKey = "Shocked1";
+                else if (action.includes('思考') || action.includes('想')) actionKey = "Thinking";
+                else if (action.includes('陶醉') || action.includes('期待')) actionKey = "Enchanted";
+                else if (action.includes('开心') || action.includes('笑') || action.includes('高兴')) actionKey = "Joyful";
+                else if (action.includes('失落') || action.includes('沮丧')) actionKey = "Disappointed";
+                else if (action.includes('震惊') || action.includes('吓')) actionKey = "Shocked2";
+                animator.playFromRegistry("春美_正面", actionKey);
+            }
+            // 6. 狩魔冥：法庭侧身 vs 日常正面
+            else if (speaker.includes('冥')) {
+                viewport.style.display = 'flex';
+                if (isCourtScene) {
+                    let actionKey = "Normal";
+                    if (action.includes('闭眼') || action.includes('轻蔑')) actionKey = "Eyes Shut";
+                    else if (action.includes('自信') || action.includes('抱胸')) actionKey = "Confident";
+                    else if (action.includes('挥鞭') || action.includes('鞭击') || action.includes('00c')) actionKey = "Angry";
+                    else if (action.includes('拔鞭') || action.includes('准备') || action.includes('00e')) actionKey = "Challenge2";
+                    else if (action.includes('流汗') || action.includes('急')) actionKey = "Nervous";
+                    else if (action.includes('鞠躬') || action.includes('行礼') || action.includes('00f')) actionKey = "Bowing";
+                    else if (action.includes('受创') || action.includes('破防') || action.includes('010')) actionKey = "Damage";
+                    else if (action.includes('恢复') || action.includes('011')) actionKey = "Recover";
+                    else if (action.includes('思考') || action.includes('抖鞭')) actionKey = "Whip Stance";
+                    animator.playFromRegistry("冥_法庭", actionKey);
+                } else {
+                    let actionKey = "Normal";
+                    if (action.includes('指认') || action.includes('指')) actionKey = "Pointing";
+                    else if (action.includes('居高临下') || action.includes('俯视')) actionKey = "Condescending";
+                    else if (action.includes('哭') || action.includes('泪')) actionKey = "Crying";
+                    else if (action.includes('生气') || action.includes('怒')) actionKey = "Angry";
+                    animator.playFromRegistry("冥_正面", actionKey);
+                }
+            }
+            // 7. 牙琉响也：法庭侧身 vs 日常正面
+            else if (speaker.includes('响也')) {
+                viewport.style.display = 'flex';
+                if (isCourtScene) {
+                    let actionKey = "Normal";
+                    if (action.includes('轻蔑') || action.includes('嘲笑')) actionKey = "Scornful Laugh";
+                    else if (action.includes('笑') || action.includes('微笑')) actionKey = "Smiling";
+                    else if (action.includes('思考')) actionKey = "Thinking";
+                    else if (action.includes('无语') || action.includes('无奈')) actionKey = "Spent";
+                    else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
+                    else if (action.includes('指认') || action.includes('指')) actionKey = "Pointing";
+                    else if (action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
+                    else if (action.includes('敲墙') || action.includes('拍墙')) actionKey = "Slam_Start"; // 触发219，随后自动进21a
+                    animator.playFromRegistry("响也_法庭", actionKey);
+                } else {
+                    let actionKey = "Normal";
+                    if (action.includes('严肃') || action.includes('认真')) actionKey = "Serious";
+                    else if (action.includes('笑') || action.includes('微笑')) actionKey = "Smiling";
+                    else if (action.includes('摆pose') || action.includes('姿势')) actionKey = "Posing";
+                    animator.playFromRegistry("响也_正面", actionKey);
+                }
+            }
+            else if (speaker !== '旁白') {
+                viewport.style.display = 'none';
+            }
+        }
+
+        // 点击推进逻辑（AI思考中时完全锁死）
+        function handleUserNextStep() {
+            if (isAILoading) return;
+
+            if (document.getElementById('settings-modal').classList.contains('active') ||
+                document.getElementById('record-modal').classList.contains('active') ||
+                document.getElementById('speak-modal').classList.contains('active')) {
+                return;
+            }
+
+            if (currentQueueIndex < dialogueQueue.length - 1) {
+                currentQueueIndex++;
+                displayCurrentLine();
+            } else if (currentQueueIndex === dialogueQueue.length - 1) {
+                currentQueueIndex++;
+                displayCurrentLine();
+            } else {
+                openSpeakModal();
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Enter') {
+                if (!document.getElementById('speak-modal').classList.contains('active') && !isAILoading) {
+                    e.preventDefault();
+                    openSpeakModal();
+                }
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                handleUserNextStep();
+            } else if (e.code === 'KeyR') {
+                toggleRecord();
+            }
+        });
+
+        function toggleAutoAdvance() {
+            isAutoAdvance = !isAutoAdvance;
+            const btn = document.getElementById('btn-auto-toggle');
+            if (isAutoAdvance) {
+                btn.classList.add('auto-active');
+                btn.innerHTML = `<span class="bar-icon" style="background:#d32f2f;">■</span> 自动推进中`;
+                autoAdvanceTimer = setInterval(() => handleUserNextStep(), 2800);
+            } else {
+                btn.classList.remove('auto-active');
+                btn.innerHTML = `<span class="bar-icon">-</span> 自动推进文字`;
+                if (autoAdvanceTimer) clearInterval(autoAdvanceTimer);
+            }
+        }
+
+        // ================= 6. 玩家发言与 AI 回复锁定 =================
+        function openSpeakModal() {
+            if (isAILoading) return;
+            document.getElementById('speak-modal').classList.add('active');
+            setTimeout(() => document.getElementById('player-input-text').focus(), 100);
+        }
+        function closeSpeakModal() { document.getElementById('speak-modal').classList.remove('active'); }
+        function insertTag(t) {
+            const inp = document.getElementById('player-input-text');
+            inp.value = t + " " + inp.value;
+            inp.focus();
+        }
+
+        function submitPlayerInput() {
+            const val = document.getElementById('player-input-text').value.trim();
+            if (!val || isAILoading) return;
+            closeSpeakModal();
+            document.getElementById('player-input-text').value = '';
+
+            // 1. 玩家台词进队列展示
+            const playerLine = `[发言] ${gameState.profile.name}: ${val}`;
+            dialogueQueue.splice(currentQueueIndex + 1, 0, playerLine);
+            currentQueueIndex++;
+            displayCurrentLine();
+
+            // 2. 锁定主界面，触发 AI 思考
+            triggerAIStep(val);
+        }
+
+        async function triggerAIStep(userActionText = "") {
+            const s = localStorage.getItem('ace_api_config');
+            if (!s) return;
+            const config = JSON.parse(s);
+
+            const respondent = gameState.phoneContacts[0] || "御剑 怜侍";
+            const playerName = gameState.profile.name;
+
+            // 🔒 进入锁定状态
+            isAILoading = true;
+            document.getElementById('click-arrow').style.display = 'none';
+            document.getElementById('main-dialogue-box').classList.add('loading-lock');
+            document.getElementById('speaker-name').innerText = `${respondent} (思考回复中...)`;
+            document.getElementById('dialogue-content').innerText = `【剧情生成中，内容较长，请稍候……】`;
+
+            const worldPrompt = document.getElementById('world-prompt').value;
+
+            // 代码层追加的硬性规范：即使玩家改了上面的世界观文本，这些规则也始终生效
+            const hardRules = `
+
+【输出硬性规范——优先级最高】
+1. 篇幅：每次回复的剧情总量不少于 600 个汉字（旁白+台词合计），目标 700~900 字。写成有画面感的剧情：角色之间有来有回的互动、神态动作、环境与心理描写，而不是只列几句台词。
+2. 严禁替玩家「${playerName}」说话、做决定，也不要描写他的内心想法或具体动作；只能写其他角色对玩家言行的反应。结尾停在需要玩家回应的地方。
+3. 格式：每行一句，[发言] 角色名(动作姿态): 内容。旁白/环境描写用 [发言] 旁白: 内容。单行不超过 60 字，长段请拆成多行。
+4. 动作姿态写在括号内，用下列词之一以匹配立绘：
+   - 绫里 千寻：微笑、浅笑、吃惊（法庭中：严肃、震惊、失落、悲伤）
+   - 绫里 真宵：开心、点头、抱头、担心、生气、自信、坚定、思考、消沉、伤心、含泪、震惊
+   - 绫里 春美：乖巧、哭、坚定、吃惊、思考、陶醉、开心、失落、震惊
+   - 成步堂 龙一：思考、汗、震惊、傻笑、自信、拍桌、指认、异议、端咖啡、喝咖啡、点头、摇头、弯腰、泼咖啡
+   - 御剑 怜侍：生气、思考、困惑、侧头、烦躁（法庭中：拍桌、指认、自信、抱胸）
+5. 只输出剧情行，不要解释，不要使用 markdown 或代码块。`;
+
+            const recent = historyLog.slice(-30).map(l => `${l.speaker}: ${l.content}`).join('\n');
+
+            const isDaily = gameState.mode === 'daily';
+            let modeRules;
+            if (isDaily) {
+                modeRules = `
+
+【当前为「平淡日常篇」——最高优先级】
+本篇没有任何案件。严禁出现：命案、案发现场、委托人、报案、嫌疑人、被告、证物调查、检举、审判等与案件有关的内容，也不要暗示或预告将有案件发生。只写日常：闲聊、工作琐事、吃饭点外卖、玩笑拌嘴、角色之间的羁绊与小烦恼。`;
+            } else if (gameState.hiddenCase) {
+                modeRules = `
+
+【当前为「案件搜查篇」】
+下面是后台机密案件档案，玩家看不到。严禁直接公布真相或凶手；只能通过角色的证词、神态破绽、现场线索和玩家的调查，一点点透露，让玩家自己推理。证词中可以有与档案矛盾的谎言，由玩家去发现。
+${JSON.stringify(gameState.hiddenCase)}`;
+            } else {
+                modeRules = `
+
+【当前为「案件搜查篇」】围绕已发生的案件，根据玩家出示的证物与调查动作推进线索，不要直接公布真相。`;
+            }
+
+            const prompt = `当前游戏模式：【${isDaily ? '平淡日常篇' : '案件搜查篇'}】
+当前地点：${gameState.currentLocation}
+玩家角色：${playerName} (${gameState.profile.role})
+同场景角色：${gameState.phoneContacts.join('、')}
+${isDaily ? '' : '持有证物：' + (gameState.evidence.map(e => e.name).join('、') || '无') + '\n'}
+【此前剧情（供你保持连贯）】
+${recent || '（刚刚开始）'}
+
+【玩家刚刚的动作或发言】
+${userActionText || '（玩家静静等待对方说话）'}
+
+请接着写下一段剧情：不少于 600 字，让在场的多位角色都参与互动，且不要替${playerName}说话。`;
+
+            try {
+                const res = await fetch(config.endpoint.replace(/\/+$/, '') + '/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
+                    body: JSON.stringify({
+                        model: config.model,
+                        max_tokens: 4096,
+                        temperature: 0.9,
+                        messages: [
+                            { role: "system", content: worldPrompt + hardRules + modeRules },
+                            { role: "user", content: prompt }
+                        ]
+                    })
+                });
+                const data = await res.json();
+                if (!data.choices || !data.choices[0]) {
+                    throw new Error(JSON.stringify(data.error || data).slice(0, 200));
+                }
+                const reply = (data.choices[0].message.content || '').replace(/```[a-zA-Z]*\n?/g, '');
+                const newLines = normalizeAILines(reply, playerName);
+                if (newLines.length === 0) throw new Error('模型返回内容为空');
+
+                // 插到当前这句后面，而不是队尾，避免被残余旧台词打断
+                dialogueQueue.splice(currentQueueIndex + 1, 0, ...newLines);
+                currentQueueIndex++;
+                displayCurrentLine();
+            } catch (err) {
+                document.getElementById('dialogue-content').innerText = "【调用大模型失败，请检查网络或配置】" + err.message;
+            } finally {
+                // 🔓 解除锁定
+                isAILoading = false;
+                document.getElementById('click-arrow').style.display = 'block';
+                document.getElementById('main-dialogue-box').classList.remove('loading-lock');
+            }
+        }
+
+        // 整理 AI 输出：补全格式、过滤“替玩家说话”的行、把过长台词拆成适合对话框的小段
+        function normalizeAILines(reply, playerName) {
+            const MAX_LEN = 60;
+            const out = [];
+            const rawLines = reply.split('\n').map(s => s.trim()).filter(Boolean);
+            for (let line of rawLines) {
+                if (!line.startsWith('[发言]')) line = `[发言] 旁白: ${line}`;
+                const m = line.match(/^[发言]\s*([^(（:：]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*([\s\S]*)\$/);
+                if (!m) continue;
+                const speaker = m[1].trim();
+                const action = m[2] ? m[2].trim() : '';
+                const content = m[3].trim();
+                if (!content) continue;
+                // 玩家台词一律丢弃，保证不替玩家说话
+                if (playerName && speaker === playerName.trim()) continue;
+
+                const sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
+                let buf = '';
+                const chunks = [];
+                for (const sen of sentences) {
+                    if ((buf + sen).length > MAX_LEN && buf) { chunks.push(buf); buf = sen; }
+                    else buf += sen;
+                }
+                if (buf) chunks.push(buf);
+                chunks.forEach((c, i) => {
+                    const act = (i === 0 && action) ? `(${action})` : '';
+                    out.push(`[发言] ${speaker}${act}: ${c}`);
+                });
+            }
+            return out;
+        }
+
+        // ================= 7. 📜 剧情回放 (Log) 管理 =================
+        function renderHistoryLog() {
+            const container = document.getElementById('log-list-box');
+            container.innerHTML = '';
+
+            if (historyLog.length === 0) {
+                container.innerHTML = '<div style="color:#6f8cb2; font-size:12px; text-align:center; padding:30px;">暂无历史台词记录</div>';
+                return;
+            }
+
+            historyLog.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'log-item-card';
+                card.innerHTML = `
+                    <div class="log-meta-bar">
+                        <span class="log-speaker-badge">${item.speaker}</span>
+                        <div class="log-btn-group">
+                            <button class="log-btn-tiny" onclick="editLogLine(${index})">✏️ 编辑</button>
+                            <button class="log-btn-tiny log-btn-del" onclick="deleteLogLine(${index})">🗑️ 删除</button>
+                        </div>
+                    </div>
+                    <div class="log-item-text" id="log-text-${index}">${item.content}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function editLogLine(index) {
+            const item = historyLog[index];
+            const newText = prompt(`编辑【${item.speaker}】的这句台词：`, item.content);
+            if (newText !== null && newText.trim() !== "") {
+                item.content = newText.trim();
+                item.raw = `[发言] ${item.speaker}: ${item.content}`;
+                renderHistoryLog();
+
+                if (document.getElementById('speaker-name').innerText === item.speaker) {
+                    document.getElementById('dialogue-content').innerText = item.content;
+                }
+            }
+        }
+
+        function deleteLogLine(index) {
+            if (confirm("确定要删除这条剧情台词记录吗？")) {
+                historyLog.splice(index, 1);
+                renderHistoryLog();
+            }
+        }
+
+        // ================= 8. 设定综合菜单控制 =================
+        function openSettingsModal() { 
+            openModal('settings-modal'); 
+            renderHistoryLog();
+        }
+        function openSettingsWithTab(tabId) {
+            openModal('settings-modal');
+            switchSettingsTab(tabId);
+        }
+        function switchSettingsTab(tabId) {
+            document.querySelectorAll('.settings-tabs .tab-btn').forEach(b => {
+                b.classList.toggle('active', b.getAttribute('onclick').includes(tabId));
+            });
+            document.querySelectorAll('.settings-content-pane').forEach(p => p.classList.remove('active'));
+            document.getElementById(`pane-${tabId}`).classList.add('active');
+
+            if (tabId === 'tab-log') renderHistoryLog();
+        }
+
+        async function triggerCaseInitiation() {
+            gameState.mode = "case";
+            gameState.hiddenCase = null;
+            updateStatusBar();
+            closeModal('settings-modal');
+
+            const fallbackLines = [
+                `[发言] 电话铃声(急促): （急促刺耳的电话铃声骤然划破了宁静……！）`,
+                `[发言] 委托人(神色慌张): 救救我！我是被冤枉的，现在被直接关进了看守所！`,
+                `[发言] 系统提示: 案件正式开启！你可以在[设定]大地图中前往【拘留所会见室】或相关现场展开搜查！`
+            ];
+
+            const s = localStorage.getItem('ace_api_config');
+            if (!s) { loadDialogueQueue(fallbackLines); return; }
+            const config = JSON.parse(s);
+            if (isAILoading) return;
+
+            isAILoading = true;
+            document.getElementById('click-arrow').style.display = 'none';
+            document.getElementById('main-dialogue-box').classList.add('loading-lock');
+            document.getElementById('speaker-name').innerText = "系统提示";
+            document.getElementById('dialogue-content').innerText = "【新委托接入中，正在后台准备案件……】";
+
+            const sceneNames = Object.keys(locationBgMap).filter(n => !n.startsWith('法庭'));
+            const genPrompt = `请为《逆转裁判》风格的游戏，在后台设计一个全新的、完整自洽的案件（玩家看不到这份档案）。
+玩家角色：${gameState.profile.name}（${gameState.profile.role}），所属事务所搭档：${gameState.phoneContacts.join('、')}。
+要求：
+1. 案件要有具体的被害人、真凶、动机、手法、完整时间线，以及至少 3 条互相矛盾的证词或线索（供玩家日后推理）。
+2. crimeScene 必须从下面的地点中选一个最合适的：${sceneNames.join('、')}。
+3. 被告人（委托人）是被冤枉的，但看起来很可疑。
+4. opening 是开场剧情：只能写来电/委托人求助/被捕经过，约 300 字，每行格式 [发言] 角色名(动作姿态): 内容，旁白用 [发言] 旁白: 内容；不得透露真凶与真相，不得替${gameState.profile.name}说话。
+只输出一个 JSON 对象，不要任何解释和代码块，字段：
+{"title":"","victim":"","culprit":"","motive":"","method":"","timeline":"","truth":"","crimeScene":"","defendant":"","keyEvidence":[{"name":"","desc":""}],"contradictions":[""],"opening":["[发言] ..."]}`;
+
+            try {
+                const res = await fetch(config.endpoint.replace(/\/+\$/, '') + '/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
+                    body: JSON.stringify({
+                        model: config.model,
+                        max_tokens: 4096,
+                        temperature: 0.9,
+                        messages: [
+                            { role: "system", content: document.getElementById('world-prompt').value },
+                            { role: "user", content: genPrompt }
+                        ]
+                    })
+                });
+                const data = await res.json();
+                let txt = (data.choices[0].message.content || '').replace(/```[a-zA-Z]*\n?/g, '');
+                txt = txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1);
+                const obj = JSON.parse(txt);
+
+                const opening = Array.isArray(obj.opening) ? obj.opening.join('\n') : String(obj.opening || '');
+                delete obj.opening;
+                gameState.hiddenCase = obj;   // 只存后台，不在界面显示
+
+                let lines = normalizeAILines(opening, gameState.profile.name);
+                lines.push(`[发言] 系统提示: 案件正式开启！你可以在[设定]大地图中前往【拘留所会见室】和【${obj.crimeScene || '案发地点'}】展开搜查！`);
+                loadDialogueQueue(lines);
+            } catch (err) {
+                loadDialogueQueue(fallbackLines);
+            } finally {
+                isAILoading = false;
+                document.getElementById('click-arrow').style.display = 'block';
+                document.getElementById('main-dialogue-box').classList.remove('loading-lock');
+            }
+        }
+
+        function resetToDailyMode() {
+            gameState.mode = "daily";
+            gameState.hiddenCase = null;
+            updateStatusBar();
+            closeModal('settings-modal');
+            loadDialogueQueue([
+                `[发言] 系统提示: 案件告一段落，场景重归平淡职场生活。可以随时与同僚过日常。`
+            ]);
+        }
+
+        function onModelSelectChange(val) { if (val) document.getElementById('api-model').value = val; }
+        function saveApiConfig() {
+            const c = {
+                endpoint: document.getElementById('api-endpoint').value.trim(),
+                key: document.getElementById('api-key').value.trim(),
+                model: document.getElementById('api-model').value.trim()
+            };
+            localStorage.setItem('ace_api_config', JSON.stringify(c));
+            alert("API 配置已保存！");
+            closeModal('settings-modal');
+        }
+        function loadSavedApi() {
+            const s = localStorage.getItem('ace_api_config');
+            if (s) {
+                const c = JSON.parse(s);
+                document.getElementById('api-endpoint').value = c.endpoint || "";
+                document.getElementById('api-key').value = c.key || "";
+                document.getElementById('api-model').value = c.model || "";
+            }
+        }
+        loadSavedApi();
+
+        async function fetchModelsFromEndpoint() {
+            const endpoint = document.getElementById('api-endpoint').value.trim();
+            const key = document.getElementById('api-key').value.trim();
+            const btn = document.getElementById('btn-fetch-models');
+            if (!endpoint || !key) { alert("请先填写地址与 API Key！"); return; }
+
+            btn.innerText = "拉取中...";
+            btn.disabled = true;
+            try {
+                const res = await fetch(endpoint.replace(/\/+$/, '') + '/models', {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                const data = await res.json();
+                let list = [];
+                if (Array.isArray(data)) list = data.map(m => typeof m === 'string' ? m : m.id);
+                else if (data && Array.isArray(data.data)) list = data.data.map(m => m.id);
+                else if (data && Array.isArray(data.models)) list = data.models.map(m => m.id || m.name);
+
+                if (list.length > 0) {
+                    list = [...new Set(list)].filter(Boolean).sort();
+                    const sel = document.getElementById('api-model-select');
+                    sel.innerHTML = `<option value="">-- 已拉取 ${list.length} 个模型，点击选取 --</option>`;
+                    list.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m; opt.innerText = m;
+                        sel.appendChild(opt);
+                    });
+                    sel.value = list[0];
+                    document.getElementById('api-model').value = list[0];
+                    alert(`成功拉取到 ${list.length} 个模型！`);
+                }
+            } catch(e) {
+                alert("拉取模型失败: " + e.message);
+            } finally {
+                btn.innerText = "拉取模型列表";
+                btn.disabled = false;
+            }
+        }
+
+        function saveCurrentAsPreset() {
+            const n = prompt("输入预设名称:");
+            if (!n) return;
+            const presets = JSON.parse(localStorage.getItem('ace_presets') || '{}');
+            presets[n] = {
+                endpoint: document.getElementById('api-endpoint').value.trim(),
+                key: document.getElementById('api-key').value.trim(),
+                model: document.getElementById('api-model').value.trim()
+            };
+            localStorage.setItem('ace_presets', JSON.stringify(presets));
+            refreshPresets();
+        }
+        function refreshPresets() {
+            const sel = document.getElementById('api-preset-select');
+            sel.innerHTML = '<option value="custom">当前自定义配置</option>';
+            const presets = JSON.parse(localStorage.getItem('ace_presets') || '{}');
+            for (let k in presets) {
+                const opt = document.createElement('option');
+                opt.value = k; opt.innerText = k;
+                sel.appendChild(opt);
+            }
+        }
+        refreshPresets();
+        function loadPreset(n) {
+            if (n === 'custom') return;
+            const presets = JSON.parse(localStorage.getItem('ace_presets') || '{}');
+            if (presets[n]) {
+                document.getElementById('api-endpoint').value = presets[n].endpoint;
+                document.getElementById('api-key').value = presets[n].key;
+                document.getElementById('api-model').value = presets[n].model;
+            }
+        }
+
+        function renderAffinityList() {
+            const box = document.getElementById('affinity-list-box');
+            box.innerHTML = '';
+            for (let name in gameState.affinities) {
+                const item = gameState.affinities[name];
+                const div = document.createElement('div');
+                div.className = 'affinity-row';
+                div.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${item.avatar}" style="width:36px; height:36px; border-radius:4px; object-fit:cover;">
+                        <div>
+                            <div style="font-weight:bold; color:#fff; font-size:13px;">${name}</div>
+                            <div style="font-size:11px; color:#ff9900;">${item.level}</div>
+                        </div>
+                    </div>
+                    <div style="color:#ff7373; font-weight:bold; font-size:13px;">${item.score}%</div>
+                `;
+                box.appendChild(div);
+            }
+        }
+
+        function renderPhoneList() {
+            document.getElementById('phone-contact-header').innerText = `当前通讯录：${gameState.phoneContacts.join('、')}`;
+        }
+        function sendPhoneSMS() {
+            const input = document.getElementById('phone-input');
+            const val = input.value.trim();
+            if (!val) return;
+            const container = document.getElementById('phone-msg-container');
+            const p = document.createElement('div');
+            p.style.cssText = "align-self:flex-end; background:#1976d2; color:#fff; padding:5px 10px; border-radius:8px 8px 0 8px; font-size:12px; margin-bottom:4px;";
+            p.innerText = val;
+            container.appendChild(p);
+            input.value = '';
+        }
+
+        // ================= 9. 法庭记录簿 =================
+        let recordTab = 'evidence';
+        let recPage = 0;
+        let recIndex = 0;
+        const REC_PAGE_SIZE = 8;
+
+        function toggleRecord() {
+            const m = document.getElementById('record-modal');
+            m.classList.toggle('active');
+            if (m.classList.contains('active')) renderRecordAll();
+        }
+
+        function switchRecordTab(type) {
+            recordTab = type;
+            recPage = 0;
+            recIndex = 0;
+            document.getElementById('tab-evidence').classList.toggle('active', type === 'evidence');
+            document.getElementById('tab-profile').classList.toggle('active', type === 'profile');
+            renderRecordAll();
+        }
+
+        function changeRecordPage(delta) {
+            const list = gameState[recordTab];
+            const maxPage = Math.max(0, Math.ceil(list.length / REC_PAGE_SIZE) - 1);
+            recPage = Math.max(0, Math.min(maxPage, recPage + delta));
+            recIndex = recPage * REC_PAGE_SIZE;
+            renderRecordAll();
+        }
+
+        function selectRecordItem(idx) {
+            recIndex = idx;
+            renderRecordAll();
+        }
+
+        function renderRecordAll() {
+            const list = gameState[recordTab] || [];
+            const item = list[recIndex] || list[0];
+            if (item) {
+                document.getElementById('detail-img').src = item.icon;
+                document.getElementById('detail-name').innerText = item.name;
+                document.getElementById('detail-desc').innerText = item.desc;
+            }
+
+            const maxPage = Math.max(1, Math.ceil(list.length / REC_PAGE_SIZE));
+            const container = document.getElementById('thumb-container');
+            container.innerHTML = '';
+
+            const start = recPage * REC_PAGE_SIZE;
+            const end = Math.min(list.length, start + REC_PAGE_SIZE);
+
+            for (let i = start; i < end; i++) {
+                const it = list[i];
+                const slot = document.createElement('div');
+                slot.className = `thumb-slot ${i === recIndex ? 'active' : ''}`;
+                slot.innerHTML = `<img src="${it.icon}">`;
+                slot.onclick = () => selectRecordItem(i);
+                container.appendChild(slot);
+            }
+
+            document.getElementById('page-display').innerText = `PAGE ${recPage + 1} / ${maxPage}`;
+            document.getElementById('prev-btn').disabled = (recPage === 0);
+            document.getElementById('next-btn').disabled = (recPage >= maxPage - 1);
+        }
+
+        function presentCurrentEvidence() {
+            const item = gameState[recordTab][recIndex];
+            toggleRecord();
+            const presentLines = [
+                `[发言] ${gameState.profile.name}(指认): くらえ！(看招！)`,
+                `[发言] ${gameState.profile.name}(拍桌): 这就是决定性的矛盾！请看我出示的【${item.name}】！`
+            ];
+            loadDialogueQueue(presentLines);
+            triggerAIStep(`我向对方出示了证物【${item.name}】并指出矛盾！`);
+        }
+
+        // ================= 10. 存读档与数据导出 =================
+        function saveToSlot(id) {
+            localStorage.setItem(`ace_save_${id}`, JSON.stringify({ time: new Date().toLocaleString(), data: gameState, history: historyLog }));
+            updateSaveLabels();
+            alert(`已成功保存至 存档位 ${id}！`);
+        }
+        function loadFromSlot(id) {
+            const s = localStorage.getItem(`ace_save_${id}`);
+            if (!s) { alert("此槽位为空！"); return; }
+            const parsed = JSON.parse(s);
+            gameState = parsed.data;
+            historyLog = parsed.history || [];
+            closeModal('settings-modal');
+            navigateTo('view-game');
+            changeLocation(gameState.currentLocation);
+            updateStatusBar();
+            renderAffinityList();
+            renderPhoneList();
+            renderRecordAll();
+            loadDialogueQueue([`[发言] 系统提示: 已成功载入【存档位 ${id}】的案情数据！`]);
+        }
+        function updateSaveLabels() {
+            for (let i = 1; i <= 3; i++) {
+                const s = localStorage.getItem(`ace_save_${i}`);
+                const el = document.getElementById(`slot-info-${i}`);
+                if (s) {
+                    const obj = JSON.parse(s);
+                    el.innerText = `${obj.time} - ${obj.data.profile.name} (${obj.data.profile.role})`;
+                }
+            }
+        }
+        updateSaveLabels();
+
+        function exportSaveFile() {
+            const blob = new Blob([JSON.stringify({ data: gameState, history: historyLog }, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `逆转案卷_${gameState.profile.name}_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        function importSaveFile(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = (evt) => {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    gameState = parsed.data || parsed;
+                    historyLog = parsed.history || [];
+                    closeModal('settings-modal');
+                    navigateTo('view-game');
+                    changeLocation(gameState.currentLocation);
+                    updateStatusBar();
+                    renderAffinityList();
+                    renderPhoneList();
+                    renderRecordAll();
+                    loadDialogueQueue([`[发言] 系统提示: 案卷 .json 文件导入成功！`]);
+                } catch(err) { alert("存档文件有误！"); }
+            };
+            r.readAsText(f);
+        }
+        // ================= 11. 自动存档系统 =================
+        function autoSaveGame() {
+            // 只有在已经建立好档案进入游戏时，才进行自动保存
+            if (gameState && gameState.profile && gameState.profile.name) {
+                localStorage.setItem('ace_autosave', JSON.stringify({
+                    time: new Date().toLocaleString(),
+                    data: gameState,
+                    history: historyLog,
+                    queue: dialogueQueue,
+                    queueIndex: currentQueueIndex
+                }));
+            }
+        }
+
+        function loadAutoSave() {
+            const s = localStorage.getItem('ace_autosave');
+            if (!s) return;
+            const parsed = JSON.parse(s);
+            gameState = parsed.data;
+            historyLog = parsed.history || [];
+            dialogueQueue = parsed.queue || [];
+            currentQueueIndex = parsed.queueIndex || 0;
+            
+            closeModal('settings-modal');
+            navigateTo('view-game');
+            changeLocation(gameState.currentLocation);
+            updateStatusBar();
+            renderAffinityList();
+            renderPhoneList();
+            renderRecordAll();
+            
+            // 恢复关掉网页前的最后一句台词
+            if (dialogueQueue.length > 0 && currentQueueIndex < dialogueQueue.length) {
+                displayCurrentLine();
+            } else {
+                document.getElementById('speaker-name').innerText = "系统提示";
+                document.getElementById('dialogue-content').innerText = "【已恢复自动存档】\n可以继续你的探案了。";
+                document.getElementById('actor-viewport').style.display = 'none';
+            }
+        }
+
+        // 每次打开网页时检查，如果有自动存档，就把橘色按钮显示出来
+        window.addEventListener('DOMContentLoaded', () => {
+            const s = localStorage.getItem('ace_autosave');
+            if (s) {
+                const btn = document.getElementById('btn-continue');
+                if (btn) btn.style.display = 'block';
+            }
+            
+            // 只要你在玩（身处游戏界面），每隔 5 秒钟就在后台偷偷保存一次，完全不卡顿
+            setInterval(() => {
+                if (document.getElementById('view-game').classList.contains('active')) {
+                    autoSaveGame();
+                }
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
