@@ -2478,8 +2478,34 @@
         // 剧情回放里统一去掉 "[发言] " 前缀
         function stripSpeakTag(l) { return String(l).replace(/^\[发言\]\s*/, ''); }
 
+        // 把旧版“一句一条”的回放记录，合并成“一轮一块”（玩家发言开启新的一轮；短信等保持原样）
+        function migrateHistoryLog(arr) {
+            const out = [];
+            let cur = null;
+            const me = gameState.profile.name;
+            (arr || []).forEach(item => {
+                if (item.aiText !== undefined) { out.push(item); cur = null; return; }
+                const isSpeech = typeof item.raw === 'string' && item.raw.startsWith('[发言]');
+                if (!isSpeech) { out.push(item); cur = null; return; }
+                if (me && item.speaker === me) {
+                    cur = { id: item.id, userText: item.content, playerName: me, aiText: '', lineCount: 0 };
+                    out.push(cur);
+                    return;
+                }
+                if (!cur) {
+                    cur = { id: item.id, userText: '', playerName: me, aiText: '', lineCount: 0 };
+                    out.push(cur);
+                }
+                cur.aiText += (cur.aiText ? '\n' : '') + `${item.speaker}: ${item.content}`;
+                cur.lineCount++;
+            });
+            // 只有玩家说话、后面没有 AI 台词的块，也保留
+            return out;
+        }
+
         // 兼容新旧两种回放记录格式，拼成给 AI 的上下文
         function getHistoryContext(n) {
+            historyLog = migrateHistoryLog(historyLog);
             return historyLog.slice(-n).map(item => {
                 if (item.aiText !== undefined) {
                     let block = '';
@@ -3284,6 +3310,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
         }
 
         function renderHistoryLog() {
+            historyLog = migrateHistoryLog(historyLog);
             const container = document.getElementById('log-list-box');
             container.innerHTML = '';
 
