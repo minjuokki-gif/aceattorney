@@ -2873,10 +2873,12 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             document.getElementById('speaker-name').innerText = displaySpeaker;
             document.getElementById('dialogue-content').innerText = content;
 
+            const isCourtScene = gameState.currentLocation.includes('法庭');
+
             // 自动侦测台词中的法庭关键指令与大招特效
             if (content.includes('证言开始') || content.includes('证词开始')) {
                 triggerCourtBanner('～ 证 言 开 始 ～');
-                playBGM('cross_exam'); // 证言开始自动切入质询曲
+                playBGM('cross_exam');
             } else if (content.includes('开始询问') || content.includes('开始质问') || content.includes('质询开始')) {
                 triggerCourtBanner('～ 开 始 询 问 ～');
                 playBGM('cross_exam');
@@ -2914,8 +2916,6 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
             // 刷新箭头 / 重新生成按钮
             updateTurnControls();
-
-            const isCourtScene = gameState.currentLocation.includes('法庭');
 
             // 核心功能：法庭内镜头根据当前发言角色自动秒切背景（辩护席/检察席/证人席/审判长席/助手席）
             if (isCourtScene) {
@@ -3346,31 +3346,21 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             inp.focus();
         }
 
-        function presentCurrentEvidence() {
-            const list = (recordTab === 'profiles' ? gameState.profiles : gameState.evidence) || [];
-            const item = list[recIndex];
-            if (!item) return;
-            toggleRecord();
+        // 核心修复：找回丢失的发言发送函数！回车与点击发送立即恢复！
+        function submitPlayerInput() {
+            const val = document.getElementById('player-input-text').value.trim();
+            if (!val || isAILoading) return;
+            closeSpeakModal();
+            document.getElementById('player-input-text').value = '';
 
-            // 1. 异议 / 等等 / 看招 随机三选一
-            const shoutType = getRandomShoutType();
-            
-            // 2. 气泡先扎入（套用主角/千寻语音），气泡砸中后切入拍桌动作
-            triggerShoutBubble(shoutType, "mia");
-            playBGM('pursuit');
+            // 玩家输入带有 [拍桌] 或 [指认] 时，随机扎入气泡（异议/看招/等等 三选一）
+            if (val.includes('[拍桌]') || val.includes('[指认]')) {
+                const shout = getRandomShoutType();
+                triggerShoutBubble(shout, "mia");
+            }
 
-            const shoutWordMap = {
-                "take_that": "くらえ！(看招！)",
-                "objection": "异议あり！(我有异议！)",
-                "hold_it": "待った！(等等！)"
-            };
-
-            const presentLines = [
-                `[发言] ${gameState.profile.name}(指认): ${shoutWordMap[shoutType]}`,
-                `[发言] ${gameState.profile.name}(拍桌): 这就是决定性的矛盾！请看我出示的【${item.name}】！`
-            ];
-            loadDialogueQueue(presentLines);
-            triggerAIStep(`我向对方出示了证物【${item.name}】并指出矛盾！`);
+            // 玩家的话在等待期间显示在对话框里，并作为一块写进剧情回放
+            triggerAIStep(val);
         }
 
         // 重新生成上一轮：撤销上一轮台词、回放记录和指令副作用，然后重新请求 AI
