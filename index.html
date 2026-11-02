@@ -979,7 +979,8 @@
                 "Pointing": { type: "loop", frameDelay: 280, voice: "https://files.catbox.moe/04xmpb.flac", shake: true, frames: ["https://i.postimg.cc/MXk5ss2t/pl105305-01.png", "https://i.postimg.cc/fk4CHHnC/pl105305-02.png"] },
                 "Slamming Desk": { type: "once_hold", frameDelays: [150, 160, 90, 0],  shake: true, frames: ["https://i.postimg.cc/Z0kHfftQ/pl105302-00.png", "https://i.postimg.cc/Cdy7vvT6/pl105302-01.png", "https://i.postimg.cc/XXML22SH/pl105302-02.png", "https://i.postimg.cc/s1Fmnndn/pl105302-03.png"] },
                 "Struggling": { type: "once_hold", frameDelays: [160, 160, 160, 0], shake: true, frames: ["https://i.postimg.cc/4yHwbDMp/pl10530b-00.png", "https://i.postimg.cc/Kj3Qr6VL/pl10530b-01.png", "https://i.postimg.cc/MHftbC4T/pl10530b-02.png", "https://i.postimg.cc/3N09Cs6J/pl10530b-03.png"] },
-                "Confident": { type: "once_hold", frameDelays: [180, 180, 0], frames: ["https://i.postimg.cc/C5nJH3th/pl10530d-00.png", "https://i.postimg.cc/GtTzJWNc/pl10530d-01.png", "https://i.postimg.cc/gjL4qC7f/pl10530d-02.png"] },
+                // 改为循环播放：自然抱胸、呼吸与眨眼，绝不再闭眼定死
+                "Confident": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/C5nJH3th/pl10530d-00.png", "https://i.postimg.cc/GtTzJWNc/pl10530d-01.png", "https://i.postimg.cc/gjL4qC7f/pl10530d-02.png"] },
                 "Grinning": { type: "once_hold", frameDelays: [150, 150, 150, 150, 150, 150, 150, 150, 0], frames: ["https://i.postimg.cc/sXNwWjny/pl10530f-00.png", "https://i.postimg.cc/xC4tmfsQ/pl10530f-01.png", "https://i.postimg.cc/qR5jKJmf/pl10530f-02.png", "https://i.postimg.cc/xC4tmf6W/pl10530f-03.png", "https://i.postimg.cc/gJTNhzg7/pl10530f-04.png", "https://i.postimg.cc/mD589Lm5/pl10530f-05.png", "https://i.postimg.cc/nzP0mF3R/pl10530f-06.png", "https://i.postimg.cc/SsvD9Sgd/pl10530f-07.png", "https://i.postimg.cc/PxxSNpQV/pl10530f-08.png"] },
                 "Damage": { type: "once_hold", frameDelays: [100, 140, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/qRR1ghx1/pl105310-00.png", "https://i.postimg.cc/FRRT1dVg/pl105310-01.png", "https://i.postimg.cc/k44TD6vW/pl105310-02.png"] },
                 "Bowing": { type: "once_hold", frameDelays: [160, 160, 0], frames: ["https://i.postimg.cc/rmmfz0Nr/pl105311-00.png", "https://i.postimg.cc/B66mtLBF/pl105311-01.png", "https://i.postimg.cc/k44TD6vB/pl105311-02.png"] },
@@ -2005,7 +2006,26 @@
             "take_that": "https://i.postimg.cc/9Fh0dZKb/etc1012(st)-(Take-that-).png"  // くらえ！ (看招)
         };
 
-        function triggerShoutBubble(type) {
+        // 角色专属语音插槽 (成步堂 / 御剑 / 千寻与主角)
+        const SHOUT_VOICE_MAP = {
+            "成步堂": { "objection": "https://files.catbox.moe/hov7xo.flac" },
+            "御剑": { "objection": "https://files.catbox.moe/04xmpb.flac" },
+            "mia": {
+                // 千寻与主角专属音频插槽：后续拿到千寻音频直链可在此填入
+                "objection": "", 
+                "hold_it": "",
+                "take_that": ""
+            }
+        };
+
+        // 随机获取 异议 / 等等 / 看招 三选一
+        function getRandomShoutType() {
+            const list = ["objection", "hold_it", "take_that"];
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        // 气泡触发器：先扎入气泡与人声，再联动执行拍桌动作
+        function triggerShoutBubble(type, voiceRole = "", onSlamCallback = null) {
             const overlay = document.getElementById('shout-bubble-overlay');
             const img = document.getElementById('shout-bubble-img');
             const url = SHOUT_BUBBLE_URLS[type];
@@ -2015,11 +2035,23 @@
             void overlay.offsetWidth;
             overlay.classList.add('active');
 
-            // 扎入屏幕时全屏猛烈震动
+            // 扎入屏幕的一瞬间播放人声语音
+            const roleKey = (voiceRole === '千寻' || voiceRole === 'mia' || voiceRole === gameState.profile.name) ? 'mia' : (voiceRole.includes('御剑') ? '御剑' : '成步堂');
+            const voiceUrl = SHOUT_VOICE_MAP[roleKey] && SHOUT_VOICE_MAP[roleKey][type];
+            if (voiceUrl) {
+                new Audio(voiceUrl).play().catch(() => {});
+            }
+
+            // 扎入屏幕时全屏猛烈震颤
             const stage = document.getElementById('game-stage');
             stage.classList.remove('shake-screen');
             void stage.offsetWidth;
             stage.classList.add('shake-screen');
+
+            // 核心时序：气泡扎入 240ms 后，镜头再紧接着切入“猛烈拍桌”动作！
+            if (onSlamCallback) {
+                setTimeout(() => { onSlamCallback(); }, 240);
+            }
 
             setTimeout(() => { overlay.classList.remove('active'); }, 850);
         }
@@ -2852,14 +2884,25 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 triggerCourtBanner('～ 证 言 结 束 ～');
             }
 
-            // 💥 尖刺气泡扎入检测
+            // 💥 尖刺气泡扎入检测（只有真正喊出台词时才扎气泡，纯拍桌绝不乱喊）
+            let willShout = false;
+            let shoutType = "objection";
+
             if (action.includes('异议') || content.includes('异议あり') || content.includes('反对！') || content.includes('我有异议')) {
-                triggerShoutBubble('objection');
+                willShout = true;
+                shoutType = "objection";
                 playBGM('objection');
             } else if (action.includes('等等') || content.includes('待った') || content.includes('等一下！')) {
-                triggerShoutBubble('hold_it');
+                willShout = true;
+                shoutType = "hold_it";
             } else if (action.includes('看招') || content.includes('くらえ') || content.includes('看招！')) {
-                triggerShoutBubble('take_that');
+                willShout = true;
+                shoutType = "take_that";
+            }
+
+            // 如果本句台词有喊话：气泡先砸入屏幕！
+            if (willShout) {
+                triggerShoutBubble(shoutType, speaker);
             }
 
             // ⚖️ 判决超大字检测 (审判长宣布无罪/有罪时，两个大字从天而降砸入正中)
@@ -3303,14 +3346,31 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             inp.focus();
         }
 
-        function submitPlayerInput() {
-            const val = document.getElementById('player-input-text').value.trim();
-            if (!val || isAILoading) return;
-            closeSpeakModal();
-            document.getElementById('player-input-text').value = '';
+        function presentCurrentEvidence() {
+            const list = (recordTab === 'profiles' ? gameState.profiles : gameState.evidence) || [];
+            const item = list[recIndex];
+            if (!item) return;
+            toggleRecord();
 
-            // 玩家的话在等待期间显示在对话框里，并作为一块写进剧情回放
-            triggerAIStep(val);
+            // 1. 异议 / 等等 / 看招 随机三选一
+            const shoutType = getRandomShoutType();
+            
+            // 2. 气泡先扎入（套用主角/千寻语音），气泡砸中后切入拍桌动作
+            triggerShoutBubble(shoutType, "mia");
+            playBGM('pursuit');
+
+            const shoutWordMap = {
+                "take_that": "くらえ！(看招！)",
+                "objection": "异议あり！(我有异议！)",
+                "hold_it": "待った！(等等！)"
+            };
+
+            const presentLines = [
+                `[发言] ${gameState.profile.name}(指认): ${shoutWordMap[shoutType]}`,
+                `[发言] ${gameState.profile.name}(拍桌): 这就是决定性的矛盾！请看我出示的【${item.name}】！`
+            ];
+            loadDialogueQueue(presentLines);
+            triggerAIStep(`我向对方出示了证物【${item.name}】并指出矛盾！`);
         }
 
         // 重新生成上一轮：撤销上一轮台词、回放记录和指令副作用，然后重新请求 AI
