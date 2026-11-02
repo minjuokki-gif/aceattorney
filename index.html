@@ -845,7 +845,7 @@
             },
             // 6. 成步堂龙一 · 法庭辩护篇 (待机三帧循环)
             "成步堂_法庭": {
-                scale: 0.85,
+                scale: 0.85, offsetY: 60, // 整套立绘统一下沉的像素数，觉得还浮空就加大，切到脚了就减小
                 "Normal": { type: "loop", frameDelay: 340, frames: ["https://i.postimg.cc/85QnXPRt/pl100316-00.png", "https://i.postimg.cc/Y2xy87hk/pl100300-01.png", "https://i.postimg.cc/ZYLDjmCS/pl100300-02.png"] },
                 "Thinking": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/0jZWNYL3/pl100302-00.png", "https://i.postimg.cc/WzSW4GQy/pl100302-01.png", "https://i.postimg.cc/1XMCzGLj/pl100302-02.png", "https://i.postimg.cc/wMFfBXSb/pl100302-03.png", "https://i.postimg.cc/sxK62Yt6/pl100302-04.png", "https://i.postimg.cc/WzSW4GQ9/pl100302-05.png", "https://i.postimg.cc/4ywL36rP/pl100302-06.png"] },
                 "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
@@ -1701,7 +1701,8 @@
                 const anim = charObj[animKey] || charObj["Normal"] || charObj["Smiling"] || Object.values(charObj).find(v => typeof v === 'object' && v.frames);
                 if (!anim || !anim.frames || !anim.frames.length) return;
 
-                const offsetY = anim.offsetY ? ` translateY(${anim.offsetY}px)` : '';
+                const oy = (anim.offsetY !== undefined ? anim.offsetY : charObj.offsetY) || 0;
+                const offsetY = oy ? ` translateY(${oy}px)` : '';
                 this.imgEl.style.transform = `scale(${charObj.scale || 1.0})${offsetY}`;
 
                 // 喝咖啡必须接在端咖啡后面：如果上一个动作不是端咖啡，先端起来，再喝
@@ -2475,6 +2476,26 @@
         let lastTurnLogId = null;      // 上一轮在剧情回放里的记录 id
         let lastTurnSnapshot = null;   // 上一轮开始前的游戏状态（好感/证物/场景等），重试时回滚
 
+        // 统一显示名：默认只显示姓氏；绫里/狩魔/牙琉/宝月这些同姓的才写出名字
+        function toDisplayName(raw) {
+            let s = String(raw || '').trim().replace(/糸锯/g, '系锯');
+            if (!s || s === '旁白' || s.startsWith('系统')) return s;
+            if (s.includes('成步堂') || s === '龙一') return '成步堂';
+            if (s.includes('御剑')) return '御剑';
+            if (s.includes('真宵')) return '真宵';
+            if (s.includes('春美')) return '春美';
+            if (s.includes('千寻')) return '千寻';
+            if (s.includes('冥')) return '狩魔冥';
+            if (s.includes('响也')) return '牙琉响也';
+            if (s.includes('雾人')) return '牙琉雾人';
+            if (s.includes('系锯') || s.includes('圭介') || s.includes('刑警')) return '系锯';
+            if (s.includes('宝月茜') || (s.includes('茜') && !s.includes('巴'))) return '宝月茜';
+            if (s.includes('宝月巴') || (s.includes('巴') && !s.includes('审判'))) return '宝月巴';
+            // 其余“姓 名”形式的，只取姓氏
+            const m = s.match(/^([^\s·・（(:：]+)[\s·・]+[^\s·・（(:：]+$/);
+            return m ? m[1] : s;
+        }
+
         // 剧情回放里统一去掉 "[发言] " 前缀
         function stripSpeakTag(l) { return String(l).replace(/^\[发言\]\s*/, ''); }
 
@@ -2592,14 +2613,7 @@
             }
 
             // 统一在对话框上方展示标准官方称呼（如果是成步堂/龙一，对话框统一只显示原作姓氏“成步堂”）
-            let displaySpeaker = speaker;
-            if (speaker.includes('成步堂') || speaker === '龙一') displaySpeaker = '成步堂';
-            else if (speaker.includes('御剑')) displaySpeaker = '御剑';
-            else if (speaker.includes('真宵')) displaySpeaker = '真宵';
-            else if (speaker.includes('春美')) displaySpeaker = '春美';
-            else if (speaker.includes('千寻')) displaySpeaker = '千寻';
-            else if (speaker.includes('冥')) displaySpeaker = '狩魔冥';
-            else if (speaker.includes('响也')) displaySpeaker = '牙琉响也';
+            let displaySpeaker = toDisplayName(speaker);
 
             document.getElementById('speaker-name').innerText = displaySpeaker;
             document.getElementById('dialogue-content').innerText = content;
@@ -2910,7 +2924,7 @@
                 viewport.style.display = 'none';
             }
             // 18. 系锯圭介 (系锯刑警)
-            else if (speaker.includes('系锯') || speaker.includes('刑警')) {
+            else if (speaker.includes('系锯') || speaker.includes('糸锯') || speaker.includes('圭介') || speaker.includes('刑警')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('笑') || action.includes('大笑') || action.includes('叉腰大笑')) actionKey = "Laughing";
@@ -2973,6 +2987,8 @@
         }
 
         window.addEventListener('keydown', (e) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            if (activeTag === 'textarea' || activeTag === 'input' || activeTag === 'select') return;   // 正在打字，别拦截
             if (e.code === 'Enter') {
                 if (!document.getElementById('speak-modal').classList.contains('active') && !isAILoading) {
                     e.preventDefault();
@@ -3073,10 +3089,11 @@
 【输出硬性规范——最高优先级】
 1. 篇幅严控：本次回复只写 10 至 15 行（每行一两句话，不超过 40 字），严禁超过 15 行！
 2. 称谓铁律：
-   - 默认一律称呼【姓氏】（如：成步堂、御剑、系锯、宝月）。
+   - 默认一律只写【姓氏】（如：成步堂、御剑、系锯），刑警必须写「系锯」，禁止写「圭介」「糸锯」或全名。
    - 仅在同姓氏冲突时称呼全名或名字：
      * 绫里家必须写「真宵」、「千寻」、「春美」（或绫里真宵、绫里千寻等）；
      * 狩魔家必须写「狩魔冥」（禁止只写狩魔）；
+     * 宝月家必须写「宝月茜」、「宝月巴」；
      * 牙琉家必须写「牙琉响也」、「牙琉雾人」（或响也、雾人）。
 3. 严禁替玩家「${playerName}」说话、做决定，也不要描写他的内心想法；结尾停在需要玩家回应的地方。
 4. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
@@ -3086,7 +3103,7 @@
      * 【场景铁律】：必须且仅当主角一行人【真实动身并到达新地点】时输出！
      * 严禁情况：口头讨论某个地点、回忆过去、推测凶案发生地、或电话提及某人在某处时，绝对严禁输出场景指令！
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
-   - 新人物登记：[人物: 人物姓名 | 身份背景描述]
+   - 新人物登记：[人物: 人物姓名 | 身份背景描述]（新角色——委托人、证人、嫌疑人——第一次开口前输出一次；系统也会按发言自动登记）
 6. 动作姿态写在括号内：
    - 成步堂：思考、汗、震惊、傻笑、自信、拍桌、指认、异议、端咖啡、喝咖啡、点头、摇头、弯腰、泼咖啡
    - 御剑：生气、思考、困惑、侧头、烦躁（法庭：拍桌、指认、自信、抱胸）
@@ -3113,7 +3130,8 @@
 
 【当前为「案件搜查篇」】
 下面是后台机密案件档案，玩家看不到。严禁直接公布真相或凶手；只能通过角色的证词、神态破绽、现场线索和玩家的调查，一点点透露，让玩家自己推理。证词中可以有与档案矛盾的谎言，由玩家去发现。
-${JSON.stringify(gameState.hiddenCase)}`;
+${JSON.stringify(gameState.hiddenCase)}
+委托人（被告人）名叫「${getDefendantName()}」，剧情里一律用这个名字（只写姓氏）称呼他，不要写“委托人”。`;
             } else {
                 modeRules = `
 
@@ -3123,7 +3141,7 @@ ${JSON.stringify(gameState.hiddenCase)}`;
             const prompt = `当前游戏模式：【${isDaily ? '平淡日常篇' : '案件搜查篇'}】
 当前地点：${gameState.currentLocation}
 玩家角色：${playerName} (${gameState.profile.role})
-同场景角色：${gameState.phoneContacts.join('、')}
+同场景角色：${gameState.phoneContacts.map(toDisplayName).join('、')}
 ${isDaily ? '' : '持有证物：' + (gameState.evidence.map(e => e.name).join('、') || '无') + '\n'}
 【此前剧情（供你保持连贯）】
 ${recent || '（刚刚开始）'}
@@ -3193,6 +3211,86 @@ ${userActionText || '（玩家静静等待对方说话）'}
             }
         }
 
+        // ---------- 人物 / 好感度 / 联系人 / 证物 的统一登记 ----------
+        // 宽松比对名字：“真宵”能对上“绫里 真宵”，“宝月茜”能对上“宝月 茜”，“糸锯”当“系锯”
+        function nameNorm(s) { return String(s || '').replace(/[\s·・]/g, '').replace(/糸锯/g, '系锯'); }
+        function findNameKey(keys, name) {
+            const n = nameNorm(name);
+            if (n.length < 2) return null;
+            return keys.find(k => { const kk = nameNorm(k); return kk === n || kk.includes(n) || n.includes(kk); }) || null;
+        }
+        // 从“田中 一郎（42岁，律师）”这种字符串里取出名字
+        function plainName(v) {
+            if (!v) return '';
+            if (typeof v === 'object') v = v.name || '';
+            return String(v).split(/[（(，,、:：]/)[0].trim();
+        }
+        function getDefendantName() { return gameState.hiddenCase ? plainName(gameState.hiddenCase.defendant) : ''; }
+
+        const IGNORE_SPEAKERS = ['旁白','系统提示','系统','电话铃声','铃声','声音','众人','全场','观众','旁听席','旁听人群','群众','广播','画外音','路人','字幕','手机','电话','委托人','证人','被告','被告人','嫌疑人','当事人','目击者','警员','记者'];
+
+        // 登记一个人物：写进【人物档案】，同时加入【联系人】和【好感度】
+        // opts: { contact:false } 不进联系人；{ affinity:false } 不进好感度；{ score:数字 } 初始好感
+        function registerPerson(name, desc, opts) {
+            opts = opts || {};
+            name = String(name || '').trim();
+            if (!name || name.length > 12) return null;
+            const me = gameState.profile.name;
+            if (me && nameNorm(me) === nameNorm(name)) return null;
+
+            let changed = false;
+            const existing = findNameKey(gameState.profiles.map(p => p.name), name);
+            if (existing) {
+                const p = gameState.profiles.find(x => x.name === existing);
+                if (desc && p && (!p.desc || p.desc.startsWith('案情相关人物'))) { p.desc = desc; changed = true; }
+            } else {
+                gameState.profiles.push({ name: name, desc: desc || '案情相关人物（暂无详细资料）。', icon: matchProfileIcon(name) });
+                changed = true;
+            }
+            const display = existing || name;
+
+            if (opts.contact !== false && !findNameKey(gameState.phoneContacts, name)) {
+                gameState.phoneContacts.push(display);
+                renderPhoneList();
+            }
+            if (opts.affinity !== false && !findNameKey(Object.keys(gameState.affinities), name)) {
+                gameState.affinities[display] = { score: (opts.score !== undefined ? opts.score : 10), avatar: matchProfileIcon(name) };
+                renderAffinityList();
+            }
+            if (changed) renderRecordAll();
+            return display;
+        }
+
+        // 有人开口说话，但名字是全新的 → 自动登记，不再完全依赖 AI 写 [人物:] 指令
+        function autoRegisterSpeaker(name) {
+            if (!name || name.length > 8 || IGNORE_SPEAKERS.includes(name) || /[0-9?？!！]/.test(name)) return;
+            const known = gameState.profiles.map(p => p.name).concat(gameState.phoneContacts, Object.keys(gameState.affinities));
+            if (findNameKey(known, name)) return;
+            registerPerson(name, '', {});
+        }
+
+        function applyAffinityChange(charName, delta) {
+            let key = findNameKey(Object.keys(gameState.affinities), charName);
+            if (!key) key = registerPerson(charName, '', {});
+            if (!key || !gameState.affinities[key]) return;
+            gameState.affinities[key].score = Math.max(0, Math.min(100, gameState.affinities[key].score + delta));
+            renderAffinityList();
+        }
+
+        function applySceneChange(scName) {
+            const matchedLoc = Object.keys(locationBgMap).find(l => l.includes(scName) || scName.includes(l));
+            if (matchedLoc) changeLocation(matchedLoc);
+        }
+
+        function applyEvidenceGain(eName, eDesc) {
+            if (!eName) return;
+            if (!gameState.evidence.some(e => e.name === eName)) {
+                const d = eDesc || "在调查过程中获取的关键线索。";
+                gameState.evidence.push({ name: eName, desc: d, icon: matchEvidenceIcon(eName, d) });
+                renderRecordAll();
+            }
+        }
+
         // 整理 AI 输出：超强兼容版，绝不误吞字
         function normalizeAILines(reply, playerName) {
             const MAX_LEN = 60;
@@ -3205,63 +3303,15 @@ ${userActionText || '（玩家静静等待对方说话）'}
             for (let line of rawLines) {
                 if (line.startsWith('好的') || line.startsWith('以下是') || line.startsWith('```')) continue;
 
-                // 1. 好感变动：[好感 御剑 +5]
-                const affMatch = line.match(/\[好感\s*([^\s+-\]]+)\s*([+-]\d+)\]/);
-                if (affMatch) {
-                    const charName = affMatch[1].trim();
-                    const delta = parseInt(affMatch[2], 10);
-                    const targetKey = Object.keys(gameState.affinities).find(k => k.includes(charName) || charName.includes(k));
-                    if (targetKey) {
-                        gameState.affinities[targetKey].score = Math.max(0, Math.min(100, gameState.affinities[targetKey].score + delta));
-                        renderAffinityList();
-                    }
-                    continue;
-                }
-
-                // 2. 场景转移：显式指令 [场景: 地点名]
-                const sceneMatch = line.match(/\[场景[:：]\s*([^\]]+)\]/);
-                if (sceneMatch) {
-                    const scName = sceneMatch[1].trim();
-                    const matchedLoc = Object.keys(locationBgMap).find(l => l.includes(scName) || scName.includes(l));
-                    if (matchedLoc) changeLocation(matchedLoc);
-                    continue;
-                }
-
-                // 3. 获得新证物：[证物: 证物名 | 描述] (全自动匹配图库)
-                const eviMatch = line.match(/\[证物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/);
-                if (eviMatch) {
-                    const eName = eviMatch[1].trim();
-                    const eDesc = eviMatch[2] ? eviMatch[2].trim() : "在调查过程中获取的关键线索。";
-                    if (!gameState.evidence.some(e => e.name === eName)) {
-                        gameState.evidence.push({
-                            name: eName,
-                            desc: eDesc,
-                            icon: matchEvidenceIcon(eName, eDesc)
-                        });
-                        renderRecordAll();
-                    }
-                    continue;
-                }
-
-                // 4. 登记人物：[人物: 姓名 | 描述]
-                const profMatch = line.match(/\[人物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/);
-                if (profMatch) {
-                    const pName = profMatch[1].trim();
-                    const pDesc = profMatch[2] ? profMatch[2].trim() : "案情相关嫌疑人/证人。";
-                    if (!gameState.profiles.some(p => p.name === pName)) {
-                        gameState.profiles.push({
-                            name: pName,
-                            desc: pDesc,
-                            icon: matchProfileIcon(pName)
-                        });
-                        if (!gameState.phoneContacts.includes(pName)) {
-                            gameState.phoneContacts.push(pName);
-                            renderPhoneList();
-                        }
-                        renderRecordAll();
-                    }
-                    continue;
-                }
+                // 自动指令：可以独立成行，也可以挂在台词行尾；处理完后把指令从台词里剥掉，台词照常保留
+                let rest = line;
+                rest = rest.replace(/\[好感\s*([^\s\]+\-]+)\s*([+-]\d+)\]/g, (_, nm, d) => { applyAffinityChange(nm.trim(), parseInt(d, 10)); return ''; });
+                rest = rest.replace(/\[场景[:：]\s*([^\]]+)\]/g, (_, sc) => { applySceneChange(sc.trim()); return ''; });
+                rest = rest.replace(/\[证物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/g, (_, n, d) => { applyEvidenceGain(n.trim(), (d || '').trim()); return ''; });
+                rest = rest.replace(/\[人物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/g, (_, n, d) => { registerPerson(n.trim(), (d || '').trim()); return ''; });
+                rest = rest.trim();
+                if (!rest || /^\[发言\]\s*[:：]?$/.test(rest)) continue;   // 这一行只有指令
+                line = rest;
 
                 // 普通台词处理
                 let m = line.match(/(?:\[发言\]|\(发言\))?\s*([^(（:：\s]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*([\s\S]*)/);
@@ -3279,6 +3329,13 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 }
 
                 if (playerName && speaker === playerName.trim()) continue;
+                speaker = toDisplayName(speaker);
+                // 案件里“委托人/被告”统一换成他的真名
+                if (gameState.hiddenCase && /^(委托人|被告人?|当事人)$/.test(speaker)) {
+                    const dn = getDefendantName();
+                    if (dn) speaker = toDisplayName(dn);
+                }
+                autoRegisterSpeaker(speaker);
 
 
                 const sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
@@ -3309,6 +3366,8 @@ ${userActionText || '（玩家静静等待对方说话）'}
             return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         }
 
+        let editingLogIndex = null;   // 正在回放列表里就地编辑的那一条
+
         function renderHistoryLog() {
             historyLog = migrateHistoryLog(historyLog);
             const container = document.getElementById('log-list-box');
@@ -3319,80 +3378,128 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 return;
             }
 
+            const taStyle = 'width:100%; box-sizing:border-box; background:#0a1424; color:#e2ecf8; border:1px solid #3b6594; border-radius:4px; padding:8px; font-size:13px; line-height:1.6; font-family:inherit; resize:vertical;';
+
             historyLog.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'log-item-card';
+                const editing = (editingLogIndex === index);
 
                 if (item.aiText !== undefined) {
                     // 新格式：一整轮一张卡片
-                    let userHtml = '';
-                    if (item.userText) {
-                        userHtml = `
-                        <div style="background: #17385c; padding: 6px 12px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid #ff9900;">
-                            <span style="color: #ff9900; font-weight: bold; font-size: 12px;">👤 ${escapeHtml(item.playerName || '你')}: </span>
-                            <span style="color: #ffffff; font-size: 13px;">${escapeHtml(item.userText)}</span>
-                        </div>`;
+                    if (editing) {
+                        const userEdit = item.userText
+                            ? `<div style="font-size:12px; color:#ff9900;">👤 ${escapeHtml(item.playerName || '你')} 说的话</div>
+                               <textarea id="log-edit-user" rows="2" style="${taStyle}">${escapeHtml(item.userText)}</textarea>`
+                            : '';
+                        card.innerHTML = `
+                            <div class="log-meta-bar">
+                                <span class="log-speaker-badge">第 ${index + 1} 幕剧情（编辑中）</span>
+                                <div class="log-btn-group">
+                                    <button class="log-btn-tiny" onclick="saveLogEdit(${index})">💾 保存</button>
+                                    <button class="log-btn-tiny log-btn-del" onclick="cancelLogEdit()">取消</button>
+                                </div>
+                            </div>
+                            ${userEdit}
+                            <div style="font-size:12px; color:#9fb8d8;">剧情台词（一行一句，可随意增删改，拖右下角可拉高输入框）</div>
+                            <textarea id="log-edit-text" rows="10" style="${taStyle} min-height:180px;">${escapeHtml(item.aiText)}</textarea>
+                        `;
+                    } else {
+                        let userHtml = '';
+                        if (item.userText) {
+                            userHtml = `
+                            <div style="background: #17385c; padding: 6px 12px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid #ff9900;">
+                                <span style="color: #ff9900; font-weight: bold; font-size: 12px;">👤 ${escapeHtml(item.playerName || '你')}: </span>
+                                <span style="color: #ffffff; font-size: 13px;">${escapeHtml(item.userText)}</span>
+                            </div>`;
+                        }
+                        card.innerHTML = `
+                            <div class="log-meta-bar">
+                                <span class="log-speaker-badge">第 ${index + 1} 幕剧情</span>
+                                <div class="log-btn-group">
+                                    <button class="log-btn-tiny" onclick="editLogTurn(${index})">✏️ 编辑</button>
+                                    <button class="log-btn-tiny log-btn-del" onclick="deleteLogTurn(${index})">🗑️ 删除整轮</button>
+                                </div>
+                            </div>
+                            ${userHtml}
+                            <div class="log-item-text" id="log-text-${index}" style="line-height: 1.6; white-space: pre-wrap; color: #d1e2f7;">${escapeHtml(item.aiText)}</div>
+                        `;
                     }
-                    card.innerHTML = `
-                        <div class="log-meta-bar">
-                            <span class="log-speaker-badge">第 ${index + 1} 幕剧情</span>
-                            <div class="log-btn-group">
-                                <button class="log-btn-tiny" onclick="editLogTurn(${index})">✏️ 编辑</button>
-                                <button class="log-btn-tiny log-btn-del" onclick="deleteLogTurn(${index})">🗑️ 删除整轮</button>
-                            </div>
-                        </div>
-                        ${userHtml}
-                        <div class="log-item-text" id="log-text-${index}" style="line-height: 1.6; white-space: pre-wrap; color: #d1e2f7;">${escapeHtml(item.aiText)}</div>
-                    `;
                 } else {
-                    // 旧格式（逐句记录 / 短信记录）：保持原样
-                    card.innerHTML = `
-                        <div class="log-meta-bar">
-                            <span class="log-speaker-badge">${escapeHtml(item.speaker)}</span>
-                            <div class="log-btn-group">
-                                <button class="log-btn-tiny" onclick="editLogLine(${index})">✏️ 编辑</button>
-                                <button class="log-btn-tiny log-btn-del" onclick="deleteLogLine(${index})">🗑️ 删除</button>
+                    // 旧格式（逐句记录 / 短信记录）
+                    if (editing) {
+                        card.innerHTML = `
+                            <div class="log-meta-bar">
+                                <span class="log-speaker-badge">${escapeHtml(item.speaker)}（编辑中）</span>
+                                <div class="log-btn-group">
+                                    <button class="log-btn-tiny" onclick="saveLogEdit(${index})">💾 保存</button>
+                                    <button class="log-btn-tiny log-btn-del" onclick="cancelLogEdit()">取消</button>
+                                </div>
                             </div>
-                        </div>
-                        <div class="log-item-text" id="log-text-${index}">${escapeHtml(item.content)}</div>
-                    `;
+                            <textarea id="log-edit-text" rows="4" style="${taStyle}">${escapeHtml(item.content)}</textarea>
+                        `;
+                    } else {
+                        card.innerHTML = `
+                            <div class="log-meta-bar">
+                                <span class="log-speaker-badge">${escapeHtml(item.speaker)}</span>
+                                <div class="log-btn-group">
+                                    <button class="log-btn-tiny" onclick="editLogLine(${index})">✏️ 编辑</button>
+                                    <button class="log-btn-tiny log-btn-del" onclick="deleteLogLine(${index})">🗑️ 删除</button>
+                                </div>
+                            </div>
+                            <div class="log-item-text" id="log-text-${index}">${escapeHtml(item.content)}</div>
+                        `;
+                    }
                 }
                 container.appendChild(card);
             });
+
+            if (editingLogIndex !== null) {
+                const ta = document.getElementById('log-edit-text');
+                if (ta) setTimeout(() => ta.focus(), 50);
+            }
         }
 
-        function editLogTurn(index) {
+        // 点【编辑】：就在原位置变成输入框，不弹窗
+        function editLogTurn(index) { editingLogIndex = index; renderHistoryLog(); }
+        function editLogLine(index) { editingLogIndex = index; renderHistoryLog(); }
+        function cancelLogEdit() { editingLogIndex = null; renderHistoryLog(); }
+
+        function saveLogEdit(index) {
             const item = historyLog[index];
-            const newText = prompt("编辑此整轮剧情台词内容：", item.aiText);
-            if (newText !== null && newText.trim() !== "") {
-                item.aiText = newText.trim();
-                renderHistoryLog();
+            if (!item) { editingLogIndex = null; renderHistoryLog(); return; }
+            const textEl = document.getElementById('log-edit-text');
+            const userEl = document.getElementById('log-edit-user');
+            const txt = textEl ? textEl.value : '';
+            if (!txt.trim()) {
+                alert('台词不能为空；想删掉这一段，请点【删除】。');
+                return;
             }
+            if (item.aiText !== undefined) {
+                item.aiText = txt.replace(/\s+$/, '');
+                if (userEl) item.userText = userEl.value.trim();
+                item.lineCount = item.aiText.split('\n').filter(s => s.trim()).length;
+            } else {
+                item.content = txt.trim();
+                if (typeof item.raw === 'string' && item.raw.startsWith('[发言]')) {
+                    item.raw = `[发言] ${item.speaker}: ${item.content}`;
+                }
+            }
+            editingLogIndex = null;
+            renderHistoryLog();
         }
 
         function deleteLogTurn(index) {
             if (confirm("确定要删除这整轮剧情记录吗？")) {
+                editingLogIndex = null;
                 historyLog.splice(index, 1);
                 renderHistoryLog();
             }
         }
 
-        function editLogLine(index) {
-            const item = historyLog[index];
-            const newText = prompt(`编辑【${item.speaker}】的这句台词：`, item.content);
-            if (newText !== null && newText.trim() !== "") {
-                item.content = newText.trim();
-                item.raw = `[发言] ${item.speaker}: ${item.content}`;
-                renderHistoryLog();
-
-                if (document.getElementById('speaker-name').innerText === item.speaker) {
-                    document.getElementById('dialogue-content').innerText = item.content;
-                }
-            }
-        }
-
         function deleteLogLine(index) {
             if (confirm("确定要删除这条剧情台词记录吗？")) {
+                editingLogIndex = null;
                 historyLog.splice(index, 1);
                 renderHistoryLog();
             }
@@ -3442,25 +3549,42 @@ ${userActionText || '（玩家静静等待对方说话）'}
             document.getElementById('speaker-name').innerText = "系统提示";
             document.getElementById('dialogue-content').innerText = "【新委托接入中，正在后台准备案件……】";
 
-            const sceneNames = Object.keys(locationBgMap).filter(n => !n.startsWith('法庭'));
+            const allScenes = Object.keys(locationBgMap).filter(n => !n.startsWith('法庭'));
+            const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+            const shuffled = allScenes.slice().sort(() => Math.random() - 0.5);
+            const sceneNames = shuffled.slice(0, 6);   // 每次随机抽 6 个候选地点，案发地只能从里面选
+
+            // 每次由代码随机抽一套“案件骨架”，保证案子不会老是同一个套路
+            const seedVictim = pick(['资深律师', '过气明星', '古董商人', '外科医生', '神秘占卜师', '新闻记者', '大企业会计', '马戏团演员', '私家侦探', '道场师范', '餐厅主厨', '退休法官', '年轻画家', '保险调查员']);
+            const seedMotive = pick(['遗产继承纠纷', '被抓住了过去的丑闻', '多年前的旧怨', '为了掩盖挪用公款', '感情上的背叛', '争夺一件珍贵的物品', '被勒索', '为了保护重要的人', '事业上的嫉妒']);
+            const seedMethod = pick(['钝器击打', '毒物（下在饮品里）', '推落坠亡', '密室中的刺杀', '制造意外的假象', '利用时间差伪造不在场证明', '用易容/换装冒名顶替', '远程设置的机关']);
+            const seedTime = pick(['清晨', '午后', '傍晚', '深夜', '暴雨之夜', '雾气弥漫的黄昏']);
+            const seedTwist = pick(['委托人其实隐瞒了一件事', '关键证物被人调包', '目击证人看错了时间', '真凶藏在最不可能的人里', '被害人生前留下了暗号', '有两个人在不同的时间都去过现场']);
+
             const genPrompt = `请为《逆转裁判》风格的游戏，在后台设计一个全新的、完整自洽的案件（玩家看不到这份档案）。
 玩家角色：${gameState.profile.name}（${gameState.profile.role}），所属事务所搭档：${gameState.phoneContacts.join('、')}。
+本次案件的骨架（必须遵守，让每个案子都不一样）：
+- 被害人身份：${seedVictim}
+- 凶手动机：${seedMotive}
+- 作案手法：${seedMethod}
+- 案发时间：${seedTime}
+- 一个转折：${seedTwist}
 要求：
 1. 案件要有具体的被害人、真凶、动机、手法、完整时间线，以及至少 3 条互相矛盾的证词或线索（供玩家日后推理）。
 2. crimeScene 必须从下面的地点中选一个最合适的：${sceneNames.join('、')}。
 3. 被告人（委托人）是被冤枉的，但看起来很可疑。
-4. opening 是开场剧情：只能写来电/委托人求助/被捕经过，约 300 字，每行格式 [发言] 角色名(动作姿态): 内容，旁白用 [发言] 旁白: 内容；不得透露真凶与真相，不得替${gameState.profile.name}说话。
+4. opening 是开场剧情：只能写来电/委托人求助/被捕经过，每行格式 [发言] 角色名(动作姿态): 内容，旁白用 [发言] 旁白: 内容，共 8~12 行；不得透露真凶与真相，不得替${gameState.profile.name}说话。角色名只写姓氏；委托人要用 defendant 字段里的真名（只写姓氏），不要写“委托人”三个字。
 只输出一个 JSON 对象，不要任何解释和代码块，字段：
 {"title":"","victim":"","culprit":"","motive":"","method":"","timeline":"","truth":"","crimeScene":"","defendant":"","keyEvidence":[{"name":"","desc":""}],"contradictions":[""],"opening":["[发言] ..."]}`;
 
             try {
-                const res = await fetch(config.endpoint.replace(/\/+\$/, '') + '/chat/completions', {
+                const res = await fetch(config.endpoint.replace(/\/+$/, '') + '/chat/completions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
                     body: JSON.stringify({
                         model: config.model,
                         max_tokens: 4096,
-                        temperature: 0.9,
+                        temperature: 1.0,
                         messages: [
                             { role: "system", content: document.getElementById('world-prompt').value },
                             { role: "user", content: genPrompt }
@@ -3476,11 +3600,18 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 delete obj.opening;
                 gameState.hiddenCase = obj;   // 只存后台，不在界面显示
 
+                // 委托人（被告人）和被害人是公开信息，直接进【人物档案】；真凶绝不登记
+                const defName = getDefendantName();
+                const victimName = plainName(obj.victim);
+                if (defName) registerPerson(defName, `本案委托人（被告人）。被指控杀害${victimName || '被害人'}，坚称自己是被冤枉的。`, { score: 10 });
+                if (victimName) registerPerson(victimName, '本案被害人。', { contact: false, affinity: false });
+
                 let lines = normalizeAILines(opening, gameState.profile.name);
                 lines.push(`[发言] 系统提示: 案件正式开启！你可以在[设定]大地图中前往【拘留所会见室】和【${obj.crimeScene || '案发地点'}】展开搜查！`);
                 loadDialogueQueue(lines);
             } catch (err) {
-                loadDialogueQueue(fallbackLines);
+                // 后台案件没生成成功：用简易开场，并明确告诉玩家（这种情况下没有后台案件档案）
+                loadDialogueQueue(fallbackLines.concat([`[发言] 系统提示: （后台案件生成失败：${String(err.message).slice(0, 60)}。本次没有后台档案，AI 会即兴发挥；可在设定里点“触发突发案件”重新生成。）`]));
             } finally {
                 isAILoading = false;
                 document.getElementById('click-arrow').style.display = 'block';
