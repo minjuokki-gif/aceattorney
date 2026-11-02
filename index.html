@@ -663,7 +663,7 @@
                     <span class="action-tag" onclick="insertTag('[调查现场]')">[调查现场]</span>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                    <input type="text" class="form-input" id="player-input-text" placeholder="输入你想说的话、动作意图，按 Enter 发送..." style="flex: 1;" onkeydown="if(event.key==='Enter') submitPlayerInput();">
+                    <input type="text" class="form-input" id="player-input-text" placeholder="输入你想说的话、动作意图，按 Enter 发送..." style="flex: 1;" onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); submitPlayerInput(); }">
                     <button class="btn-prime" style="padding: 4px 16px; font-size: 13px;" onclick="submitPlayerInput()">发送</button>
                 </div>
             </div>
@@ -3348,10 +3348,23 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
         // 核心修复：找回丢失的发言发送函数！回车与点击发送立即恢复！
         function submitPlayerInput() {
-            const val = document.getElementById('player-input-text').value.trim();
-            if (!val || isAILoading) return;
+            const inp = document.getElementById('player-input-text');
+            const val = inp.value.trim();
+            if (!val) return;
+            if (isAILoading) {
+                alert("当前正在生成剧情中，请稍候……");
+                return;
+            }
+
+            const s = localStorage.getItem('ace_api_config');
+            if (!s) {
+                alert("请先前往【设定 ⚙️ -> API设置】配置接口端点与 API Key 才能开始对话！");
+                openSettingsWithTab('tab-api');
+                return;
+            }
+
             closeSpeakModal();
-            document.getElementById('player-input-text').value = '';
+            inp.value = '';
 
             // 玩家输入带有 [拍桌] 或 [指认] 时，随机扎入气泡（异议/看招/等等 三选一）
             if (val.includes('[拍桌]') || val.includes('[指认]')) {
@@ -3359,7 +3372,6 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 triggerShoutBubble(shout, "mia");
             }
 
-            // 玩家的话在等待期间显示在对话框里，并作为一块写进剧情回放
             triggerAIStep(val);
         }
 
