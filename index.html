@@ -358,6 +358,86 @@
             z-index: 200; display: none; justify-content: center; align-items: center;
         }
         .record-overlay.active { display: flex; }
+        /* ================= 法庭经典飘动横幅 (证言/质询/开始) ================= */
+        .court-banner-box {
+            position: absolute;
+            top: 26%; left: 0;
+            width: 100%;
+            height: 70px;
+            background: linear-gradient(90deg, rgba(8,24,48,0) 0%, rgba(13,44,84,0.95) 15%, rgba(13,44,84,0.95) 85%, rgba(8,24,48,0) 100%);
+            border-top: 3px solid #ffcc00;
+            border-bottom: 3px solid #ffcc00;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 150;
+            pointer-events: none;
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.6);
+        }
+        .court-banner-text {
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 12px;
+            text-shadow: 0 0 16px #38a4ea, 0 3px 0 #000000;
+            transform: skewX(-10deg);
+            white-space: nowrap;
+        }
+        .banner-slide-in-out {
+            display: flex !important;
+            animation: bannerFly 2.6s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+        }
+        @keyframes bannerFly {
+            0% { transform: translateX(-120%); opacity: 0; }
+            18% { transform: translateX(0); opacity: 1; }
+            80% { transform: translateX(0); opacity: 1; }
+            100% { transform: translateX(120%); opacity: 0; }
+        }
+
+        /* ================= 💥 异议 / 等等 / 看招 尖刺气泡扎入动画 ================= */
+        .shout-bubble-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center;
+            z-index: 175; pointer-events: none;
+        }
+        .shout-bubble-overlay.active { display: flex; }
+        .shout-bubble-img {
+            max-width: 82%; max-height: 78%; object-fit: contain;
+            filter: drop-shadow(0 0 25px rgba(255, 50, 0, 0.85));
+            /* 核心动画：超大尺寸从画面外极速扎进中央，带有猛烈急停感 */
+            animation: shoutSlamIn 0.85s cubic-bezier(0.1, 0.95, 0.2, 1.05) forwards;
+        }
+        @keyframes shoutSlamIn {
+            0% { transform: scale(3.2); opacity: 0; }
+            18% { transform: scale(1.0); opacity: 1; }
+            82% { transform: scale(1.0); opacity: 1; }
+            100% { transform: scale(1.08); opacity: 0; }
+        }
+
+        /* ================= ⚖️ 有罪 / 无罪 巨大判决大字从天而降 ================= */
+        .verdict-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(2px);
+            display: none; justify-content: center; align-items: center;
+            z-index: 195; pointer-events: none;
+        }
+        .verdict-overlay.active { display: flex; }
+        .verdict-box {
+            display: flex; justify-content: center; align-items: center; gap: 32px;
+            width: 100%; height: 100%;
+            /* 两个大字同步从天顶以千钧之势猛砸至正中央 */
+            animation: verdictDropSlam 2.6s cubic-bezier(0.12, 0.95, 0.25, 1) forwards;
+        }
+        .verdict-char-img {
+            height: 65%; max-height: 380px; width: auto; object-fit: contain;
+            filter: drop-shadow(0 15px 35px rgba(0,0,0,0.95));
+        }
+        @keyframes verdictDropSlam {
+            0% { transform: translateY(-120vh) scale(1.4); opacity: 0; }
+            15% { transform: translateY(0) scale(1.0); opacity: 1; }
+            85% { transform: translateY(0) scale(1.0); opacity: 1; }
+            100% { transform: translateY(0) scale(1.0); opacity: 0; }
+        }
         .record-panel {
             position: relative; width: 80%; max-width: 960px;
             background: #ffffff; border-radius: 6px; padding: 3px;
@@ -443,6 +523,24 @@
 <body>
 
     <div id="game-stage">
+        <!-- 💥 异议 / 等等 / 看招 尖刺气泡扎入层 -->
+        <div class="shout-bubble-overlay" id="shout-bubble-overlay">
+            <img class="shout-bubble-img" id="shout-bubble-img" src="" alt="气泡">
+        </div>
+
+        <!-- ⚖️ 有罪 / 无罪 从天而降超大判决层 -->
+        <div class="verdict-overlay" id="verdict-overlay">
+            <div class="verdict-box" id="verdict-box">
+                <img class="verdict-char-img" id="verdict-char-1" src="" alt="判决1">
+                <img class="verdict-char-img" id="verdict-char-2" src="" alt="判决2">
+            </div>
+        </div>
+
+        <!-- 经典法庭横幅层 (证言开始 / 询问开始) -->
+        <div class="court-banner-box" id="court-banner">
+            <div class="court-banner-text" id="court-banner-text">～ 证 言 开 始 ～</div>
+        </div>
+
         <!-- 移动端轻触推进 -->
         <div class="mobile-touch-advance" onclick="handleUserNextStep()"></div>
 
@@ -848,7 +946,7 @@
                 scale: 0.85, offsetY: 60, // 统一下沉60px完美贴合底栏，彻底告别悬空
                 "Normal": { type: "loop", frameDelay: 340, frames: ["https://i.postimg.cc/85QnXPRt/pl100316-00.png", "https://i.postimg.cc/Y2xy87hk/pl100300-01.png", "https://i.postimg.cc/ZYLDjmCS/pl100300-02.png"] },
                 "Thinking": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/0jZWNYL3/pl100302-00.png", "https://i.postimg.cc/WzSW4GQy/pl100302-01.png", "https://i.postimg.cc/1XMCzGLj/pl100302-02.png", "https://i.postimg.cc/wMFfBXSb/pl100302-03.png", "https://i.postimg.cc/sxK62Yt6/pl100302-04.png", "https://i.postimg.cc/WzSW4GQ9/pl100302-05.png", "https://i.postimg.cc/4ywL36rP/pl100302-06.png"] },
-                "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
+                "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], shake: true, frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
                 "Pointing": { type: "once_reset", frameDelays: [140, 140, 140, 200, 200, 0], voice: "https://files.catbox.moe/hov7xo.flac", shake: true, frames: ["https://i.postimg.cc/d3nH02zy/pl10030a-00.png", "https://i.postimg.cc/L5vCstrZ/pl10030a-01.png", "https://i.postimg.cc/C5JPKGWB/pl10030a-02.png", "https://i.postimg.cc/MHtPG7hX/pl10030a-03.png", "https://i.postimg.cc/QCS4MQRF/pl10030a-04.png", "https://i.postimg.cc/5yp7tBZH/pl10030a-05.png"] },
                 "Document": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/VvzZ1GHb/pl10030b-00.png", "https://i.postimg.cc/4yX2ZLFH/pl10030b-01.png", "https://i.postimg.cc/L5mQRC0q/pl10030b-02.png", "https://i.postimg.cc/j2R3KgkD/pl10030b-03.png", "https://i.postimg.cc/7hqtDsQf/pl10030b-04.png", "https://i.postimg.cc/VvzZ1GHv/pl10030b-05.png", "https://i.postimg.cc/5yfK17k0/pl10030b-06.png", "https://i.postimg.cc/HnTvHZPL/pl10030b-07.png"] },
                 "Nervous Sweat": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/x89pYxF1/pl10030d-00.png", "https://i.postimg.cc/3N3f7Sbr/pl10030d-01.png", "https://i.postimg.cc/mkTpRX6L/pl10030d-02.png", "https://i.postimg.cc/NFQCYJPQ/pl10030d-03.png", "https://i.postimg.cc/VvzZ1GH1/pl10030d-04.png", "https://i.postimg.cc/HnTvHZPm/pl10030d-05.png", "https://i.postimg.cc/Y0tDknyH/pl10030d-06.png"] },
@@ -879,7 +977,7 @@
                 "Document": { type: "loop", frameDelay: 380, frames: ["https://i.postimg.cc/14xBWWhK/pl105307-00.png", "https://i.postimg.cc/yWqjff4y/pl105307-01.png", "https://i.postimg.cc/23pGHHRd/pl105307-02.png"] },
                 // 指认改为循环说话姿态
                 "Pointing": { type: "loop", frameDelay: 280, voice: "https://files.catbox.moe/04xmpb.flac", shake: true, frames: ["https://i.postimg.cc/MXk5ss2t/pl105305-01.png", "https://i.postimg.cc/fk4CHHnC/pl105305-02.png"] },
-                "Slamming Desk": { type: "once_hold", frameDelays: [150, 160, 90, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Z0kHfftQ/pl105302-00.png", "https://i.postimg.cc/Cdy7vvT6/pl105302-01.png", "https://i.postimg.cc/XXML22SH/pl105302-02.png", "https://i.postimg.cc/s1Fmnndn/pl105302-03.png"] },
+                "Slamming Desk": { type: "once_hold", frameDelays: [150, 160, 90, 0],  shake: true, frames: ["https://i.postimg.cc/Z0kHfftQ/pl105302-00.png", "https://i.postimg.cc/Cdy7vvT6/pl105302-01.png", "https://i.postimg.cc/XXML22SH/pl105302-02.png", "https://i.postimg.cc/s1Fmnndn/pl105302-03.png"] },
                 "Struggling": { type: "once_hold", frameDelays: [160, 160, 160, 0], shake: true, frames: ["https://i.postimg.cc/4yHwbDMp/pl10530b-00.png", "https://i.postimg.cc/Kj3Qr6VL/pl10530b-01.png", "https://i.postimg.cc/MHftbC4T/pl10530b-02.png", "https://i.postimg.cc/3N09Cs6J/pl10530b-03.png"] },
                 "Confident": { type: "once_hold", frameDelays: [180, 180, 0], frames: ["https://i.postimg.cc/C5nJH3th/pl10530d-00.png", "https://i.postimg.cc/GtTzJWNc/pl10530d-01.png", "https://i.postimg.cc/gjL4qC7f/pl10530d-02.png"] },
                 "Grinning": { type: "once_hold", frameDelays: [150, 150, 150, 150, 150, 150, 150, 150, 0], frames: ["https://i.postimg.cc/sXNwWjny/pl10530f-00.png", "https://i.postimg.cc/xC4tmfsQ/pl10530f-01.png", "https://i.postimg.cc/qR5jKJmf/pl10530f-02.png", "https://i.postimg.cc/xC4tmf6W/pl10530f-03.png", "https://i.postimg.cc/gJTNhzg7/pl10530f-04.png", "https://i.postimg.cc/mD589Lm5/pl10530f-05.png", "https://i.postimg.cc/nzP0mF3R/pl10530f-06.png", "https://i.postimg.cc/SsvD9Sgd/pl10530f-07.png", "https://i.postimg.cc/PxxSNpQV/pl10530f-08.png"] },
@@ -1850,6 +1948,121 @@
         }
         const animator = new UniversalAnimator('actor-sprite');
 
+        // ================= 🎵 逆转裁判原版全套 BGM 播放核心引擎 =================
+        const BGM_TRACKS = {
+            "detention": "https://files.catbox.moe/quc409.flac",      // 看守所·会见室
+            "gumshoe": "https://files.catbox.moe/luei2m.flac",        // 系锯刑警专属曲
+            "pursuit": "https://files.catbox.moe/7wmzja.flac",        // 追求 ～ 想抓住真凶 (高潮逆转)
+            "pursuit_var": "https://files.catbox.moe/3m9qor.flac",    // 追求 ～ 变奏
+            "objection": "https://files.catbox.moe/nkdsg8.flac",      // 成步堂 ～ 异议あり！
+            "maya": "https://files.catbox.moe/82w2y8.flac",           // 真宵 ～ 逆转姐妹日常
+            "ending": "https://files.catbox.moe/nsawa1.flac",         // 庭审胜诉 / 案情落幕尾声
+            "cross_exam": "https://files.catbox.moe/80ep7c.flac",     // 质问 ～ 缓和 (证言质询)
+            "heart_invest": "https://files.catbox.moe/dkdbxx.flac",   // 搜查 ～ 深入核心
+            "court_session": "https://files.catbox.moe/qcq7yq.flac",  // 开庭 ～ 审理开始
+            "suspense": "https://files.catbox.moe/s5faya.flac",       // 悬疑 ～ 紧迫危机
+            "simple_folk": "https://files.catbox.moe/afeo53.flac",    // 事务所 ～ 轻松日常
+            "truth": "https://files.catbox.moe/twaeef.flac",          // 揭示真实 (心理剖析)
+            "investigation": "https://files.catbox.moe/5og36s.flac",  // 搜查 ～ 案发现场序幕
+            "dl6": "https://files.catbox.moe/0p1tdm.flac"             // 回忆 ～ DL-6号事件
+        };
+
+        const bgmAudio = new Audio();
+        bgmAudio.loop = true;
+        let currentBgmKey = "";
+
+        function playBGM(key) {
+            if (!key || key === "stop") {
+                bgmAudio.pause();
+                currentBgmKey = "";
+                return;
+            }
+            if (currentBgmKey === key && !bgmAudio.paused) return; // 正在放相同的就不重播
+            const url = BGM_TRACKS[key];
+            if (!url) return;
+            currentBgmKey = key;
+            bgmAudio.src = url;
+            bgmAudio.volume = 0.5;
+            bgmAudio.play().catch(() => {});
+        }
+
+        // ================= 📜 飘动横幅调用系统 =================
+        function triggerCourtBanner(text) {
+            const banner = document.getElementById('court-banner');
+            const txt = document.getElementById('court-banner-text');
+            if (!banner || !txt) return;
+            txt.innerText = text;
+            banner.classList.remove('banner-slide-in-out');
+            void banner.offsetWidth; // 强行重置动画状态
+            banner.classList.add('banner-slide-in-out');
+            setTimeout(() => { banner.classList.remove('banner-slide-in-out'); }, 2700);
+        }
+
+        // ================= 💥 尖刺大字气泡触发器 (扎入中心+全屏震动) =================
+        const SHOUT_BUBBLE_URLS = {
+            "objection": "https://i.postimg.cc/kXmGQKz6/etc100a(j)-(Objection-).png", // 异议あり！
+            "hold_it": "https://i.postimg.cc/02sjYDFC/etc100b(j)-(Hold-it-).png",     // 待った！ (等等)
+            "take_that": "https://i.postimg.cc/9Fh0dZKb/etc1012(st)-(Take-that-).png"  // くらえ！ (看招)
+        };
+
+        function triggerShoutBubble(type) {
+            const overlay = document.getElementById('shout-bubble-overlay');
+            const img = document.getElementById('shout-bubble-img');
+            const url = SHOUT_BUBBLE_URLS[type];
+            if (!overlay || !img || !url) return;
+            img.src = url;
+            overlay.classList.remove('active');
+            void overlay.offsetWidth;
+            overlay.classList.add('active');
+
+            // 扎入屏幕时全屏猛烈震动
+            const stage = document.getElementById('game-stage');
+            stage.classList.remove('shake-screen');
+            void stage.offsetWidth;
+            stage.classList.add('shake-screen');
+
+            setTimeout(() => { overlay.classList.remove('active'); }, 850);
+        }
+
+        // ================= ⚖️ 有罪 / 无罪 两个超大字同步从天而降 =================
+        const VERDICT_CHAR_URLS = {
+            "not_guilty": [
+                "https://i.postimg.cc/15QXGw2D/wu-zui-de-wu.png",
+                "https://i.postimg.cc/VL8vqnpq/wu-zui-de-zui.png"
+            ],
+            "guilty": [
+                "https://i.postimg.cc/m2skYCJ8/you-zui-de-you.png",
+                "https://i.postimg.cc/xT28vMhs/you-zui-de-zui.png"
+            ]
+        };
+
+        function triggerVerdict(type) {
+            const overlay = document.getElementById('verdict-overlay');
+            const c1 = document.getElementById('verdict-char-1');
+            const c2 = document.getElementById('verdict-char-2');
+            const pair = VERDICT_CHAR_URLS[type];
+            if (!overlay || !c1 || !c2 || !pair) return;
+
+            c1.src = pair[0];
+            c2.src = pair[1];
+            overlay.classList.remove('active');
+            void overlay.offsetWidth;
+            overlay.classList.add('active');
+
+            // 砸下正中的瞬间全屏重度震颤
+            setTimeout(() => {
+                const stage = document.getElementById('game-stage');
+                stage.classList.remove('shake-screen');
+                void stage.offsetWidth;
+                stage.classList.add('shake-screen');
+            }, 300);
+
+            if (type === 'not_guilty') {
+                playBGM('ending'); // 无罪直接进入胜诉曲！
+            }
+            setTimeout(() => { overlay.classList.remove('active'); }, 2600);
+        }
+
 // ================= 3. 通用证物高清图标数据库 =================
         const COMMON_EVIDENCE_ICONS = [
             { keywords: ["血刀", "带血小刀", "血小刀", "凶器小刀"], url: "https://i.postimg.cc/RCTNY1sP/dai-xue-xiao-dao.png" },
@@ -2468,6 +2681,21 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             document.getElementById('game-stage').style.backgroundImage = `url('${bgUrl}')`;
             updateStatusBar();
             closeModal('settings-modal');
+
+            // 智能配乐联动：进入不同场景自动无缝切配经典 BGM！
+            if (locName.includes('事务所')) {
+                playBGM('simple_folk');
+            } else if (locName.includes('拘留所') || locName.includes('看守所') || locName.includes('牢房')) {
+                playBGM('detention');
+            } else if (locName.includes('法庭')) {
+                playBGM('court_session');
+            } else if (locName.includes('仓院')) {
+                playBGM('maya');
+            } else if (gameState.mode === 'case') {
+                playBGM('investigation'); // 案发现场搜查
+            } else {
+                playBGM('simple_folk');
+            }
         }
 
         // ================= 5. 台词队列与大立绘登场调度 =================
@@ -2612,6 +2840,34 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
             document.getElementById('speaker-name').innerText = displaySpeaker;
             document.getElementById('dialogue-content').innerText = content;
+
+            // 自动侦测台词中的法庭关键指令与大招特效
+            if (content.includes('证言开始') || content.includes('证词开始')) {
+                triggerCourtBanner('～ 证 言 开 始 ～');
+                playBGM('cross_exam'); // 证言开始自动切入质询曲
+            } else if (content.includes('开始询问') || content.includes('开始质问') || content.includes('质询开始')) {
+                triggerCourtBanner('～ 开 始 询 问 ～');
+                playBGM('cross_exam');
+            } else if (content.includes('证言结束') || content.includes('证词结束')) {
+                triggerCourtBanner('～ 证 言 结 束 ～');
+            }
+
+            // 💥 尖刺气泡扎入检测
+            if (action.includes('异议') || content.includes('异议あり') || content.includes('反对！') || content.includes('我有异议')) {
+                triggerShoutBubble('objection');
+                playBGM('objection');
+            } else if (action.includes('等等') || content.includes('待った') || content.includes('等一下！')) {
+                triggerShoutBubble('hold_it');
+            } else if (action.includes('看招') || content.includes('くらえ') || content.includes('看招！')) {
+                triggerShoutBubble('take_that');
+            }
+
+            // ⚖️ 判决超大字检测 (审判长宣布无罪/有罪时，两个大字从天而降砸入正中)
+            if (content.includes('无罪') && (speaker.includes('审判长') || speaker.includes('裁判长') || isCourtScene)) {
+                triggerVerdict('not_guilty');
+            } else if (content.includes('有罪') && (speaker.includes('审判长') || speaker.includes('裁判长') || isCourtScene)) {
+                triggerVerdict('guilty');
+            }
 
             // 刷新箭头 / 重新生成按钮
             updateTurnControls();
@@ -3476,16 +3732,22 @@ ${userActionText || '（玩家静静等待对方说话）'}
             document.getElementById('speaker-name').innerText = "系统提示";
             document.getElementById('dialogue-content').innerText = "【新委托接入中，正在后台准备案件……】";
 
-            const sceneNames = Object.keys(locationBgMap).filter(n => !n.startsWith('法庭'));
+            // 核心解决“老在高菱屋”：排除事务所、看守所、法庭、警署等非案发现场后，由代码随机抽取一个真正的案发地点！
+            const candidateScenes = Object.keys(locationBgMap).filter(n => 
+                !n.startsWith('法庭') && !n.includes('事务所') && !n.includes('拘留所') && 
+                !n.includes('看守所') && !n.includes('牢房') && !n.includes('警察署') && !n.includes('检察厅')
+            );
+            const forcedCrimeScene = candidateScenes[Math.floor(Math.random() * candidateScenes.length)];
+
             const genPrompt = `请为《逆转裁判》风格的游戏，在后台设计一个全新的、完整自洽的案件（玩家看不到这份档案）。
 玩家角色：${gameState.profile.name}（${gameState.profile.role}），所属事务所搭档：${gameState.phoneContacts.join('、')}。
-要求：
-1. 案件要有具体的被害人、真凶、动机、手法、完整时间线，以及至少 3 条互相矛盾的证词或线索（供玩家日后推理）。
-2. crimeScene 必须从下面的地点中选一个最合适的：${sceneNames.join('、')}。
+【铁律要求】
+1. 本案案发现场(crimeScene)已指定为：【${forcedCrimeScene}】！案情、被害地点、证物线索必须严格以此地点为核心展开，严禁擅自修改地点！
+2. 案件要有具体的被害人、真凶、动机、手法、完整时间线，以及至少 3 条互相矛盾的证词或线索（供玩家日后推理）。
 3. 被告人（委托人）是被冤枉的，但看起来很可疑。
 4. opening 是开场剧情：只能写来电/委托人求助/被捕经过，约 300 字，每行格式 [发言] 角色名(动作姿态): 内容，旁白用 [发言] 旁白: 内容；不得透露真凶与真相，不得替${gameState.profile.name}说话。
 只输出一个 JSON 对象，不要任何解释和代码块，字段：
-{"title":"","victim":"","culprit":"","motive":"","method":"","timeline":"","truth":"","crimeScene":"","defendant":"","keyEvidence":[{"name":"","desc":""}],"contradictions":[""],"opening":["[发言] ..."]}`;
+{"title":"","victim":"","culprit":"","motive":"","method":"","timeline":"","truth":"","crimeScene":"${forcedCrimeScene}","defendant":"","keyEvidence":[{"name":"","desc":""}],"contradictions":[""],"opening":["[发言] ..."]}`;
 
             try {
                 const res = await fetch(config.endpoint.replace(/\/+\$/, '') + '/chat/completions', {
@@ -3880,6 +4142,10 @@ ${contactHistory}
             const item = list[recIndex];
             if (!item) return;
             toggleRecord();
+            // 1. 出示证物一瞬间从天外扎入【看招！(Take That)】尖刺大字！
+            triggerShoutBubble('take_that');
+            // 2. 引爆最燃逆转神曲【追求 ～ 想抓住真凶】！
+            playBGM('pursuit');
             const presentLines = [
                 `[发言] ${gameState.profile.name}(指认): くらえ！(看招！)`,
                 `[发言] ${gameState.profile.name}(拍桌): 这就是决定性的矛盾！请看我出示的【${item.name}】！`
