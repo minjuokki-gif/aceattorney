@@ -1922,7 +1922,8 @@
         }
 
 // ================= 人物小头像高精度映射库 (172张全收录) =================
-        const DEFAULT_UNKNOWN_AVATAR = "https://i.postimg.cc/mrx94LQ7/cast215-00-(Delicia-Scones).png"; // 真正的黑影人剪影
+        // 彻底剔除迪丽茜粉帽子，换成纯正的逆转官方风黑影+金色问号剪影(自带纯正矢量，永不失效、永不加载错)
+const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23101c2e'/><circle cx='50' cy='36' r='18' fill='%23050a12'/><path d='M20,86 C20,64 34,56 50,56 C66,56 80,64 80,86 Z' fill='%23050a12'/><text x='50' y='48' font-family='sans-serif' font-weight='900' font-size='34' fill='%23ff9900' text-anchor='middle' dominant-baseline='central'>?</text></svg>";
 
         const CHARACTER_AVATAR_RULES = [
             // --- 狩魔 冥 (按年龄与时期分流) ---
@@ -2909,11 +2910,8 @@
                 else if (action.includes('震惊') || action.includes('胡子') || action.includes('慌乱')) actionKey = "Shocked";
                 animator.playFromRegistry("审判长_法庭", actionKey);
             }
-            else if (speaker !== '旁白') {
-                viewport.style.display = 'none';
-            }
-            // 18. 系锯圭介 (系锯刑警)
-            else if (speaker.includes('系锯') || speaker.includes('刑警')) {
+            // 18. 系锯圭介 (把“系锯”、“糸锯”、“圭介”全部加上，怎么生成都能识别！)
+            else if (speaker.includes('系锯') || speaker.includes('糸锯') || speaker.includes('圭介') ) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('笑') || action.includes('大笑') || action.includes('叉腰大笑')) actionKey = "Laughing";
@@ -2951,6 +2949,10 @@
                 else if (action.includes('瞪') || action.includes('愤怒') || action.includes('失态') || action.includes('黑化')) actionKey = "Glaring";
                 else if (action.includes('汗') || action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
                 animator.playFromRegistry("雾人_法庭", actionKey);
+            }
+            // 兜底：所有角色全都核对完了，如果谁都不是（且不是旁白），才把立绘隐藏！
+            else if (speaker !== '旁白') {
+                viewport.style.display = 'none';
             }
         }
 
@@ -3250,9 +3252,8 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 const profMatch = line.match(/\[人物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/);
                 if (profMatch) {
                     const pName = profMatch[1].trim();
-                    const pDesc = profMatch[2] ? profMatch[2].trim() : "案情相关嫌疑人/证人。";
+                    const pDesc = profMatch[2] ? profMatch[2].trim() : "案情相关人员。";
                     if (!gameState.profiles.some(p => p.name === pName)) {
-                        // 新结识的委托人/证人直接插入到最前排（第 1 页第 1 格），一打开法庭记录就能看到核心当事人
                         gameState.profiles.unshift({
                             name: pName,
                             desc: pDesc,
@@ -3260,7 +3261,9 @@ ${userActionText || '（玩家静静等待对方说话）'}
                         });
                         recPage = 0;
                         recIndex = 0;
-                        if (!gameState.phoneContacts.includes(pName)) {
+                        // 修复闹鬼：被害人、死者、尸体绝对禁止加进手机联络人！
+                        const isDead = /被害|死者|尸体|遇害|遗体/.test(pName + pDesc);
+                        if (!isDead && !gameState.phoneContacts.includes(pName)) {
                             gameState.phoneContacts.push(pName);
                             renderPhoneList();
                         }
@@ -3660,6 +3663,16 @@ ${userActionText || '（玩家静静等待对方说话）'}
             const listEl = document.getElementById('phone-contact-list');
             if (!listEl) return;
             listEl.innerHTML = '';
+
+            // 清理闹鬼：如果当前存档手机里已经躺着死者/被害人，直接踢除
+            if (gameState.phoneContacts && gameState.profiles) {
+                gameState.phoneContacts = gameState.phoneContacts.filter(name => {
+                    const p = gameState.profiles.find(item => item.name === name);
+                    if (p && /被害|死者|尸体|遇害|遗体/.test(p.name + (p.desc || ''))) return false;
+                    return true;
+                });
+            }
+
             if (!gameState.phoneContacts || gameState.phoneContacts.length === 0) {
                 listEl.innerHTML = '<div style="color:#6582a8;font-size:11px;text-align:center;padding:10px;">暂无联系人</div>';
                 return;
@@ -3792,12 +3805,16 @@ ${contactHistory}
         }
 
         function renderRecordAll() {
-            // 实时清洗：无论读档还是当前游玩，立刻剔除玩家自己、以及本案未出场的全明星，仅保留当前在场搭档与案件当事人
+            // 1. 彻底删除之前删掉证人的破坏性代码，所有案子里登场过的证人/NPC永久保留！
+            // 2. 动态头像自愈：不管存档里存的是什么老数据，自动把千寻/矢张升级为最新高清图，把影山律的粉帽子直接转成纯正黑影！
             if (recordTab === 'profiles' && gameState.profiles) {
-                gameState.profiles = gameState.profiles.filter(p => 
-                    p.name !== gameState.profile.name && 
-                    (gameState.phoneContacts.includes(p.name) || (p.desc && (p.desc.includes('案情') || p.desc.includes('嫌疑') || p.desc.includes('证人') || p.desc.includes('委托') || p.desc.includes('被害'))))
-                );
+                gameState.profiles.forEach(p => {
+                    if (p.icon && p.icon.includes('cast215') && !p.name.includes('迪丽茜')) {
+                        p.icon = DEFAULT_UNKNOWN_AVATAR; // 旧存档里的粉帽子秒变黑影
+                    } else if (p.name === '绫里 千寻' || p.name === '矢张 政志') {
+                        p.icon = matchProfileIcon(p.name); // 旧存档里的老千寻/老矢张秒变高清图
+                    }
+                });
             }
 
             const list = (recordTab === 'profiles' ? gameState.profiles : gameState.evidence) || [];
