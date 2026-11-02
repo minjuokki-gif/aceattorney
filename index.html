@@ -873,18 +873,20 @@
             },
             // 7. 御剑怜侍 · 法庭对峙篇
             "御剑_法庭": {
-                scale: 0.85,
+                scale: 0.85, offsetY: 60, // 统一下沉60px完美贴紧检察席长桌
                 "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/QVLm66GR/pl105300-00.png", "https://i.postimg.cc/Th80kkMB/pl105300-01.png", "https://i.postimg.cc/4nCP88kq/pl105300-02.png"] },
                 "Thinking": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/vDRhPPF5/pl105309-00.png", "https://i.postimg.cc/c6qhDDyY/pl105309-01.png", "https://i.postimg.cc/23pGHHRW/pl105309-02.png", "https://i.postimg.cc/bdXg66c2/pl105309-03.png", "https://i.postimg.cc/hhFsCCWz/pl105309-04.png", "https://i.postimg.cc/K4Xf99SR/pl105309-05.png", "https://i.postimg.cc/tJnDtKf3/pl105309-06.png", "https://i.postimg.cc/Y0L8f5V1/pl105309-07.png"] },
                 "Document": { type: "loop", frameDelay: 380, frames: ["https://i.postimg.cc/14xBWWhK/pl105307-00.png", "https://i.postimg.cc/yWqjff4y/pl105307-01.png", "https://i.postimg.cc/23pGHHRd/pl105307-02.png"] },
-                "Pointing": { type: "once_hold", frameDelays: [150, 200, 0], voice: "https://files.catbox.moe/04xmpb.flac", shake: true, frames: ["https://i.postimg.cc/PNGy66s2/pl105305-00.png", "https://i.postimg.cc/MXk5ss2t/pl105305-01.png", "https://i.postimg.cc/fk4CHHnC/pl105305-02.png"] },
+                // 指认改为循环说话姿态
+                "Pointing": { type: "loop", frameDelay: 280, voice: "https://files.catbox.moe/04xmpb.flac", shake: true, frames: ["https://i.postimg.cc/MXk5ss2t/pl105305-01.png", "https://i.postimg.cc/fk4CHHnC/pl105305-02.png"] },
                 "Slamming Desk": { type: "once_hold", frameDelays: [150, 160, 90, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Z0kHfftQ/pl105302-00.png", "https://i.postimg.cc/Cdy7vvT6/pl105302-01.png", "https://i.postimg.cc/XXML22SH/pl105302-02.png", "https://i.postimg.cc/s1Fmnndn/pl105302-03.png"] },
                 "Struggling": { type: "once_hold", frameDelays: [160, 160, 160, 0], shake: true, frames: ["https://i.postimg.cc/4yHwbDMp/pl10530b-00.png", "https://i.postimg.cc/Kj3Qr6VL/pl10530b-01.png", "https://i.postimg.cc/MHftbC4T/pl10530b-02.png", "https://i.postimg.cc/3N09Cs6J/pl10530b-03.png"] },
                 "Confident": { type: "once_hold", frameDelays: [180, 180, 0], frames: ["https://i.postimg.cc/C5nJH3th/pl10530d-00.png", "https://i.postimg.cc/GtTzJWNc/pl10530d-01.png", "https://i.postimg.cc/gjL4qC7f/pl10530d-02.png"] },
                 "Grinning": { type: "once_hold", frameDelays: [150, 150, 150, 150, 150, 150, 150, 150, 0], frames: ["https://i.postimg.cc/sXNwWjny/pl10530f-00.png", "https://i.postimg.cc/xC4tmfsQ/pl10530f-01.png", "https://i.postimg.cc/qR5jKJmf/pl10530f-02.png", "https://i.postimg.cc/xC4tmf6W/pl10530f-03.png", "https://i.postimg.cc/gJTNhzg7/pl10530f-04.png", "https://i.postimg.cc/mD589Lm5/pl10530f-05.png", "https://i.postimg.cc/nzP0mF3R/pl10530f-06.png", "https://i.postimg.cc/SsvD9Sgd/pl10530f-07.png", "https://i.postimg.cc/PxxSNpQV/pl10530f-08.png"] },
                 "Damage": { type: "once_hold", frameDelays: [100, 140, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/qRR1ghx1/pl105310-00.png", "https://i.postimg.cc/FRRT1dVg/pl105310-01.png", "https://i.postimg.cc/k44TD6vW/pl105310-02.png"] },
                 "Bowing": { type: "once_hold", frameDelays: [160, 160, 0], frames: ["https://i.postimg.cc/rmmfz0Nr/pl105311-00.png", "https://i.postimg.cc/B66mtLBF/pl105311-01.png", "https://i.postimg.cc/k44TD6vB/pl105311-02.png"] },
-                "Shrugging": { type: "once_hold", frameDelays: [150, 150, 150, 150, 0], frames: ["https://i.postimg.cc/500sjYSN/pl105312-00.png", "https://i.postimg.cc/pdk02Yzn/pl105312-01.png", "https://i.postimg.cc/26603b7S/pl105312-02.png", "https://i.postimg.cc/xdgs0yMz/pl105312-03.png", "https://i.postimg.cc/Xvx2VcdJ/pl105312-04.png"] }
+                // 耸肩动作播完后自动睁眼切回 Normal 待机，不再闭眼卡死
+                "Shrugging": { type: "once_reset", frameDelays: [200, 200, 220, 220, 0], frames: ["https://i.postimg.cc/500sjYSN/pl105312-00.png", "https://i.postimg.cc/pdk02Yzn/pl105312-01.png", "https://i.postimg.cc/26603b7S/pl105312-02.png", "https://i.postimg.cc/xdgs0yMz/pl105312-03.png", "https://i.postimg.cc/Xvx2VcdJ/pl105312-04.png"] }
             },
             // 8. 绫里春美 · 日常/侦查正面篇
             "春美_正面": {
@@ -1778,7 +1780,10 @@
                     const stepReset = () => {
                         const delay = anim.frameDelays ? anim.frameDelays[curFrame] : 140;
                         if (curFrame >= anim.frames.length - 1 || delay === 0) {
-                            this.later(() => { this.imgEl.src = anim.frames[0]; }, 350, tk);
+                            // 核心修复：单次动作放完后，自动切入 Normal 待机循环，恢复呼吸与眨眼
+                            this.later(() => { 
+                                this.playFromRegistry(characterKey, "Normal"); 
+                            }, 350, tk);
                             return;
                         }
                         this.timer = this.later(() => {
@@ -2613,6 +2618,26 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
             const isCourtScene = gameState.currentLocation.includes('法庭');
 
+            // 核心功能：法庭内镜头根据当前发言角色自动秒切背景（辩护席/检察席/证人席/审判长席/助手席）
+            if (isCourtScene) {
+                let targetCourtBg = null;
+                const spk = speaker.toLowerCase();
+                if (speaker.includes('成步堂') || speaker === '龙一' || speaker === gameState.profile.name) {
+                    targetCourtBg = locationBgMap["法庭·辩护席"];
+                } else if (speaker.includes('御剑') || speaker.includes('冥') || speaker.includes('响也') || speaker.includes('亚内') || speaker.includes('检事')) {
+                    targetCourtBg = locationBgMap["法庭·检察席"];
+                } else if (speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官')) {
+                    targetCourtBg = locationBgMap["法庭·审判长席"];
+                } else if (speaker.includes('真宵') || speaker.includes('千寻') || speaker.includes('春美')) {
+                    targetCourtBg = locationBgMap["法庭·助手席"];
+                } else if (speaker !== '旁白' && !speaker.includes('系统')) {
+                    targetCourtBg = locationBgMap["法庭·证人席"]; // 证人/嫌疑人/系锯/矢张等自动切到证人席
+                }
+                if (targetCourtBg) {
+                    document.getElementById('game-stage').style.backgroundImage = `url('${targetCourtBg}')`;
+                }
+            }
+
             // ================= 智能名字识别与立绘分发 =================
             // 1. 成步堂（成步堂、龙一、成步堂龙一 通吃）
             if (speaker.includes('成步堂') || speaker === '龙一') {
@@ -2649,7 +2674,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                     else if (action.includes('摇手指') || action.includes('得意')) actionKey = "Grinning";
                     else if (action.includes('破防') || action.includes('受创') || action.includes('抱头')) actionKey = "Damage";
                     else if (action.includes('躬身')) actionKey = "Bowing";
-                    else if (action.includes('摊手')) actionKey = "Shrugging";
+                    else if (action.includes('摊手') || action.includes('耸肩') || action.includes('无奈')) actionKey = "Shrugging";
                     animator.playFromRegistry("御剑_法庭", actionKey);
                 } else {
                     let actionKey = "Normal";
