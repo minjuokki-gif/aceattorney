@@ -45,14 +45,13 @@
 
         .character-viewport {
             position: absolute;
-            /* 立绘大小随舞台缩放（手机/电脑一致）。想再大/小只改下面两个变量 */
-            --sprite-h: 125%;
-            --sprite-bottom: -9%;
-            bottom: var(--sprite-bottom);
+            /* 对话框130px + 底栏32px = 162px，立绘底边精确贴合对话框白色顶边 */
+            bottom: 162px;
             left: 50%;
             transform: translateX(-50%);
             width: 100%;
-            height: var(--sprite-h);
+            /* 高度占满对话框上方的全部可见画面 */
+            height: calc(100% - 162px);
             display: flex;
             align-items: flex-end;
             justify-content: center;
@@ -506,10 +505,10 @@
                             <div class="form-group" style="flex: 2;">
                                 <label class="form-label">身份职业路线 (决定专属起点与搭档)</label>
                                 <select class="form-select" id="char-role">
-                                    <option value="辩护律师">辩护律师 (事务所日常 / 成步堂线)</option>
-                                    <option value="检事">高位检事 (1202室办公室 / 御剑线)</option>
-                                    <option value="刑警">初动刑警 (警察署刑事课 / 系锯&小茜线)</option>
-                                    <option value="灵媒师">仓院灵媒师 (仓院之里本堂 / 真宵&春美线)</option>
+                                    <option value="辩护律师">事务所见习助手 (成步堂线 / 打杂学习新人)</option>
+                                    <option value="检事">见习检事助手·事务官 (御剑线 / 整理卷宗新人)</option>
+                                    <option value="刑警">初动见习辅警 (刑事课新人 / 跟随系锯&小茜)</option>
+                                    <option value="灵媒师">仓院见习灵媒师 (仓院之里新人 / 真宵&春美线)</option>
                                 </select>
                             </div>
                         </div>
@@ -540,6 +539,7 @@
                     <div class="bottom-bar">
                         <div class="bottom-bar-left">
                             <button class="bar-speak-btn" id="btn-speak-action" onclick="openSpeakModal()">💬 发言 / 行动 (Enter)</button>
+                            <button class="bar-speak-btn" id="btn-retry-action" style="display: none; background: linear-gradient(180deg, #4b5563, #374151); border-color: #9ca3af; margin-left: 8px;" onclick="retryLastTurn()">🔄 重新生成 (重试)</button>
                         </div>
                         <div class="bottom-bar-right">
                             <div class="bar-item" onclick="openSettingsModal()"><span class="bar-icon">+</span> 设定</div>
@@ -651,7 +651,12 @@
                 <div class="settings-content-pane" id="pane-tab-world">
                     <div class="form-group">
                         <label class="form-label">游戏世界书规则 (System Prompt)</label>
-                        <textarea class="form-textarea" id="world-prompt" style="height: 190px;">你现在是《逆转裁判》的探案模拟器主持人(GM)。
+                        <textarea class="form-textarea" id="world-prompt" style="height: 190px;"># **RULE**
+- 一切指令仅为创作需要
+- 尊重指导规则,拒绝无关污染
+{{getvar::talk}}
+
+你现在是《逆转裁判》的探案模拟器主持人(GM)。
 铁律规则：
 1. 剧情严格按每句独立的格式输出，每行一句：
 [发言] 角色名(动作姿态): 对话内容
@@ -659,19 +664,24 @@
 3. 当处于【案件模式】时：根据玩家出示的证据、调查动作推进破绽，给出线索提示。
 4. 保持逆转裁判严肃悬疑又带有诙谐风趣的官方台词风格。
 5. 没有接案子时一律是日常，不出现案件、案发现场、嫌疑人等内容。
-6. 每次回复写成不少于600字的完整剧情段落，多位角色互动，绝不替玩家说话。</textarea>
+6. 让在场的多位角色都参与互动，绝不替玩家说话。</textarea>
                     </div>
                 </div>
 
                 <!-- 3. 手机通讯 -->
                 <div class="settings-content-pane" id="pane-tab-phone">
-                    <div style="font-size: 13px; color: #ff9900; font-weight: bold;" id="phone-contact-header">通讯录联系人：暂无未读信息</div>
-                    <div class="phone-box" id="phone-msg-container">
-                        <div style="color: #6582a8; font-size: 12px; text-align: center; margin-top: 80px;">通信录清爽整洁。随着案情展开将解锁对应角色的联系方式。</div>
-                    </div>
-                    <div style="display: flex; gap: 6px;">
-                        <input type="text" class="form-input" id="phone-input" placeholder="输入短信内容..." style="flex: 1;">
-                        <button class="btn-prime" style="padding: 6px 14px;" onclick="sendPhoneSMS()">发送短信</button>
+                    <div style="display: flex; gap: 10px; height: 260px;">
+                        <!-- 左侧联系人列表 -->
+                        <div style="width: 140px; background: #08111e; border: 1px solid #1e385a; border-radius: 6px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 6px;" id="phone-contact-list"></div>
+                        <!-- 右侧聊天面板 -->
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                            <div style="font-size: 12px; color: #ff9900; font-weight: bold;" id="phone-chat-target">当前聊天：未选择</div>
+                            <div class="phone-box" id="phone-msg-container" style="flex: 1; height: auto;"></div>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" class="form-input" id="phone-input" placeholder="输入短信内容..." style="flex: 1;" onkeydown="if(event.key==='Enter') sendPhoneSMS();">
+                                <button class="btn-prime" style="padding: 4px 14px; font-size: 12px;" onclick="sendPhoneSMS()">发送</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -766,7 +776,7 @@
            包含御剑、千寻、真宵、成步堂全部正面与法庭姿态！
            ========================================================================= */
         // 循环动画速度总开关：1 = 原速；数字越大越慢（觉得表情切得太快就调大，比如 2）
-        const LOOP_SPEED = 1.6;
+        const LOOP_SPEED = 1.2;
 
         const CHARACTER_ANIMATION_REGISTRY = {
             // 1. 御剑怜侍 · 日常/侦查正面篇
@@ -841,11 +851,19 @@
                 "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
                 "Pointing": { type: "once_reset", frameDelays: [140, 140, 140, 200, 200, 0], voice: "https://files.catbox.moe/hov7xo.flac", shake: true, frames: ["https://i.postimg.cc/d3nH02zy/pl10030a-00.png", "https://i.postimg.cc/L5vCstrZ/pl10030a-01.png", "https://i.postimg.cc/C5JPKGWB/pl10030a-02.png", "https://i.postimg.cc/MHtPG7hX/pl10030a-03.png", "https://i.postimg.cc/QCS4MQRF/pl10030a-04.png", "https://i.postimg.cc/5yp7tBZH/pl10030a-05.png"] },
                 "Document": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/VvzZ1GHb/pl10030b-00.png", "https://i.postimg.cc/4yX2ZLFH/pl10030b-01.png", "https://i.postimg.cc/L5mQRC0q/pl10030b-02.png", "https://i.postimg.cc/j2R3KgkD/pl10030b-03.png", "https://i.postimg.cc/7hqtDsQf/pl10030b-04.png", "https://i.postimg.cc/VvzZ1GHv/pl10030b-05.png", "https://i.postimg.cc/5yfK17k0/pl10030b-06.png", "https://i.postimg.cc/HnTvHZPL/pl10030b-07.png"] },
-                "Nervous Sweat": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/x89pYxF1/pl10030d-00.png", "https://i.postimg.cc/3N3f7Sbr/pl10030d-01.png", "https://i.postimg.cc/mkTpRX6L/pl10030d-02.png", "https://i.postimg.cc/NFQCYJPQ/pl10030d-03.png", "https://i.postimg.cc/VvzZ1GH1/pl10030d-04.png", "https://i.postimg.cc/HnTvHZPm/pl10030d-05.png", "https://i.postimg.cc/Y0tDknyH/pl10030d-06.png"] },
-                "Shocked": { type: "once_reset", frameDelays: [100, 100, 100, 150, 150, 150, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/zvq25tP1/pl10030f-00.png", "https://i.postimg.cc/7hqtDsQv/pl10030f-01.png", "https://i.postimg.cc/hvKZgyZk/pl10030f-02.png", "https://i.postimg.cc/brqV8CVK/pl10030f-03.png", "https://i.postimg.cc/tJ9vySvw/pl10030f-04.png", "https://i.postimg.cc/9Mdg651h/pl10030f-05.png", "https://i.postimg.cc/B6T7r9NG/pl10030f-06.png"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 220, offsetY: 65, frames: ["https://i.postimg.cc/x89pYxF1/pl10030d-00.png", "https://i.postimg.cc/3N3f7Sbr/pl10030d-01.png", "https://i.postimg.cc/mkTpRX6L/pl10030d-02.png", "https://i.postimg.cc/NFQCYJPQ/pl10030d-03.png", "https://i.postimg.cc/VvzZ1GH1/pl10030d-04.png", "https://i.postimg.cc/HnTvHZPm/pl10030d-05.png", "https://i.postimg.cc/Y0tDknyH/pl10030d-06.png"] },
+                "Shocked": { type: "once_hold", frameDelays: [100, 100, 100, 150, 150, 150, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/zvq25tP1/pl10030f-00.png", "https://i.postimg.cc/7hqtDsQv/pl10030f-01.png", "https://i.postimg.cc/hvKZgyZk/pl10030f-02.png", "https://i.postimg.cc/brqV8CVK/pl10030f-03.png", "https://i.postimg.cc/tJ9vySvw/pl10030f-04.png", "https://i.postimg.cc/9Mdg651h/pl10030f-05.png", "https://i.postimg.cc/B6T7r9NG/pl10030f-06.png"] },
                 "Embarrassed Laugh": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/mDYpvfVW/pl100311-00.png", "https://i.postimg.cc/j5H3p0vV/pl100311-01.png", "https://i.postimg.cc/bJxV7cgW/pl100311-02.png"] },
                 "Confident": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/Y96D5KRV/pl100313-00.png", "https://i.postimg.cc/tT3vKQkm/pl100313-01.png", "https://i.postimg.cc/1tG7khBW/pl100313-02.png"] },
-                "Nodding": { type: "once_reset", frameDelays: [350, 0], frames: ["https://i.postimg.cc/Y2xy87hk/pl100300-01.png", "https://i.postimg.cc/Y96D5KRz/pl100315-01.png"] },
+                "Nodding": { 
+                    type: "once_reset", 
+                    frameDelays: [150, 240, 0], 
+                    frames: [
+                        "https://i.postimg.cc/85QnXPRt/pl100316-00.png",
+                        "https://i.postimg.cc/Y96D5KRz/pl100315-01.png",
+                        "https://i.postimg.cc/B69w7QT2/pl100316-02.png"
+                    ] 
+                },
                 "Shaking Head": { type: "once_reset", frameDelays: [130, 130, 130, 130, 0], frames: ["https://i.postimg.cc/85QnXPRt/pl100316-00.png", "https://i.postimg.cc/B69w7QTC/pl100316-01.png", "https://i.postimg.cc/B69w7QT2/pl100316-02.png", "https://i.postimg.cc/B69w7QTK/pl100316-03.png", "https://i.postimg.cc/C1T6rLGB/pl100316-04.png"] },
                 "Bent Over": { type: "static", frames: ["https://i.postimg.cc/k43hYXQX/pl200318-00.png"] },
                 "Coffee Head": { type: "once_reset", frameDelays: [100, 100, 120, 120, 140, 140, 0], shake: true, frames: ["https://i.postimg.cc/XvyzgyCG/pl30031a-00.png", "https://i.postimg.cc/jjJFhJ7j/pl30031a-01.png", "https://i.postimg.cc/9fqnBq7m/pl30031a-02.png", "https://i.postimg.cc/vm6Nv6Vs/pl30031a-03.png", "https://i.postimg.cc/jjJFhJ70/pl30031a-04.png", "https://i.postimg.cc/TPW4cWWF/pl30031a-05.png", "https://i.postimg.cc/R0nDTnn8/pl30031a-06.png"] },
@@ -875,12 +893,11 @@
                 "Composed": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/J045yhDS/pl20d002-00.png", "https://i.postimg.cc/tJCN1gZc/pl20d002-01.png", "https://i.postimg.cc/PJrQLqpR/pl20d002-02.png"] },
                 "Crying": { type: "loop", frameDelay: 120, frames: ["https://i.postimg.cc/zvXFLfbp/pl20d004-00.png", "https://i.postimg.cc/NMxxfXMZ/pl20d004-01.png", "https://i.postimg.cc/JnQQ4XnF/pl20d004-02.png", "https://i.postimg.cc/3RZZJGR6/pl20d004-03.png", "https://i.postimg.cc/63hh5Z3H/pl20d004-04.png", "https://i.postimg.cc/1tKK5FtJ/pl20d004-05.png", "https://i.postimg.cc/d199tC1n/pl20d004-06.png", "https://i.postimg.cc/63hh5Z3c/pl20d004-07.png", "https://i.postimg.cc/LXVV6PX3/pl20d004-08.png", "https://i.postimg.cc/85bbPv5d/pl20d004-09.png", "https://i.postimg.cc/MTYYKBTV/pl20d004-10.png", "https://i.postimg.cc/HxttsMx5/pl20d004-11.png", "https://i.postimg.cc/Y9xxqF9W/pl20d004-12.png", "https://i.postimg.cc/gJKKkhJn/pl20d004-13.png", "https://i.postimg.cc/cHWmShsf/pl20d004-14.png", "https://i.postimg.cc/Y973HRpF/pl20d004-15.png", "https://i.postimg.cc/W3Vnv82d/pl20d004-16.png", "https://i.postimg.cc/ZRmcSHTC/pl20d004-17.png", "https://i.postimg.cc/pTvZHC2d/pl20d004-18.png", "https://i.postimg.cc/W3Vnv821/pl20d004-19.png"] },
                 "Determined": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/fLsKNCwW/pl20d006-00.png", "https://i.postimg.cc/pTvZHC2x/pl20d006-01.png", "https://i.postimg.cc/hjnrBsSW/pl20d006-02.png"] },
-                "Shocked1": { type: "static", frames: ["https://i.postimg.cc/mD4wsjT0/pl20d008-01.png"] },
                 "Thinking": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/BvHgkkG3/pl20d00a-00.png", "https://i.postimg.cc/W4gnCCcQ/pl20d00a-01.png", "https://i.postimg.cc/cJwm22GP/pl20d00a-02.png"] },
                 "Enchanted": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/rpxJ332Y/pl20d00c-00.png", "https://i.postimg.cc/HLX2RR1Z/pl20d00c-01.png", "https://i.postimg.cc/YSY3ZZBd/pl20d00c-02.png"] },
                 "Joyful": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/CKkNXXpJ/pl20d00e-00.png", "https://i.postimg.cc/q7yLSSHL/pl20d00e-01.png", "https://i.postimg.cc/q7yLSSHc/pl20d00e-02.png", "https://i.postimg.cc/3xP1L7VS/pl20d00e-03.png", "https://i.postimg.cc/0yLntxFd/pl20d00e-04.png"] },
                 "Disappointed": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/GmZKMrVG/pl20d010-00.png", "https://i.postimg.cc/Jz9xTmvX/pl20d010-01.png", "https://i.postimg.cc/P5By6h98/pl20d010-02.png"] },
-                "Shocked2": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/CxW7vYXZ/pl20d012-00.png", "https://i.postimg.cc/t41Dt7SV/pl20d012-01.png", "https://i.postimg.cc/HkfzSHRx/pl20d012-02.png", "https://i.postimg.cc/NjWDNYSf/pl20d012-03.png", "https://i.postimg.cc/wjS2WHZq/pl20d012-04.png", "https://i.postimg.cc/mgcVNhXf/pl20d012-05.png"] }
+                "Shocked": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/CxW7vYXZ/pl20d012-00.png", "https://i.postimg.cc/t41Dt7SV/pl20d012-01.png", "https://i.postimg.cc/HkfzSHRx/pl20d012-02.png", "https://i.postimg.cc/NjWDNYSf/pl20d012-03.png", "https://i.postimg.cc/wjS2WHZq/pl20d012-04.png", "https://i.postimg.cc/mgcVNhXf/pl20d012-05.png"] }
             },
             // 9. 狩魔冥 · 法庭对峙篇
             "冥_法庭": {
@@ -909,25 +926,750 @@
             // 11. 牙琉响也 · 法庭对峙篇 (侧身)
             "响也_法庭": {
                 scale: 0.85,
-                "Normal": { type: "loop", frameDelay: 300, frames: ["填入pl40210图1链接", "填入pl40210图2链接"] },
-                "Scornful Laugh": { type: "loop", frameDelay: 280, frames: ["填入pl40211图1链接", "填入pl40211图2链接"] },
-                "Smiling": { type: "loop", frameDelay: 300, frames: ["填入pl40212图1链接", "填入pl40212图2链接"] },
-                "Thinking": { type: "loop", frameDelay: 300, frames: ["填入pl40213图1链接", "填入pl40213图2链接"] },
-                "Spent": { type: "loop", frameDelay: 300, frames: ["填入pl40214图1链接", "填入pl40214图2链接"] },
-                "Damage": { type: "loop", frameDelay: 100, frames: ["填入pl40215图1链接", "填入pl40215图2链接"] },
-                "Pointing": { type: "loop", frameDelay: 300, frames: ["填入pl40216图1链接", "填入pl40216图2链接"] },
-                "Nervous Sweat": { type: "loop", frameDelay: 240, frames: ["填入pl40218图1链接", "填入pl40218图2链接"] },
-                // 重点：Slam_Start (219) 是不循环的，跑完后自动触发 Slam_Loop (21a) 的无限循环
-                "Slam_Start": { type: "chain", nextAnim: "Slam_Loop", frameDelays: [120, 120, 120], frames: ["填入pl40219图1链接", "填入pl40219图2链接", "填入pl40219图3链接"] },
-                "Slam_Loop": { type: "loop", frameDelay: 280, frames: ["填入pl4021a图1链接", "填入pl4021a图2链接"] }
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/Rhdjw2Dz/pl40210-00.png",
+                        "https://i.postimg.cc/4yPrpjSG/pl40210-01.png",
+                        "https://i.postimg.cc/8c4qLx0g/pl40210-02.png",
+                        "https://i.postimg.cc/T10ZnBHZ/pl40210-03.png",
+                        "https://i.postimg.cc/hvsHVN5F/pl40210-04.png",
+                        "https://i.postimg.cc/L5DrjG0c/pl40210-05.png",
+                        "https://i.postimg.cc/brgK14F4/pl40210-06.png",
+                        "https://i.postimg.cc/tJkLF8mB/pl40210-07.png",
+                        "https://i.postimg.cc/6qcDCF1z/pl40210-08.png"
+                    ] 
+                },
+                "Scornful Laugh": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/MH5h1gr5/pl40211-00.png",
+                        "https://i.postimg.cc/L5DrjG0B/pl40211-01.png"
+                    ] 
+                },
+                "Smiling": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/NFB39Qbd/pl40212-00.png",
+                        "https://i.postimg.cc/j2tpwRvZ/pl40212-01.png",
+                        "https://i.postimg.cc/1XsknyMB/pl40212-02.png",
+                        "https://i.postimg.cc/PJTgpdKM/pl40212-03.png",
+                        "https://i.postimg.cc/fyDGtM5f/pl40212-04.png",
+                        "https://i.postimg.cc/rsMB0qg1/pl40212-05.png",
+                        "https://i.postimg.cc/Y0M5Gt8Q/pl40212-06.png",
+                        "https://i.postimg.cc/MHqCMztR/pl40212-07.png",
+                        "https://i.postimg.cc/J0MfDRKH/pl40212-08.png",
+                        "https://i.postimg.cc/QCh29jSH/pl40212-09.png",
+                        "https://i.postimg.cc/FzNMdhGR/pl40212-10.png",
+                        "https://i.postimg.cc/SRkB2mVx/pl40212-11.png"
+                    ] 
+                },
+                "Thinking": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/FRytHYbJ/pl40213-00.png",
+                        "https://i.postimg.cc/9Md3QDPw/pl40213-01.png",
+                        "https://i.postimg.cc/G2F0m4P8/pl40213-02.png",
+                        "https://i.postimg.cc/cHRqLv7K/pl40213-03.png",
+                        "https://i.postimg.cc/85R8z7d7/pl40213-04.png",
+                        "https://i.postimg.cc/3RXMxkjW/pl40213-05.png",
+                        "https://i.postimg.cc/ydmq8Dh8/pl40213-06.png"
+                    ] 
+                },
+                "Spent": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/rm16wDGV/pl40214-00.png",
+                        "https://i.postimg.cc/85R8z7dD/pl40214-01.png",
+                        "https://i.postimg.cc/0QYgyzGs/pl40214-02.png"
+                    ] 
+                },
+                "Damage": { 
+                    type: "loop", 
+                    frameDelay: 100, 
+                    frames: [
+                        "https://i.postimg.cc/G2F0m4P0/pl40215-00.png",
+                        "https://i.postimg.cc/KzPX81Pw/pl40215-01.png",
+                        "https://i.postimg.cc/V6QQwqt8/pl40215-02.png"
+                    ] 
+                },
+                "Pointing": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/yd44KmRC/pl40216-00.png",
+                        "https://i.postimg.cc/G2wwRFDw/pl40216-01.png",
+                        "https://i.postimg.cc/cHyyWRnV/pl40216-02.png",
+                        "https://i.postimg.cc/TwMMxVDB/pl40216-03.png",
+                        "https://i.postimg.cc/W3LLVGkK/pl40216-04.png",
+                        "https://i.postimg.cc/V6QQwqCV/pl40216-05.png",
+                        "https://i.postimg.cc/4dkkG692/pl40216-06.png",
+                        "https://i.postimg.cc/3R55hXvL/pl40216-07.png",
+                        "https://i.postimg.cc/wv88zXmw/pl40216-08.png",
+                        "https://i.postimg.cc/W3LLVGkS/pl40216-09.png",
+                        "https://i.postimg.cc/TwMMxVDC/pl40216-10.png",
+                        "https://i.postimg.cc/TwMMxVD9/pl40216-11.png",
+                        "https://i.postimg.cc/NMqqt6H7/pl40216-12.png",
+                        "https://i.postimg.cc/JnVV8NkN/pl40216-13.png",
+                        "https://i.postimg.cc/SsFF46MW/pl40216-14.png",
+                        "https://i.postimg.cc/j500TH7N/pl40216-15.png",
+                        "https://i.postimg.cc/jjJ0BgLZ/pl40216-16.png",
+                        "https://i.postimg.cc/fb0n12J5/pl40216-17.png",
+                        "https://i.postimg.cc/8CrQxKj4/pl40216-18.png",
+                        "https://i.postimg.cc/zfRZ4tVj/pl40216-19.png",
+                        "https://i.postimg.cc/8CrQxKjb/pl40216-20.png",
+                        "https://i.postimg.cc/MGj2gPvm/pl40216-21.png"
+                    ] 
+                },
+                "Nervous Sweat": { 
+                    type: "loop", 
+                    frameDelay: 240, 
+                    frames: [
+                        "https://i.postimg.cc/JhBVS6Gc/pl40218-00.png",
+                        "https://i.postimg.cc/CKfT9Pzb/pl40218-01.png",
+                        "https://i.postimg.cc/k5t3L1B8/pl40218-02.png",
+                        "https://i.postimg.cc/mrFfKXtF/pl40218-03.png",
+                        "https://i.postimg.cc/QMWGv4HT/pl40218-04.png",
+                        "https://i.postimg.cc/3wD5zSdW/pl40218-05.png",
+                        "https://i.postimg.cc/QMWGv4Ht/pl40218-06.png",
+                        "https://i.postimg.cc/N0rqZJ5F/pl40218-07.png",
+                        "https://i.postimg.cc/0NJRhWby/pl40218-08.png",
+                        "https://i.postimg.cc/VNbQ2Gdf/pl40218-09.png",
+                        "https://i.postimg.cc/8CrQxKj1/pl40218-10.png",
+                        "https://i.postimg.cc/bv2c4Csq/pl40218-11.png",
+                        "https://i.postimg.cc/VkhPGQLJ/pl40218-12.png",
+                        "https://i.postimg.cc/FH6XW5sz/pl40218-13.png",
+                        "https://i.postimg.cc/cLzG9y4L/pl40218-14.png",
+                        "https://i.postimg.cc/qvFHbVMk/pl40218-15.png",
+                        "https://i.postimg.cc/BnzfY9Q4/pl40218-16.png",
+                        "https://i.postimg.cc/FH6XW5sh/pl40218-17.png",
+                        "https://i.postimg.cc/qvFHbVMr/pl40218-18.png",
+                        "https://i.postimg.cc/3xqQS5JH/pl40218-19.png",
+                        "https://i.postimg.cc/kgHP13XP/pl40218-20.png",
+                        "https://i.postimg.cc/52rW7d9h/pl40218-21.png",
+                        "https://i.postimg.cc/P57n3sf9/pl40218-22.png",
+                        "https://i.postimg.cc/13d1ChRv/pl40218-23.png",
+                        "https://i.postimg.cc/HkN1ZDWZ/pl40218-24.png",
+                        "https://i.postimg.cc/Z5Qz7tYs/pl40218-25.png",
+                        "https://i.postimg.cc/0y41WR5c/pl40218-26.png",
+                        "https://i.postimg.cc/rwsLNFT7/pl40218-27.png",
+                        "https://i.postimg.cc/Gmt1xhRN/pl40218-28.png",
+                        "https://i.postimg.cc/L85M36Sw/pl40218-29.png",
+                        "https://i.postimg.cc/rwsLNFTh/pl40218-30.png",
+                        "https://i.postimg.cc/7ZhynY4K/pl40218-31.png",
+                        "https://i.postimg.cc/t4JHNCb2/pl40218-32.png",
+                        "https://i.postimg.cc/Dw0KPyh5/pl40218-33.png",
+                        "https://i.postimg.cc/6pqNf5Kf/pl40218-34.png",
+                        "https://i.postimg.cc/zGv1FXNT/pl40218-35.png",
+                        "https://i.postimg.cc/L85M36SL/pl40218-36.png"
+                    ] 
+                },
+                // 重点：敲墙起手动作（4帧不循环），播完立刻切入 Slam_Loop 无限循环
+                "Slam_Start": { 
+                    type: "chain", 
+                    nextAnim: "Slam_Loop", 
+                    frameDelays: [120, 120, 120, 120], 
+                    frames: [
+                        "https://i.postimg.cc/nhrtGcx7/pl40219-00.png",
+                        "https://i.postimg.cc/htvq1Pn7/pl40219-01.png",
+                        "https://i.postimg.cc/m28s91vN/pl40219-02.png",
+                        "https://i.postimg.cc/xTt2mNwG/pl40219-03.png"
+                    ] 
+                },
+                "Slam_Loop": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/Jz0W548y/pl4021a-00.png",
+                        "https://i.postimg.cc/5NnVzQhF/pl4021a-01.png",
+                        "https://i.postimg.cc/fTBNdSGS/pl4021a-02.png",
+                        "https://i.postimg.cc/wT0pNRCy/pl4021a-03.png",
+                        "https://i.postimg.cc/sDwrWGkh/pl4021a-04.png",
+                        "https://i.postimg.cc/m28s91vg/pl4021a-05.png",
+                        "https://i.postimg.cc/Qx037K2x/pl4021a-06.png",
+                        "https://i.postimg.cc/L6NpPgc9/pl4021a-07.png",
+                        "https://i.postimg.cc/5NnVzQhx/pl4021a-08.png",
+                        "https://i.postimg.cc/RVXBtJkx/pl4021a-09.png",
+                        "https://i.postimg.cc/qMjTK6PV/pl4021a-10.png",
+                        "https://i.postimg.cc/BQM0FPrW/pl4021a-11.png",
+                        "https://i.postimg.cc/WbXvZqBP/pl4021a-12.png",
+                        "https://i.postimg.cc/028vr0B9/pl4021a-13.png"
+                    ] 
+                }
             },
             // 12. 牙琉响也 · 日常正面篇
             "响也_正面": {
                 scale: 0.85,
-                "Normal": { type: "loop", frameDelay: 300, frames: ["填入pl40200图1链接", "填入pl40200图2链接"] },
-                "Serious": { type: "loop", frameDelay: 300, frames: ["填入pl40201图1链接", "填入pl40201图2链接"] },
-                "Smiling": { type: "loop", frameDelay: 300, frames: ["填入pl40202图1链接", "填入pl40202图2链接"] },
-                "Posing": { type: "loop", frameDelay: 300, frames: ["填入pl40203图1链接", "填入pl40203图2链接"] }
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/Kv96jSTv/pl40200-00.png",
+                        "https://i.postimg.cc/tCrKJQ6q/pl40200-01.png",
+                        "https://i.postimg.cc/YqX50KF2/pl40200-02.png",
+                        "https://i.postimg.cc/HssGTsrJ/pl40200-03.png",
+                        "https://i.postimg.cc/c44qd4vv/pl40200-04.png",
+                        "https://i.postimg.cc/NffhQfK5/pl40200-05.png",
+                        "https://i.postimg.cc/jddVRdD5/pl40200-06.png",
+                        "https://i.postimg.cc/ZKKkJKWK/pl40200-07.png",
+                        "https://i.postimg.cc/c44qd4v1/pl40200-08.png"
+                    ] 
+                },
+                "Serious": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/655sB58W/pl40201-00.png",
+                        "https://i.postimg.cc/ncc8ncXH/pl40201-01.png",
+                        "https://i.postimg.cc/VLLyzLJc/pl40201-02.png",
+                        "https://i.postimg.cc/3JJM3Jk5/pl40201-03.png",
+                        "https://i.postimg.cc/hPPFKPXF/pl40201-04.png",
+                        "https://i.postimg.cc/wTTK9T7S/pl40201-05.png",
+                        "https://i.postimg.cc/QxxLjxHw/pl40201-06.png",
+                        "https://i.postimg.cc/KvvXmvRV/pl40201-07.png",
+                        "https://i.postimg.cc/pXXNPXpS/pl40201-08.png"
+                    ] 
+                },
+                "Smiling": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/wTTK9T7b/pl40202-00.png",
+                        "https://i.postimg.cc/05CRgJyR/pl40202-01.png",
+                        "https://i.postimg.cc/y6T4qS8q/pl40202-02.png",
+                        "https://i.postimg.cc/ZYLtkyK1/pl40202-03.png",
+                        "https://i.postimg.cc/ZYLtkyKX/pl40202-04.png",
+                        "https://i.postimg.cc/PfMsG8r7/pl40202-05.png",
+                        "https://i.postimg.cc/7PN8vTYW/pl40202-06.png",
+                        "https://i.postimg.cc/8kbQ8rPn/pl40202-07.png",
+                        "https://i.postimg.cc/66hJsG5j/pl40202-08.png"
+                    ] 
+                },
+                "Posing": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/mZSfxF2m/pl40203-00.png",
+                        "https://i.postimg.cc/RCT5rnVd/pl40203-01.png",
+                        "https://i.postimg.cc/tRzQ0VCz/pl40203-02.png",
+                        "https://i.postimg.cc/zDkZmRXw/pl40203-03.png",
+                        "https://i.postimg.cc/jqh0VJdH/pl40203-04.png",
+                        "https://i.postimg.cc/T2cM8WYg/pl40203-05.png",
+                        "https://i.postimg.cc/66hJsG5R/pl40203-06.png",
+                        "https://i.postimg.cc/ZYLtkyKy/pl40203-07.png",
+                        "https://i.postimg.cc/Wp7LRJbF/pl40203-08.png",
+                        "https://i.postimg.cc/mkj07K5Z/pl40203-09.png",
+                        "https://i.postimg.cc/Bbpd2RVS/pl40203-10.png",
+                        "https://i.postimg.cc/0jnL7hBP/pl40203-11.png"
+                    ] 
+                }
+            },
+            // 13. 矢张政志 · 正面
+            "矢张_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/jqQHvbQd/pl10b106-00.png", "https://i.postimg.cc/fWjc5NjL/pl10b106-01.png", "https://i.postimg.cc/XNcfxbcZ/pl10b106-02.png"] },
+                "Bravado": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/D0FqFjF2/pl10b100-00.png", "https://i.postimg.cc/j2KzKgKR/pl10b100-01.png", "https://i.postimg.cc/qq080b0g/pl10b100-02.png", "https://i.postimg.cc/KjFnFqFk/pl10b100-03.png", "https://i.postimg.cc/ZnZrZ7Zv/pl10b100-04.png", "https://i.postimg.cc/T1GrG7Gm/pl10b100-05.png", "https://i.postimg.cc/Bbg2vTQP/pl10b100-06.png"] },
+                "Emotional": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/j2XyjHdN/pl10b102-00.png", "https://i.postimg.cc/C5NbKGLq/pl10b102-01.png", "https://i.postimg.cc/J0qjhN4X/pl10b102-02.png"] },
+                "Agreeable": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/Wzn04Gbm/pl10b104-00.png", "https://i.postimg.cc/d3BG02tm/pl10b104-01.png", "https://i.postimg.cc/gjD30VkD/pl10b104-02.png", "https://i.postimg.cc/zvjTfCXp/pl10b104-03.png", "https://i.postimg.cc/qqL27sMZ/pl10b104-04.png", "https://i.postimg.cc/mZNYVsNR/pl10b104-05.png", "https://i.postimg.cc/KcrPQ2rx/pl10b104-06.png"] },
+                "Seriously": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/nVY4TJYD/pl10b114-00.png", "https://i.postimg.cc/QNkQS3k1/pl10b114-01.png", "https://i.postimg.cc/66LrzXLd/pl10b114-02.png", "https://i.postimg.cc/7PM3XkMn/pl10b114-03.png"] },
+                "Uh Oh": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/L69zbbN3/pl10b116-00.png", "https://i.postimg.cc/pXWD66qC/pl10b116-01.png", "https://i.postimg.cc/qMJ855j1/pl10b116-02.png"] },
+                "Santa": { type: "loop", frameDelay: 350, frames: ["https://i.postimg.cc/yY1Fbbvt/pl10b118-00.png"] },
+                "Pretentious": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/Nfs1zzdv/pl10b120-00.png", "https://i.postimg.cc/wTwh8QGb/pl10b120-01.png", "https://i.postimg.cc/ZKwrtxM1/pl10b120-02.png", "https://i.postimg.cc/xT6KD3Z9/pl10b120-03.png", "https://i.postimg.cc/nc3vbGWX/pl10b120-04.png", "https://i.postimg.cc/Nfd1qkn5/pl10b120-05.png", "https://i.postimg.cc/K84tZgXc/pl10b120-06.png"] },
+                "Angry": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/vZD5Q6Rg/pl10b121-00.png", "https://i.postimg.cc/sg15VZFW/pl10b121-01.png", "https://i.postimg.cc/g2r3Y69s/pl10b121-02.png", "https://i.postimg.cc/NjLRgrhd/pl10b121-03.png", "https://i.postimg.cc/Z5gp0KZM/pl10b121-04.png", "https://i.postimg.cc/9QSZzFVk/pl10b121-05.png"] },
+                "Busted": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/NjVmLfY3/pl10b123-00.png", "https://i.postimg.cc/RZ8KqV49/pl10b123-01.png"] },
+                "Thinking": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/wvDhC8Kq/pl10b21b-00.png", "https://i.postimg.cc/BbsxsYs0/pl10b21b-01.png", "https://i.postimg.cc/j2KzKgKr/pl10b21b-02.png"] }
+            },
+            // 14. 大场香 · 正面
+            "大场香_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/XJKC2fFW/pl10e100-01.png", "https://i.postimg.cc/ZRPdf83b/pl10e100-02.png"] },
+                "Angry": { type: "loop", frameDelay: 200, frames: ["https://i.postimg.cc/Y0pmTvfH/pl10e104-00.png", "https://i.postimg.cc/PJt80CzH/pl10e104-01.png", "https://i.postimg.cc/NFgrZK7s/pl10e104-02.png", "https://i.postimg.cc/T1RWBKq1/pl10e104-03.png", "https://i.postimg.cc/3NKDzkCy/pl10e104-04.png"] },
+                "Meanie": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/kGntL2FW/pl10e108-00.png", "https://i.postimg.cc/3NnDh3nj/pl10e108-01.png", "https://i.postimg.cc/BbM13JMx/pl10e108-02.png"] },
+                "Laughing Off": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/HLy5MDsq/pl10e10d-00.png", "https://i.postimg.cc/XvCF5SY4/pl10e10d-01.png", "https://i.postimg.cc/HLy5MDkL/pl10e10d-02.png", "https://i.postimg.cc/vmV9nFZ4/pl10e10d-03.png", "https://i.postimg.cc/Y9BFfnvh/pl10e10d-04.png"] },
+                "Damage": { type: "loop", frameDelay: 120, frames: ["https://i.postimg.cc/LXFPBCJB/pl10e20c-00.png", "https://i.postimg.cc/50Wzq7XD/pl10e20c-01.png", "https://i.postimg.cc/7612B3zK/pl10e20c-02.png"] },
+                "Enchanted": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/kGftC7ff/pl10e211-00.png", "https://i.postimg.cc/hvp7nKp5/pl10e211-01.png"] }
+            },
+            // 15. 宝月巴 · 正面
+            "宝月巴_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/8ctrGTt3/pl11b100-00.png", "https://i.postimg.cc/90Jq2cLj/pl11b100-01.png", "https://i.postimg.cc/593zLmbt/pl11b100-02.png"] },
+                "Averting Eyes": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/kMcSKyqV/pl11b102-00.png", "https://i.postimg.cc/kMcSKyqv/pl11b102-01.png", "https://i.postimg.cc/TY3D9W3q/pl11b102-02.png"] },
+                "Taken Aback": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/rFwrJtw9/pl11b104-00.png", "https://i.postimg.cc/8Pz6HrzY/pl11b104-01.png", "https://i.postimg.cc/VLkCRbNw/pl11b104-02.png"] },
+                "Angry": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/02XJH26P/pl11b106-00.png", "https://i.postimg.cc/BQ71wQ8F/pl11b106-01.png", "https://i.postimg.cc/TYNWHYyY/pl11b106-02.png"] },
+                "Disbelief": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/TYNWHYy5/pl11b108-00.png", "https://i.postimg.cc/m2pF62cc/pl11b108-01.png", "https://i.postimg.cc/QxYWnxBg/pl11b108-02.png"] },
+                "Smiling": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/fR304nXd/pl11b113-00.png", "https://i.postimg.cc/mgcFxfMQ/pl11b113-01.png", "https://i.postimg.cc/pL9nNb8Q/pl11b113-02.png", "https://i.postimg.cc/x1kbrDHP/pl11b113-03.png"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/L8qZdKfC/pl11b116-00.png", "https://i.postimg.cc/HkJ7GD5K/pl11b116-01.png", "https://i.postimg.cc/XYZyMSFm/pl11b116-02.png", "https://i.postimg.cc/wjtsK8JC/pl11b116-03.png", "https://i.postimg.cc/vZpxbqLK/pl11b116-04.png", "https://i.postimg.cc/YCJLMnf5/pl11b116-05.png"] },
+                "Damage": { type: "loop", frameDelay: 120, frames: ["https://i.postimg.cc/Z51v47xt/pl11b118-00.png", "https://i.postimg.cc/pLg5RGJM/pl11b118-01.png", "https://i.postimg.cc/W1QqTWwj/pl11b118-02.png", "https://i.postimg.cc/L5VrDbNm/pl11b118-03.png", "https://i.postimg.cc/prBgC6qt/pl11b118-04.png", "https://i.postimg.cc/Fzx2pBD5/pl11b118-05.png", "https://i.postimg.cc/90Bvbn1k/pl11b118-06.png"] },
+                "Leaning Forward": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/5ymZgRpP/pl11b119-00.png", "https://i.postimg.cc/NFt31c8S/pl11b119-01.png", "https://i.postimg.cc/x8QwK2G7/pl11b119-02.png"] }
+            },
+            // 16. 立见里香 · 正面
+            "里香_正面": {
+                scale: 0.82,
+                "Normal": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/tgKQ4PYc/pl212000-00.png", "https://i.postimg.cc/9f65QTrN/pl212000-01.png", "https://i.postimg.cc/W4BL1rhW/pl212000-02.png", "https://i.postimg.cc/FKM5Hc7P/pl212000-03.png", "https://i.postimg.cc/k503g8Bf/pl212000-04.png", "https://i.postimg.cc/SKBFx8Jf/pl212000-05.png", "https://i.postimg.cc/g0CF2Rny/pl212000-06.png", "https://i.postimg.cc/FKdXvGsC/pl212000-07.png", "https://i.postimg.cc/6Q2xKz5h/pl212000-08.png", "https://i.postimg.cc/BvLf3NQN/pl212000-09.png", "https://i.postimg.cc/BvLf3NQ2/pl212000-10.png", "https://i.postimg.cc/jjwYTvd7/pl212000-11.png", "https://i.postimg.cc/PqpnHKr8/pl212000-12.png", "https://i.postimg.cc/cJgGWT4g/pl212000-13.png"] },
+                "Confident": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/gkVJFzBn/pl212002-00.png", "https://i.postimg.cc/hPLjWD3J/pl212002-01.png", "https://i.postimg.cc/BQT69Swj/pl212002-02.png", "https://i.postimg.cc/CLG1Th6T/pl212002-03.png", "https://i.postimg.cc/sDYXdj0C/pl212002-04.png", "https://i.postimg.cc/pXfTbW1t/pl212002-05.png", "https://i.postimg.cc/28Q6Rk9P/pl212002-06.png", "https://i.postimg.cc/DykZMJ6q/pl212002-07.png"] },
+                "Thinking": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/1zn1SM54/pl212004-00.png", "https://i.postimg.cc/PqpnHKrx/pl212004-01.png", "https://i.postimg.cc/BvLf3NQv/pl212004-02.png"] },
+                "Overjoyed": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/fbtQs5TR/pl212006-00.png", "https://i.postimg.cc/W1fcxxjq/pl212006-01.png", "https://i.postimg.cc/6p1xFFwy/pl212006-02.png", "https://i.postimg.cc/7ZQrjjD6/pl212006-03.png", "https://i.postimg.cc/zGPY445G/pl212006-04.png", "https://i.postimg.cc/dVScggvQ/pl212006-05.png", "https://i.postimg.cc/MprJggxz/pl212006-06.png"] },
+                "Enchanted": { type: "loop", frameDelay: 200, frames: ["https://i.postimg.cc/HkP1FFHd/pl212008-00.png", "https://i.postimg.cc/P5Fn00hn/pl212008-01.png", "https://i.postimg.cc/Z5DzXXm2/pl212008-02.png", "https://i.postimg.cc/bwFf44PF/pl212008-03.png", "https://i.postimg.cc/mgrGXTxG/pl212008-04.png", "https://i.postimg.cc/HkLCZdqF/pl212008-05.png", "https://i.postimg.cc/L8sMC2cb/pl212008-06.png", "https://i.postimg.cc/t4gHSpKr/pl212008-07.png", "https://i.postimg.cc/BnvGY4rB/pl212008-08.png", "https://i.postimg.cc/MpG8PqC7/pl212008-09.png", "https://i.postimg.cc/9Qfj8C6y/pl212008-10.png", "https://i.postimg.cc/rFjkNKP9/pl212008-11.png", "https://i.postimg.cc/PryjQPRz/pl212008-12.png", "https://i.postimg.cc/MK5SmvFR/pl212008-13.png", "https://i.postimg.cc/YqRHzhs0/pl212008-14.png", "https://i.postimg.cc/zX7rFVc5/pl212008-15.png"] },
+                "Sad": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/QxhD7p0C/pl21200a-00.png", "https://i.postimg.cc/28rYW42k/pl21200a-01.png", "https://i.postimg.cc/KvxbTnQ6/pl21200a-02.png"] },
+                "Heavy Crying": { type: "loop", frameDelay: 150, frames: ["https://i.postimg.cc/15sSFpMT/pl21200c-00.png", "https://i.postimg.cc/pXRvjDkc/pl21200c-01.png", "https://i.postimg.cc/SNk49WVV/pl21200c-02.png", "https://i.postimg.cc/XNw3X2Km/pl21200c-03.png", "https://i.postimg.cc/L4zRhykb/pl21200c-04.png", "https://i.postimg.cc/7PgDbB1K/pl21200c-05.png", "https://i.postimg.cc/8khDsyd4/pl21200c-06.png", "https://i.postimg.cc/NG1YLN8x/pl21200c-07.png", "https://i.postimg.cc/3rg7WLjX/pl21200c-08.png", "https://i.postimg.cc/66dwTHVd/pl21200c-09.png", "https://i.postimg.cc/PfmhN6bY/pl21200c-10.png", "https://i.postimg.cc/J7bmtT3J/pl21200c-11.png"] },
+                "Special": { type: "loop", frameDelay: 180, frames: ["https://i.postimg.cc/sfpy1nPZ/pl21200d-01.png", "https://i.postimg.cc/nVvZMdKX/pl21200d-02.png", "https://i.postimg.cc/zDn53dw3/pl21200d-03.png", "https://i.postimg.cc/SR7p5sNk/pl21200d-04.png", "https://i.postimg.cc/fyjhFLTN/pl21200d-05.png", "https://i.postimg.cc/tJtHfTCH/pl21200d-06.png", "https://i.postimg.cc/x8yS7CTr/pl21200d-07.png", "https://i.postimg.cc/prYt7TV4/pl21200d-08.png", "https://i.postimg.cc/cCMNjH1j/pl21200d-09.png", "https://i.postimg.cc/wMcdPvxG/pl21200d-10.png", "https://i.postimg.cc/prYt7TVG/pl21200d-11.png", "https://i.postimg.cc/L5BM7X4T/pl21200d-12.png"] }
+            },
+            // 17. 绫里舞子 · 正面
+            "舞子_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/XYNnRwCw/pl319100-00.png", "https://i.postimg.cc/Gm3bWkyD/pl319100-01.png", "https://i.postimg.cc/cL1dpQnt/pl319100-02.png"] },
+                "Smiling": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/Jz7Rfbky/pl319102-00.png", "https://i.postimg.cc/pLVPwDFy/pl319102-01.png", "https://i.postimg.cc/0208Xtb7/pl319102-02.png"] }
+            },
+            // 18. 绫里纪美子 · 正面
+            "纪美子_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/0jvTpsGt/pl20e000-00.png", "https://i.postimg.cc/qqrP8Tc1/pl20e000-01.png", "https://i.postimg.cc/QCD2p3gk/pl20e000-02.png", "https://i.postimg.cc/PJHgmjbm/pl20e000-03.png", "https://i.postimg.cc/j2Tpzb6L/pl20e000-04.png"] },
+                "Glaring": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/GtRWkCP8/pl20e002-00.png", "https://i.postimg.cc/0Q7gMQS6/pl20e002-01.png", "https://i.postimg.cc/cHfqgH3r/pl20e002-02.png"] },
+                "Furrowed Brow": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/yd0qgdR7/pl20e004-00.png", "https://i.postimg.cc/hjVFzjmc/pl20e004-01.png", "https://i.postimg.cc/Y9QcG9FH/pl20e004-02.png"] },
+                "Sad": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/RFwr6Ftz/pl20e006-00.png", "https://i.postimg.cc/k4Wr64b0/pl20e006-01.png", "https://i.postimg.cc/vB5RgBVp/pl20e006-02.png", "https://i.postimg.cc/s2kdgSMr/pl20e006-03.png", "https://i.postimg.cc/k503g82C/pl20e006-04.png"] }
+            },
+            // 19. 美柳千奈美 · 证人席/法庭
+            "千奈美_法庭": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/Y0fwV921/pl308300-01.png", "https://i.postimg.cc/L5MpNfSx/pl308300-02.png"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/5yMVnvJ3/pl308302-00.png", "https://i.postimg.cc/tJHj2Pbd/pl308302-01.png", "https://i.postimg.cc/fyhNBXsd/pl308302-02.png"] },
+                "Crying": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/rsLkQWTd/pl308304-00.png", "https://i.postimg.cc/C5VgmD01/pl308304-01.png", "https://i.postimg.cc/Xq0bQFWV/pl308304-02.png", "https://i.postimg.cc/d1CF26bk/pl308304-03.png", "https://i.postimg.cc/3RGhX1sN/pl308304-04.png", "https://i.postimg.cc/d1CF26bs/pl308304-05.png", "https://i.postimg.cc/qRKrswPk/pl308304-06.png", "https://i.postimg.cc/k4SCQsk0/pl308304-07.png", "https://i.postimg.cc/bJnPxgK5/pl308304-08.png"] },
+                "Condescending": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/KYwF3wsw/pl308308-01.png", "https://i.postimg.cc/GpVrTVSN/pl308308-02.png"] },
+                "Thinking": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/Xvm3BmDD/pl30830a-00.png", "https://i.postimg.cc/Zq2Zv2DH/pl30830a-01.png", "https://i.postimg.cc/MGNxfNrb/pl30830a-02.png"] },
+                "Damage": { type: "loop", frameDelay: 120, frames: ["https://i.postimg.cc/YSZkLZyQ/pl30830c-00.png", "https://i.postimg.cc/LswRgw0g/pl30830c-01.png", "https://i.postimg.cc/8CjN5Nwd/pl30830c-02.png"] },
+                "Hair Flick": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/FK7NRNGf/pl30830d-00.png", "https://i.postimg.cc/W4hT3TS3/pl30830d-01.png", "https://i.postimg.cc/Lsn2X2v6/pl30830d-02.png", "https://i.postimg.cc/6Qyt3tz9/pl30830d-03.png", "https://i.postimg.cc/qvmp4zcR/pl30830d-04.png", "https://i.postimg.cc/NjNQB58f/pl30830d-05.png", "https://i.postimg.cc/zGdq8VwD/pl30830d-06.png", "https://i.postimg.cc/L8ym2nkR/pl30830d-07.png", "https://i.postimg.cc/GmMbdHFZ/pl30830d-08.png"] },
+                "Breaking Point": { type: "loop", frameDelay: 200, frames: ["https://i.postimg.cc/K89mxRPV/pl30830e-00.png", "https://i.postimg.cc/8zyTNjRK/pl30830e-01.png", "https://i.postimg.cc/fRWMGx91/pl30830e-02.png"] },
+                "Smiling": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/t4R9Khxc/pl30830f-00.png", "https://i.postimg.cc/sgf3kph6/pl30830f-01.png", "https://i.postimg.cc/fRWMGx9K/pl30830f-02.png"] }
+            },
+            // 20. 成步堂美贯 · 正面
+            "美贯_正面": {
+                scale: 0.82,
+                "Normal": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/RVLMpPNH/pl40100-00.png", "https://i.postimg.cc/gkHYtMn2/pl40100-01.png", "https://i.postimg.cc/xT30pscd/pl40100-02.png", "https://i.postimg.cc/YqzpDXhj/pl40100-03.png", "https://i.postimg.cc/ncGHSdCr/pl40100-04.png", "https://i.postimg.cc/rFN8ZhK2/pl40100-05.png", "https://i.postimg.cc/Wbw2Y9hL/pl40100-06.png", "https://i.postimg.cc/0208XtrL/pl40100-07.png", "https://i.postimg.cc/Fs4rZts9/pl40100-08.png"] },
+                "Happy": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/CLghNyLS/pl40101-00.png", "https://i.postimg.cc/wTpqVKTz/pl40101-01.png", "https://i.postimg.cc/WbvNnRbR/pl40101-02.png", "https://i.postimg.cc/zXrzjmDs/pl40101-03.png", "https://i.postimg.cc/fTNzK4Wp/pl40101-04.png", "https://i.postimg.cc/fTNzK4W8/pl40101-05.png", "https://i.postimg.cc/gkWzD9cN/pl40101-06.png", "https://i.postimg.cc/jdbxXVqv/pl40101-07.png", "https://i.postimg.cc/4Ngf5C45/pl40101-08.png"] },
+                "Confident": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/BQ0SgWZc/pl40103-00.png", "https://i.postimg.cc/vHsYzR8v/pl40103-01.png", "https://i.postimg.cc/Kv2GNXc7/pl40103-02.png", "https://i.postimg.cc/J4Lrqw7N/pl40103-03.png", "https://i.postimg.cc/zDWDKDNt/pl40103-04.png", "https://i.postimg.cc/ZY3YpYmf/pl40103-05.png", "https://i.postimg.cc/44t4V4GW/pl40103-06.png", "https://i.postimg.cc/qBnByBrQ/pl40103-07.png", "https://i.postimg.cc/CMDMkM04/pl40103-08.png"] },
+                "Thinking": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/3rprmrhp/pl40104-00.png", "https://i.postimg.cc/2jvjhjYh/pl40104-01.png", "https://i.postimg.cc/44t4V4GH/pl40104-02.png", "https://i.postimg.cc/9XTXZX2R/pl40104-03.png", "https://i.postimg.cc/jqNqPqTL/pl40104-04.png", "https://i.postimg.cc/pV8VzVvm/pl40104-05.png", "https://i.postimg.cc/jqNqPqTS/pl40104-06.png", "https://i.postimg.cc/RCfCKCmV/pl40104-07.png", "https://i.postimg.cc/gcRc8cpz/pl40104-08.png"] },
+                "Shocked": { type: "loop", frameDelay: 200, frames: ["https://i.postimg.cc/x8K0255w/pl40106-00.png", "https://i.postimg.cc/3NgKT11P/pl40106-01.png", "https://i.postimg.cc/tJhXjkkc/pl40106-02.png", "https://i.postimg.cc/MHyWS553/pl40106-03.png"] },
+                "Worried": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/Bbxq0ppM/pl40107-00.png", "https://i.postimg.cc/x8K0255R/pl40107-01.png", "https://i.postimg.cc/prD2HCCJ/pl40107-02.png", "https://i.postimg.cc/L5zHpDDt/pl40107-03.png", "https://i.postimg.cc/d38qY66G/pl40107-04.png", "https://i.postimg.cc/3NgKT11v/pl40107-05.png", "https://i.postimg.cc/8ch1S44f/pl40107-06.png", "https://i.postimg.cc/fyxwNCCt/pl40107-07.png", "https://i.postimg.cc/QCLXwwQg/pl40107-08.png", "https://i.postimg.cc/brXzWWxQ/pl40107-09.png", "https://i.postimg.cc/KjXZwwPT/pl40107-10.png", "https://i.postimg.cc/T18RFFVD/pl40107-11.png", "https://i.postimg.cc/0jg8FFYJ/pl40107-12.png"] },
+                "Mysterious": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/brXzWWxD/pl40108-00.png", "https://i.postimg.cc/PJGt99WC/pl40108-01.png", "https://i.postimg.cc/T18RFFV1/pl40108-02.png", "https://i.postimg.cc/brXzWWxs/pl40108-03.png", "https://i.postimg.cc/yxqVttmY/pl40108-04.png", "https://i.postimg.cc/BbWqkkTS/pl40108-05.png", "https://i.postimg.cc/rs68331c/pl40108-06.png", "https://i.postimg.cc/qqfkSSs4/pl40108-07.png", "https://i.postimg.cc/Hx8YSdyL/pl40108-08.png"] },
+                "Angry": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/903WKKd2/pl4010a-00.png", "https://i.postimg.cc/MTf6sqQT/pl4010a-01.png", "https://i.postimg.cc/yd31fsZ6/pl4010a-02.png"] },
+                "Depressed": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/fLSzHD9D/pl4010c-01.png", "https://i.postimg.cc/hjQDCcdg/pl4010c-02.png", "https://i.postimg.cc/Tw5dkfDX/pl4010c-03.png", "https://i.postimg.cc/mD1LdBH4/pl4010c-04.png", "https://i.postimg.cc/634WHtGS/pl4010c-05.png", "https://i.postimg.cc/1tVmWsNY/pl4010c-06.png", "https://i.postimg.cc/tTnqrpVc/pl4010c-07.png", "https://i.postimg.cc/V60f7mb4/pl4010c-08.png"] },
+                "Embarrassed": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/q75BXzgY/pl4010d-00.png", "https://i.postimg.cc/k5pMFBDH/pl4010d-01.png", "https://i.postimg.cc/HLhW4VjZ/pl4010d-02.png"] },
+                "Determined": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/CKQMHzds/pl4010e-00.png", "https://i.postimg.cc/cJb1Mr6M/pl4010e-01.png", "https://i.postimg.cc/43S4bmnv/pl4010e-02.png", "https://i.postimg.cc/xd4jycqm/pl4010e-03.png", "https://i.postimg.cc/jjFqQLC7/pl4010e-04.png", "https://i.postimg.cc/mr5ZNthc/pl4010e-05.png", "https://i.postimg.cc/yNb6XkWg/pl4010e-06.png", "https://i.postimg.cc/g0JkZvc3/pl4010e-07.png", "https://i.postimg.cc/k5pMFBD4/pl4010e-08.png"] },
+                "Crying": { type: "loop", frameDelay: 160, frames: ["https://i.postimg.cc/5t0NCw9t/pl4010f-00.png", "https://i.postimg.cc/YS9qW122/pl4010f-01.png", "https://i.postimg.cc/Jhn4kb7n/pl4010f-02.png", "https://i.postimg.cc/zfBXgnDX/pl4010f-03.png", "https://i.postimg.cc/Hk3knSmT/pl4010f-04.png", "https://i.postimg.cc/FHGHzPv9/pl4010f-05.png", "https://i.postimg.cc/Dw5w0Chh/pl4010f-06.png", "https://i.postimg.cc/y8n8xfKB/pl4010f-07.png", "https://i.postimg.cc/0yZyjtsX/pl4010f-08.png", "https://i.postimg.cc/K8Q8j92N/pl4010f-09.png", "https://i.postimg.cc/cLTLCDSc/pl4010f-10.png", "https://i.postimg.cc/W1S1z9vG/pl4010f-11.png", "https://i.postimg.cc/MpzGzChd/pl4010f-12.png", "https://i.postimg.cc/VkzNzx3M/pl4010f-13.png", "https://i.postimg.cc/vZGmGJp6/pl4010f-14.png", "https://i.postimg.cc/JzRhRf9k/pl4010f-15.png", "https://i.postimg.cc/NjQ0Q3WK/pl4010f-16.png", "https://i.postimg.cc/g2G0GCf2/pl4010f-17.png", "https://i.postimg.cc/3JXR58bJ/pl4010f-18.png"] }
+            },
+            // 21. 叶樱院绫美 · 正面
+            "绫美_正面": {
+                scale: 0.85,
+                "Normal": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/G2LPYg8K/pl31e100-00.png", "https://i.postimg.cc/Qt8g5Y9k/pl31e100-01.png", "https://i.postimg.cc/PxXbZVpD/pl31e100-02.png"] },
+                "Shocked": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/qRJcnDh6/pl31e102-00.png", "https://i.postimg.cc/MT60R3Mn/pl31e102-01.png", "https://i.postimg.cc/mDL3Mpzr/pl31e102-02.png"] },
+                "Blushing": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/0QkGmXM2/pl31e104-00.png", "https://i.postimg.cc/W3NmrYFj/pl31e104-01.png", "https://i.postimg.cc/LsBBJFXs/pl31e104-02.png"] },
+                "Serious": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/LsBBJFX6/pl31e106-00.png", "https://i.postimg.cc/DzddS3Z2/pl31e106-01.png", "https://i.postimg.cc/LsBBJFX2/pl31e106-02.png"] },
+                "Thinking": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/25FF1N6Y/pl31e108-00.png", "https://i.postimg.cc/7LMM5r6r/pl31e108-01.png", "https://i.postimg.cc/rpCCD2mX/pl31e108-02.png"] },
+                "Crying": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/k5FF2P50/pl31e10a-00.png", "https://i.postimg.cc/g0qqxb0f/pl31e10a-01.png", "https://i.postimg.cc/PqzzCnqc/pl31e10a-02.png"] },
+                "Condescending": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/W466dc4f/pl31e10e-01.png", "https://i.postimg.cc/MGbbnJG9/pl31e10e-02.png"] },
+                "Normal - Hood": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/3wHFrx3P/pl31e110-00.png", "https://i.postimg.cc/HLC9WkTF/pl31e110-01.png", "https://i.postimg.cc/q7dxBvpY/pl31e110-02.png"] },
+                "Shocked - Hood": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/R0zLCZvs/pl31e112-00.png", "https://i.postimg.cc/bvj9Ywqm/pl31e112-01.png", "https://i.postimg.cc/HLC9WkT3/pl31e112-02.png"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/jjr4qSR4/pl31e114-00.png", "https://i.postimg.cc/jjr4qSR6/pl31e114-01.png", "https://i.postimg.cc/8CVmkzTM/pl31e114-02.png"] },
+                "Grinning": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/d0KjQVJy/pl31e116-00.png", "https://i.postimg.cc/hGq14tKJ/pl31e116-01.png", "https://i.postimg.cc/pLjBtFMY/pl31e116-02.png"] },
+                "Angry": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/4xc1T9Rz/pl31e118-00.png", "https://i.postimg.cc/DwGcKX3r/pl31e118-01.png", "https://i.postimg.cc/MpBY8QJ1/pl31e118-02.png"] },
+                "Hair Flick": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/jSfhr7Yn/pl31e11a-00.png", "https://i.postimg.cc/K8T5yMh4/pl31e11a-01.png", "https://i.postimg.cc/XY5g0C6r/pl31e11a-02.png", "https://i.postimg.cc/7ZzNy2rC/pl31e11a-03.png", "https://i.postimg.cc/52zmMCWf/pl31e11a-04.png", "https://i.postimg.cc/6pZhNvxK/pl31e11a-05.png"] },
+                "Damage": { type: "loop", frameDelay: 120, frames: ["https://i.postimg.cc/bwnRjtfp/pl31e11b-00.png", "https://i.postimg.cc/VktFcCPY/pl31e11b-01.png", "https://i.postimg.cc/TYFcScFR/pl31e11b-02.png"] }
+            },
+            // 22. 审判长 · 法庭审判席（按规则：动作播完回到第一张平视帧）
+            "审判长_法庭": {
+                scale: 0.85,
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 320, 
+                    frames: ["https://i.postimg.cc/3Nd3y736/pl104300-00.png", "https://i.postimg.cc/1XfygPyk/pl104300-01.png", "https://i.postimg.cc/L5nmqRHK/pl104300-02.png"] 
+                },
+                "Nodding": { 
+                    type: "once_reset", 
+                    frameDelays: [240, 260, 0], 
+                    frames: ["https://i.postimg.cc/3Nd3y736/pl104300-00.png", "https://i.postimg.cc/GtVdGN21/pl104302-03.png", "https://i.postimg.cc/vTkbfjBb/pl104302-04.png"] 
+                },
+                "Shaking Head": { 
+                    type: "once_reset", 
+                    frameDelays: [240, 260, 0], 
+                    frames: ["https://i.postimg.cc/3Nd3y736/pl104300-00.png", "https://i.postimg.cc/x8hnM7C8/pl104303-03.png", "https://i.postimg.cc/sxqs78X1/pl104303-04.png"] 
+                },
+                "Warning": { 
+                    type: "once_reset", 
+                    frameDelays: [140, 140, 220, 0], 
+                    frames: ["https://i.postimg.cc/3Nd3y736/pl104300-00.png", "https://i.postimg.cc/8c9NM357/pl104304-00.png", "https://i.postimg.cc/Zn24pgR9/pl104304-01.png", "https://i.postimg.cc/d3pwrX1y/pl104304-02.png"] 
+                },
+                "Shocked": { 
+                    type: "once_reset", 
+                    frameDelays: [120, 140, 200, 0], 
+                    frames: ["https://i.postimg.cc/3Nd3y736/pl104300-00.png", "https://i.postimg.cc/C5XSkt18/pl104306-00.png", "https://i.postimg.cc/NGzg3yxk/pl104306-01.png", "https://i.postimg.cc/ZYMTG9LV/pl104306-02.png"] 
+                }
+            },
+            // 23. 系锯圭介 · 正面 (刑警)
+            "系锯_正面": {
+                scale: 0.85,
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 320, 
+                    frames: [
+                        "https://i.postimg.cc/sD0RL1pQ/pl106100-00.png",
+                        "https://i.postimg.cc/VLHch5jM/pl106100-01.png",
+                        "https://i.postimg.cc/FsnQ61j0/pl106100-02.png"
+                    ] 
+                },
+                "Thinking": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/ncwtWMvm/pl106102-00.png",
+                        "https://i.postimg.cc/gkBP7rvv/pl106102-01.png",
+                        "https://i.postimg.cc/DwJK3FgG/pl106102-02.png",
+                        "https://i.postimg.cc/XYG0638C/pl106102-03.png",
+                        "https://i.postimg.cc/sgQRCycZ/pl106102-04.png",
+                        "https://i.postimg.cc/FHdQXmZj/pl106102-05.png",
+                        "https://i.postimg.cc/nhjtfZkP/pl106102-06.png",
+                        "https://i.postimg.cc/DwJK3FgY/pl106102-07.png"
+                    ] 
+                },
+                "Laughing": { 
+                    type: "loop", 
+                    frameDelay: 240, 
+                    frames: [
+                        "https://i.postimg.cc/VkrcP1Rp/pl106104-00.png",
+                        "https://i.postimg.cc/8z2g13Ky/pl106104-01.png",
+                        "https://i.postimg.cc/qvPHkYbD/pl106104-02.png",
+                        "https://i.postimg.cc/htkRSwy5/pl106104-03.png"
+                    ] 
+                },
+                "Determined": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/FHMX9qWq/pl106106-00.png",
+                        "https://i.postimg.cc/y8MCV5Qw/pl106106-01.png",
+                        "https://i.postimg.cc/0yT183Xg/pl106106-02.png",
+                        "https://i.postimg.cc/52hWxGKb/pl106106-03.png"
+                    ] 
+                },
+                "Confident": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/2SsNzJ9C/pl106108-00.png",
+                        "https://i.postimg.cc/zGsYJM2X/pl106108-01.png",
+                        "https://i.postimg.cc/Cx3pFtr1/pl106108-02.png"
+                    ] 
+                },
+                "Angry": { 
+                    type: "loop", 
+                    frameDelay: 240, 
+                    frames: [
+                        "https://i.postimg.cc/fRGQwFqk/pl10610a-00.png",
+                        "https://i.postimg.cc/13k19T78/pl10610a-01.png",
+                        "https://i.postimg.cc/MpCJW43M/pl10610a-02.png"
+                    ] 
+                },
+                "Disheartened": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/rp5XzJ7q/pl10610c-00.png",
+                        "https://i.postimg.cc/jjy0CXBx/pl10610c-01.png",
+                        "https://i.postimg.cc/HLbDj2FW/pl10610c-02.png"
+                    ] 
+                },
+                "Looking to the Side": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/7LS8bVjL/pl10610e-00.png",
+                        "https://i.postimg.cc/s25d1cbX/pl10610e-01.png",
+                        "https://i.postimg.cc/tgFQ758J/pl10610e-02.png"
+                    ] 
+                }
+            },
+            // 24. 宝月茜 · 正面 (科学搜查官)
+            "茜_正面": {
+                scale: 0.85,
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/QMcGVbv1/pl40500-00.png",
+                        "https://i.postimg.cc/cJfy6mPQ/pl40500-01.png",
+                        "https://i.postimg.cc/s25d1cbP/pl40500-02.png",
+                        "https://i.postimg.cc/wBD83VnV/pl40500-03.png",
+                        "https://i.postimg.cc/5t8dj3Dm/pl40500-04.png",
+                        "https://i.postimg.cc/JhjVtqSK/pl40500-05.png",
+                        "https://i.postimg.cc/R0w5qR2X/pl40500-06.png",
+                        "https://i.postimg.cc/HxHGMMCb/pl40500-07.png",
+                        "https://i.postimg.cc/wvHKNNdh/pl40500-08.png"
+                    ] 
+                },
+                "Angry": { 
+                    type: "loop", 
+                    frameDelay: 240, 
+                    frames: [
+                        "https://i.postimg.cc/k49rSSdF/pl40501-00.png",
+                        "https://i.postimg.cc/QtsL77rJ/pl40501-01.png",
+                        "https://i.postimg.cc/wvHKNNdV/pl40501-02.png",
+                        "https://i.postimg.cc/NMYhXXwD/pl40501-03.png",
+                        "https://i.postimg.cc/wvHKNNdw/pl40501-04.png",
+                        "https://i.postimg.cc/RF9rttzP/pl40501-05.png",
+                        "https://i.postimg.cc/76DvzzyQ/pl40501-06.png",
+                        "https://i.postimg.cc/RF9rttzY/pl40501-07.png",
+                        "https://i.postimg.cc/ZRZkNNhg/pl40501-08.png"
+                    ] 
+                },
+                "Grumpy": { 
+                    type: "loop", 
+                    frameDelay: 220, 
+                    frames: [
+                        "https://i.postimg.cc/76Dvzzyd/pl40502-00.png",
+                        "https://i.postimg.cc/cHZq33NV/pl40502-01.png",
+                        "https://i.postimg.cc/hjgFmmqk/pl40502-02.png",
+                        "https://i.postimg.cc/V61ytt8Q/pl40502-03.png",
+                        "https://i.postimg.cc/JnmwXXLL/pl40502-04.png",
+                        "https://i.postimg.cc/26mpWWDr/pl40502-05.png",
+                        "https://i.postimg.cc/4d1DQ3JM/pl40502-06.png",
+                        "https://i.postimg.cc/DZc9PzvV/pl40502-07.png",
+                        "https://i.postimg.cc/85b2mCpD/pl40502-08.png",
+                        "https://i.postimg.cc/Kz56DYGZ/pl40502-09.png",
+                        "https://i.postimg.cc/bJR79vyy/pl40502-10.png",
+                        "https://i.postimg.cc/V6FxWNfL/pl40502-11.png"
+                    ] 
+                },
+                "Looking to the Side": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/tTzKNgqJ/pl40503-00.png",
+                        "https://i.postimg.cc/MTYCmG6X/pl40503-01.png",
+                        "https://i.postimg.cc/0QCT0Nkz/pl40503-02.png",
+                        "https://i.postimg.cc/ydTMyN1S/pl40503-03.png",
+                        "https://i.postimg.cc/SsGBfKSC/pl40503-04.png",
+                        "https://i.postimg.cc/DZc9Pzvs/pl40503-05.png",
+                        "https://i.postimg.cc/7hYpsyh6/pl40503-06.png",
+                        "https://i.postimg.cc/WzbQWPzt/pl40503-07.png",
+                        "https://i.postimg.cc/7hYpsyh7/pl40503-08.png"
+                    ] 
+                },
+                "Confident": { 
+                    type: "loop", 
+                    frameDelay: 260, 
+                    frames: [
+                        "https://i.postimg.cc/RhVjszhK/pl40504-00.png",
+                        "https://i.postimg.cc/d3tzHK3G/pl40504-01.png",
+                        "https://i.postimg.cc/mk20XGkS/pl40504-02.png",
+                        "https://i.postimg.cc/VvL3GcvB/pl40504-03.png",
+                        "https://i.postimg.cc/MHKhP8Ht/pl40504-04.png",
+                        "https://i.postimg.cc/GthZ71tK/pl40504-05.png",
+                        "https://i.postimg.cc/2y8Pcfy0/pl40504-06.png",
+                        "https://i.postimg.cc/sxDt6Rxw/pl40504-07.png",
+                        "https://i.postimg.cc/Kjvdqyjp/pl40504-08.png"
+                    ] 
+                },
+                "Shocked": { 
+                    type: "loop", 
+                    frameDelay: 220, 
+                    frames: [
+                        "https://i.postimg.cc/QCxR4rCn/pl40505-00.png",
+                        "https://i.postimg.cc/brNKCjrB/pl40505-01.png",
+                        "https://i.postimg.cc/kGXk1dGH/pl40505-02.png",
+                        "https://i.postimg.cc/cC9PP5tm/pl40505-03.png",
+                        "https://i.postimg.cc/d3HggSZ6/pl40505-04.png",
+                        "https://i.postimg.cc/MHPggrft/pl40505-05.png",
+                        "https://i.postimg.cc/gjS11BLN/pl40505-06.png",
+                        "https://i.postimg.cc/Y0nTTyLD/pl40505-07.png"
+                    ] 
+                },
+                "Happy": { 
+                    type: "loop", 
+                    frameDelay: 250, 
+                    frames: [
+                        "https://i.postimg.cc/kG1LLhRh/pl40507-00.png",
+                        "https://i.postimg.cc/VvG22H0T/pl40507-01.png",
+                        "https://i.postimg.cc/L5CGG0gW/pl40507-02.png",
+                        "https://i.postimg.cc/WzWxxfqB/pl40507-03.png",
+                        "https://i.postimg.cc/Gt766Ssn/pl40507-04.png",
+                        "https://i.postimg.cc/8cKxxnr8/pl40507-05.png",
+                        "https://i.postimg.cc/mkXKK6FR/pl40507-06.png",
+                        "https://i.postimg.cc/6qjFF1Gt/pl40507-07.png",
+                        "https://i.postimg.cc/VvG22Hbs/pl40507-08.png",
+                        "https://i.postimg.cc/ZYwk90sN/pl40507-09.png"
+                    ] 
+                },
+                "Sunglasses": { 
+                    type: "loop", 
+                    frameDelay: 260, 
+                    frames: [
+                        "https://i.postimg.cc/v80R1D2L/pl40508-00.png",
+                        "https://i.postimg.cc/8kZ8FsXd/pl40508-01.png",
+                        "https://i.postimg.cc/J7pwytY5/pl40508-02.png",
+                        "https://i.postimg.cc/PfSGLNVM/pl40508-03.png",
+                        "https://i.postimg.cc/59scHjK3/pl40508-04.png",
+                        "https://i.postimg.cc/L4xdqhQD/pl40508-05.png",
+                        "https://i.postimg.cc/Kc0XK4pq/pl40508-06.png",
+                        "https://i.postimg.cc/dQ5M7DNN/pl40508-07.png",
+                        "https://i.postimg.cc/bYmXGdVF/pl40508-08.png"
+                    ] 
+                },
+                "Thinking": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/SQg0Xj1P/pl40509-00.png",
+                        "https://i.postimg.cc/h42FJhZN/pl40509-01.png",
+                        "https://i.postimg.cc/zDxmL329/pl40509-02.png",
+                        "https://i.postimg.cc/QxC2csv4/pl40509-03.png",
+                        "https://i.postimg.cc/05Vg6rH1/pl40509-04.png",
+                        "https://i.postimg.cc/xT8wLYBp/pl40509-05.png",
+                        "https://i.postimg.cc/WbzB0jxf/pl40509-06.png",
+                        "https://i.postimg.cc/tCJKFy8c/pl40509-07.png",
+                        "https://i.postimg.cc/qMqP20WY/pl40509-08.png",
+                        "https://i.postimg.cc/RVhkw92y/pl40509-09.png",
+                        "https://i.postimg.cc/02jT7xhh/pl40509-10.png",
+                        "https://i.postimg.cc/gkjC3d1f/pl40509-11.png",
+                        "https://i.postimg.cc/yYxM0BwH/pl40509-12.png",
+                        "https://i.postimg.cc/bNr718KP/pl40509-13.png"
+                    ] 
+                }
+            },
+            // 25. 牙琉雾人 · 法庭对峙篇
+            "雾人_法庭": {
+                scale: 0.85,
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/NfF3RYWB/pl41400-00.png",
+                        "https://i.postimg.cc/wTMCDHSx/pl41400-01.png",
+                        "https://i.postimg.cc/dt3bGvzs/pl41400-02.png",
+                        "https://i.postimg.cc/gkjC3dfj/pl41400-03.png",
+                        "https://i.postimg.cc/bNr718Ks/pl41400-04.png",
+                        "https://i.postimg.cc/8Pc2LDqs/pl41400-05.png",
+                        "https://i.postimg.cc/4NyDpZrH/pl41400-06.png",
+                        "https://i.postimg.cc/QxzRbw3X/pl41400-07.png",
+                        "https://i.postimg.cc/yYGwPtHY/pl41400-08.png",
+                        "https://i.postimg.cc/ncW6kgJh/pl41400-09.png",
+                        "https://i.postimg.cc/yYGwPtHN/pl41400-10.png",
+                        "https://i.postimg.cc/jd1GXmb2/pl41400-11.png"
+                    ] 
+                },
+                "Confident": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/dtfzBpYL/pl41401-00.png",
+                        "https://i.postimg.cc/dtfzBpY7/pl41401-01.png",
+                        "https://i.postimg.cc/024LfFsK/pl41401-02.png",
+                        "https://i.postimg.cc/sDLtcqrh/pl41401-03.png",
+                        "https://i.postimg.cc/hPYHr6BT/pl41401-04.png",
+                        "https://i.postimg.cc/qMF9LST2/pl41401-05.png",
+                        "https://i.postimg.cc/GhfZQVCk/pl41401-06.png",
+                        "https://i.postimg.cc/xTZWRh2v/pl41401-07.png",
+                        "https://i.postimg.cc/Fs62Z84g/pl41401-08.png",
+                        "https://i.postimg.cc/BQzdgk0B/pl41401-09.png",
+                        "https://i.postimg.cc/zXQ9j6rj/pl41401-10.png",
+                        "https://i.postimg.cc/TYsZ9F6C/pl41401-11.png",
+                        "https://i.postimg.cc/CL2WNXgc/pl41401-12.png"
+                    ] 
+                },
+                "Condescending": { 
+                    type: "loop", 
+                    frameDelay: 320, 
+                    frames: [
+                        "https://i.postimg.cc/Z5yXDHbr/pl41402-00.png",
+                        "https://i.postimg.cc/nhQNw2F4/pl41402-01.png",
+                        "https://i.postimg.cc/zGR4P7zF/pl41402-02.png",
+                        "https://i.postimg.cc/NjrZPDs8/pl41402-03.png"
+                    ] 
+                },
+                "Sinister Smile": { 
+                    type: "loop", 
+                    frameDelay: 320, 
+                    frames: [
+                        "https://i.postimg.cc/RZn2bdST/pl41403-00.png",
+                        "https://i.postimg.cc/Z5yXDHbH/pl41403-01.png",
+                        "https://i.postimg.cc/sgZb0mj0/pl41403-02.png"
+                    ] 
+                },
+                // 重点：406(4帧) + 407(2帧) + 407a(1帧) 顺延拼合的 7 帧受创循环链
+                "Damage": { 
+                    type: "loop", 
+                    frameDelay: 130, 
+                    frames: [
+                        "https://i.postimg.cc/DwbRY6vp/pl41406-00.png",
+                        "https://i.postimg.cc/13NbYBmd/pl41406-01.png",
+                        "https://i.postimg.cc/JzBSdxrS/pl41406-02.png",
+                        "https://i.postimg.cc/vZ6CSh8w/pl41406-03.png",
+                        "https://i.postimg.cc/DwbRY6fk/pl41407-00.png",
+                        "https://i.postimg.cc/K8gCsfcb/pl41407-01.png",
+                        "https://i.postimg.cc/Vkb2Hgsz/pl41407a-00.png"
+                    ] 
+                },
+                "Pushing Glasses": { 
+                    type: "loop", 
+                    frameDelay: 250, 
+                    frames: [
+                        "https://i.postimg.cc/g0F19hjQ/pl41408-00.png",
+                        "https://i.postimg.cc/3w5zMGNP/pl41408-01.png",
+                        "https://i.postimg.cc/0NRhgSjT/pl41408-02.png",
+                        "https://i.postimg.cc/5tdDczjc/pl41408-03.png",
+                        "https://i.postimg.cc/xdDBrmqS/pl41408-04.png",
+                        "https://i.postimg.cc/g0F19hrm/pl41408-05.png",
+                        "https://i.postimg.cc/DzkRVGm2/pl41408-06.png"
+                    ] 
+                },
+                "Glaring": { 
+                    type: "loop", 
+                    frameDelay: 220, 
+                    frames: [
+                        "https://i.postimg.cc/VNQ2yt5N/pl4140a-00.png",
+                        "https://i.postimg.cc/VNQ2yt55/pl4140a-01.png",
+                        "https://i.postimg.cc/g0F19hrn/pl4140a-02.png",
+                        "https://i.postimg.cc/CKT9y8dR/pl4140a-03.png",
+                        "https://i.postimg.cc/jj0BVfCn/pl4140a-04.png",
+                        "https://i.postimg.cc/s2dbFW1W/pl4140a-05.png",
+                        "https://i.postimg.cc/9f5s39zZ/pl4140a-06.png",
+                        "https://i.postimg.cc/6QrgBQGq/pl4140a-07.png",
+                        "https://i.postimg.cc/R07yv0nq/pl4140a-08.png",
+                        "https://i.postimg.cc/k5Qz75t6/pl4140a-09.png",
+                        "https://i.postimg.cc/QMQwjMW7/pl4140a-10.png",
+                        "https://i.postimg.cc/PqW9dq8Z/pl4140a-11.png",
+                        "https://i.postimg.cc/bvxWqv2k/pl4140a-12.png",
+                        "https://i.postimg.cc/LstwmsZj/pl4140a-13.png",
+                        "https://i.postimg.cc/fbcpMb0c/pl4140a-14.png",
+                        "https://i.postimg.cc/g0VQG06q/pl4140a-15.png",
+                        "https://i.postimg.cc/QMQwjMWq/pl4140a-16.png",
+                        "https://i.postimg.cc/1zG2yzNM/pl4140a-17.png",
+                        "https://i.postimg.cc/1zG2yzNJ/pl4140a-18.png",
+                        "https://i.postimg.cc/xdvh9db6/pl4140a-19.png",
+                        "https://i.postimg.cc/s2Yq32ZH/pl4140a-20.png",
+                        "https://i.postimg.cc/0NYF9NJ4/pl4140a-21.png",
+                        "https://i.postimg.cc/5tBTftFT/pl4140a-22.png",
+                        "https://i.postimg.cc/QtjPCrpq/pl4140a-23.png",
+                        "https://i.postimg.cc/TwTS1Xr9/pl4140a-24.png",
+                        "https://i.postimg.cc/63BSqNdY/pl4140a-25.png",
+                        "https://i.postimg.cc/zBqMv1nd/pl4140a-26.png"
+                    ] 
+                },
+                "Nervous Sweat": { 
+                    type: "loop", 
+                    frameDelay: 250, 
+                    frames: [
+                        "https://i.postimg.cc/V6zTvcjZ/pl4140b-00.png",
+                        "https://i.postimg.cc/26CJyf4X/pl4140b-01.png",
+                        "https://i.postimg.cc/3R36NHg6/pl4140b-02.png",
+                        "https://i.postimg.cc/HxTKnCQR/pl4140b-03.png",
+                        "https://i.postimg.cc/B6JybGxd/pl4140b-04.png",
+                        "https://i.postimg.cc/RFv8hzck/pl4140b-05.png"
+                    ] 
+                }
             }
         };
 
@@ -955,10 +1697,12 @@
                 const charObj = CHARACTER_ANIMATION_REGISTRY[characterKey];
                 if (!charObj) return;
 
-                this.imgEl.style.transform = `scale(${charObj.scale || 1.0})`;
 
                 const anim = charObj[animKey] || charObj["Normal"] || charObj["Smiling"] || Object.values(charObj).find(v => typeof v === 'object' && v.frames);
                 if (!anim || !anim.frames || !anim.frames.length) return;
+
+                const offsetY = anim.offsetY ? ` translateY(${anim.offsetY}px)` : '';
+                this.imgEl.style.transform = `scale(${charObj.scale || 1.0})${offsetY}`;
 
                 // 喝咖啡必须接在端咖啡后面：如果上一个动作不是端咖啡，先端起来，再喝
                 if (characterKey === "成步堂_法庭" && animKey === "Drinking Coffee" &&
@@ -1099,6 +1843,274 @@
         }
         const animator = new UniversalAnimator('actor-sprite');
 
+// ================= 3. 通用证物高清图标数据库 =================
+        const COMMON_EVIDENCE_ICONS = [
+            { keywords: ["血刀", "带血小刀", "血小刀", "凶器小刀"], url: "https://i.postimg.cc/RCTNY1sP/dai-xue-xiao-dao.png" },
+            { keywords: ["餐刀", "西餐刀"], url: "https://i.postimg.cc/SQGJPLTv/dai-xue-de-can-dao.png" },
+            { keywords: ["弹簧刀", "折叠刀", "折叠小刀"], url: "https://i.postimg.cc/hvKhjhj9/it1052-(Switchblade-Knife).png" },
+            { keywords: ["短剑", "短刀", "匕首"], url: "https://i.postimg.cc/mZStn3X1/it3079-(Dagger).png" },
+            { keywords: ["小刀", "利刃", "刀具", "尖刀"], url: "https://i.postimg.cc/2yC3636X/it2013-(Knife).png" },
+            { keywords: ["丝巾", "围巾", "领巾"], url: "https://i.postimg.cc/ry9KHGnn/dai-xue-de-si-jin.png" },
+            { keywords: ["纽扣", "扣子"], url: "https://i.postimg.cc/SQGJPLTt/dai-xue-de-niu-kou.png" },
+            { keywords: ["皮鞋", "鞋子", "鞋印"], url: "https://i.postimg.cc/c1crz79j/dai-xue-pi-xie.png" },
+            { keywords: ["脚印", "足迹"], url: "https://i.postimg.cc/ZYLCQPsk/mou-ren-de-jiao-yin.png" },
+            { keywords: ["足迹分析", "石膏"], url: "https://i.postimg.cc/tRzYcdSN/it4005d-(Dummy)-(Shoeprint-Analysis-Kit).png" },
+            { keywords: ["手枪", "警枪", "枪支", "凶器手枪"], url: "https://i.postimg.cc/tJ97T7Tv/it2012-(Pistol).png" },
+            { keywords: ["子弹", "弹头", "弹壳"], url: "https://i.postimg.cc/9XBrkPgH/xian-chang-liu-xia-de-zi-dan.png" },
+            { keywords: ["指纹", "指纹样本"], url: "https://i.postimg.cc/wTT7YtZW/xian-chang-de-zhi-wen.png" },
+            { keywords: ["安眠药", "药瓶", "药罐"], url: "https://i.postimg.cc/nrnMzMz9/it1021(s)-(Sleeping-Pill-Bottle).png" },
+            { keywords: ["感冒药", "感冒药X", "白色药片"], url: "https://i.postimg.cc/vTXT6Mxd/it3006(s)-(Coldkiller-X).png" },
+            { keywords: ["氰化钾", "毒药", "剧毒", "毒粉"], url: "https://i.postimg.cc/QCSCWsKD/it303c-(Potassium-Cyanide).png" },
+            { keywords: ["处方", "药袋", "处方药"], url: "https://i.postimg.cc/J0K0BmH4/it3051(j)-(Victim-s-Prescription-Bag).png" },
+            { keywords: ["毒物检测", "试剂", "试剂瓶"], url: "https://i.postimg.cc/jqhL16gN/it4002d-(Poison-Detection-Solution).png" },
+            { keywords: ["调味瓶", "玻璃瓶", "小瓶子"], url: "https://i.postimg.cc/wMFMsHyF/it2031-(Small-Seasoning-Bottle).png" },
+            { keywords: ["牛奶", "饮品", "饮料"], url: "https://i.postimg.cc/3N9ND74n/it203b(st)-(Milk).png" },
+            { keywords: ["门禁卡", "房卡", "磁卡"], url: "https://i.postimg.cc/6qBT3T3R/it1025-(Cardkey).png" },
+            { keywords: ["ID卡", "证件卡", "工作证"], url: "https://i.postimg.cc/3JJdQyVb/jing-cha-shu-de-ID-ka.png" },
+            { keywords: ["车钥匙", "钥匙串", "拖车钥匙"], url: "https://i.postimg.cc/d3JD1D1r/it1026-(Trailer-Key).png" },
+            { keywords: ["黑钥匙", "小钥匙", "钥匙"], url: "https://i.postimg.cc/Gtb9292M/it2010-(Black-Key).png" },
+            { keywords: ["停车票", "发票", "车票"], url: "https://i.postimg.cc/66hyPVjF/yu-jian-de-ting-che-piao.png" },
+            { keywords: ["收据", "账单", "小票", "签购单"], url: "https://i.postimg.cc/MHtHjxMr/it2058-(Credit-Card-Receipt).png" },
+            { keywords: ["撕毁的纸条", "纸条碎片", "碎纸条", "碎纸"], url: "https://i.postimg.cc/155f1g27/bei-si-hui-de-zhi-tiao.png" },
+            { keywords: ["纸团", "揉皱的纸条", "便签"], url: "https://i.postimg.cc/0j9rQrQB/it2026-(Received-from-Lotta-Hart-Crumpled-Note).png" },
+            { keywords: ["密信", "封蜡信件", "信封", "信件"], url: "https://i.postimg.cc/BbNb1sPW/it2068-(Sealed-Letter).png" },
+            { keywords: ["红信封", "遗书", "遗言"], url: "https://i.postimg.cc/ry9KHGn4/it40026(us)-(Red-Envelope).png" },
+            { keywords: ["烧焦的信", "残页", "焦纸"], url: "https://i.postimg.cc/NGx5n8J9/it3072(s)-(Burnt-Letter).png" },
+            { keywords: ["邀请函", "请柬", "请帖"], url: "https://i.postimg.cc/GhhHnBV5/yao-qing-han.png" },
+            { keywords: ["文件夹", "案件文件", "卷宗夹"], url: "https://i.postimg.cc/RCTNY1sj/wen-jian-jia.png" },
+            { keywords: ["名单", "名册", "通讯录"], url: "https://i.postimg.cc/fyMkLkL5/it2004-(Names-List).png" },
+            { keywords: ["名片"], url: "https://i.postimg.cc/5yfj0j0s/it200d(j)-(Business-Card).png" },
+            { keywords: ["剪报", "旧报纸", "报纸"], url: "https://i.postimg.cc/XNgpPKHL/itc3002(j)-(Newspaper-Clipping).png" },
+            { keywords: ["传单", "宣传单"], url: "https://i.postimg.cc/8cTs5s5d/it106d(u)-(Dummy)-(-Flyer).png" },
+            { keywords: ["解剖记录", "尸检报告", "调查报告", "警署报告", "鉴定书"], url: "https://i.postimg.cc/c1crz79F/itc3004-(Police-Report).png" },
+            { keywords: ["手机", "电话", "智能手机"], url: "https://i.postimg.cc/cCd6H6HX/it2005-(Cell-Phone).png" },
+            { keywords: ["录像带", "监控录像", "录像"], url: "https://i.postimg.cc/gj4j6dX1/it2064-(Video-Tape).png" },
+            { keywords: ["光盘", "光碟", "碟片", "CD"], url: "https://i.postimg.cc/jddLYWmg/die-pian.png" },
+            { keywords: ["照片", "合影", "现场照片"], url: "https://i.postimg.cc/j2RC5C54/it2001-(Photos).png" },
+            { keywords: ["照相机", "单反", "相机"], url: "https://i.postimg.cc/kGwGt96H/it205e-(Lotta-s-Camera).png" },
+            { keywords: ["微型摄像头", "窃听器", "针孔摄像"], url: "https://i.postimg.cc/5ypyF1Y7/it2056-(Spy-Camera).png" },
+            { keywords: ["发射器", "信号发射器"], url: "https://i.postimg.cc/KjQjgFkH/it205c-(Transmitter).png" },
+            { keywords: ["接收器"], url: "https://i.postimg.cc/1XMXNPn2/it2060-(Receiver).png" },
+            { keywords: ["探测器", "电波探测器"], url: "https://i.postimg.cc/j2v2JKw9/it205f-(Detector).png" },
+            { keywords: ["金属探测器"], url: "https://i.postimg.cc/ZnJ0R0Rd/it1034-(Metal-Detector).png" },
+            { keywords: ["耳麦", "耳机", "蓝牙耳机"], url: "https://i.postimg.cc/VsFdh9Gn/it40048-(Headset).png" },
+            { keywords: ["遥控器", "引爆器", "遥控开关"], url: "https://i.postimg.cc/c1crz79f/it40051-(Remote-Trigger).png" },
+            { keywords: ["点火器", "打火机"], url: "https://i.postimg.cc/59m6r57w/it40052-(Igniter).png" },
+            { keywords: ["火柴", "火柴盒"], url: "https://i.postimg.cc/MHtHjxfW/it3044(s)-(Tres-Bien-Matches).png" },
+            { keywords: ["眼镜", "墨镜"], url: "https://i.postimg.cc/C5wd1d1N/it2002-(Glasses).png" },
+            { keywords: ["戒指", "钻戒"], url: "https://i.postimg.cc/nrTrQZjG/it202f-(Ring).png" },
+            { keywords: ["挂坠", "吊坠", "项链"], url: "https://i.postimg.cc/QCSCWsK3/it3007-(Dahlia-s-Present).png" },
+            { keywords: ["手套", "棒球手套"], url: "https://i.postimg.cc/ZnJ0R0RH/it2003-(Baseball-Glove).png" },
+            { keywords: ["木盒", "木箱", "盒子"], url: "https://i.postimg.cc/wMFMsHyV/it2030-(Wooden-Box).png" },
+            { keywords: ["吉他盒", "琴盒"], url: "https://i.postimg.cc/Hn3n7Hc6/it2050-(Guitar-Case).png" },
+            { keywords: ["酒杯", "高脚杯", "红酒杯"], url: "https://i.postimg.cc/0jZjJxMt/it2051-(Wine-Glass).png" },
+            { keywords: ["便当", "饭盒"], url: "https://i.postimg.cc/L5mhXhXB/it108d(s)-(Dummy)-(Lunchbox).png" },
+            { keywords: ["围裙"], url: "https://i.postimg.cc/4ywyhZHX/it303d-(Apron).png" },
+            { keywords: ["短裤", "内裤", "胖次"], url: "https://i.postimg.cc/NGx5n8Jr/it40019-(Trucy-s-Panties).png" }
+        ];
+
+        function matchEvidenceIcon(name, desc) {
+            const str = (name + " " + (desc || "")).toLowerCase();
+            for (const item of COMMON_EVIDENCE_ICONS) {
+                if (item.keywords.some(k => str.includes(k.toLowerCase()))) {
+                    return item.url;
+                }
+            }
+            return "https://i.postimg.cc/RCTNY1sj/wen-jian-jia.png"; // 兜底：通用文件夹
+        }
+
+// ================= 人物小头像高精度映射库 (172张全收录) =================
+        const DEFAULT_UNKNOWN_AVATAR = "https://i.postimg.cc/8C8vGphR/cast215-01-(Delicia-Scones).png"; // 黑色人影轮廓兜底
+
+        const CHARACTER_AVATAR_RULES = [
+            // --- 狩魔 冥 (按年龄与时期分流) ---
+            { keywords: ["狩魔冥(幼年)", "狩魔冥(小)", "冥(幼年)", "冥(小)", "冥(7年前)"], url: "https://i.postimg.cc/4NmHh7Pq/item3026-(Franziska-von-Karma).png" },
+            { keywords: ["狩魔冥(检1)", "狩魔冥(检2)", "狩魔冥(少女)"], url: "https://i.postimg.cc/xT4HsyqS/cast004-00-(Franziska-von-Karma).png" },
+            { keywords: ["狩魔冥", "冥"], url: "https://i.postimg.cc/yxrJbs1W/it3062-(Franziska-von-Karma).png" },
+
+            // --- 宝月 茜 (按年龄与身份分流) ---
+            { keywords: ["宝月茜(幼年)", "宝月茜(高中)", "茜(幼年)", "茜(高中)", "茜(学生)"], url: "https://i.postimg.cc/xCnbk6pP/it1077-(Ema-Skye).png" },
+            { keywords: ["宝月茜(检)", "茜(检)"], url: "https://i.postimg.cc/J4GHBDx6/item2033-(Ema-Skye).png" },
+            { keywords: ["宝月茜(4代)", "茜(4代)"], url: "https://i.postimg.cc/mrQH2vjT/face40012-(Ema-Skye).png" },
+            { keywords: ["宝月茜", "茜"], url: "https://i.postimg.cc/sDNSn91d/cast003-00-(Ema-Skye).png" },
+
+            // --- 一条 美云 ---
+            { keywords: ["美云(幼年)", "美云(7年前)", "美云(小)"], url: "https://i.postimg.cc/15fVNnBj/item3024-(Kay-Faraday).png" },
+            { keywords: ["美云(失忆)", "美云(伤)"], url: "https://i.postimg.cc/fb4dszx8/cast21a-00-(Kay-Faraday).png" },
+            { keywords: ["美云(检1)"], url: "https://i.postimg.cc/5N6QFYgg/item2018-(Kay-Faraday).png" },
+            { keywords: ["一条美云", "美云"], url: "https://i.postimg.cc/4NSt8bnR/cast002-00-(Kay-Faraday).png" },
+
+            // --- 成步堂 龙一 ---
+            { keywords: ["成步堂(大学)", "成步堂(毛衣)", "龙一(大学)"], url: "https://i.postimg.cc/6qQ2cyNg/it3008-(Phoenix-Wright).png" },
+            { keywords: ["成步堂(4代)", "成步堂(33岁)", "成步堂(帽子)", "龙一(落魄)"], url: "https://i.postimg.cc/43z9ND5S/face40001-(Phoenix-Wright).png" },
+            { keywords: ["成步堂", "龙一"], url: "https://i.postimg.cc/NF09D5ct/it3021-(Phoenix-Wright).png" },
+
+            // --- 御剑 怜侍 ---
+            { keywords: ["御剑(律师)", "御剑(3-5)", "御剑(年轻)", "御剑(20岁)"], url: "https://i.postimg.cc/Y0SGRhHG/it305d-(Miles-Edgeworth).png" },
+            { keywords: ["御剑怜侍", "御剑"], url: "https://i.postimg.cc/fWH0LjcZ/itc101e-(Miles-Edgeworth).png" },
+            { keywords: ["御剑信", "御剑(父)"], url: "https://i.postimg.cc/Wp9J36GZ/itc103c-(Gregory-Edgeworth).png" },
+
+            // --- 绫里一家 ---
+            { keywords: ["绫里真宵", "真宵"], url: "https://i.postimg.cc/vBhx55Cn/it2007-(Maya-Fey).png" },
+            { keywords: ["绫里春美", "春美"], url: "https://i.postimg.cc/hjsQVVN1/it201f-(Pearl-Fey).png" },
+            { keywords: ["绫里千寻", "千寻"], url: "https://i.postimg.cc/90N4nCmG/itc1012-(Mia-Fey).png" },
+            { keywords: ["绫里纪美子", "纪美子"], url: "https://i.postimg.cc/V6g0XX2R/it2021-(Morgan-Fey).png" },
+            { keywords: ["天流斋艾莉", "绫里舞子", "舞子"], url: "https://i.postimg.cc/Wz4F8hvq/it305f-(Elise-Deauxnim).png" },
+            { keywords: ["绫美(兜帽)", "彩芽(兜帽)"], url: "https://i.postimg.cc/2yXqKrk1/it307c-(Dummy)-(Iris-with-Hood).png" },
+            { keywords: ["叶樱院绫美", "绫美", "彩芽"], url: "https://i.postimg.cc/zvPLc8zD/it3060-(Iris).png" },
+            { keywords: ["美柳千奈美", "千奈美"], url: "https://i.postimg.cc/C5KB7zgT/it300b-(Dahlia-Hawthorne).png" },
+
+            // --- 牙琉兄弟 ---
+            { keywords: ["牙琉响也(17岁)", "响也(17岁)", "响也(年轻)"], url: "https://i.postimg.cc/vBb6102y/face40018-(Klavier-Gavin).png" },
+            { keywords: ["牙琉响也", "响也"], url: "https://i.postimg.cc/R0cHVkRk/face40007-(Klavier-Gavin).png" },
+            { keywords: ["牙琉雾人", "雾人"], url: "https://i.postimg.cc/0Npw2Tft/face40000-(Kristoph-Gavin).png" },
+
+            // --- 系锯 圭介 ---
+            { keywords: ["系锯(7年前)", "系锯(灰大衣)"], url: "https://i.postimg.cc/RVNJn6dY/item3025-(Dick-Gumshoe).png" },
+            { keywords: ["系锯(4代)"], url: "https://i.postimg.cc/MTqjc93Q/face40028-(Dick-Gumshoe).png" },
+            { keywords: ["系锯圭介", "系锯", "刑警"], url: "https://i.postimg.cc/c4bYDMCj/cast001-00-(Dick-Gumshoe).png" },
+
+            // --- 成步堂 美贯 ---
+            { keywords: ["美贯(幼年)", "美贯(小)", "美贯(7年前)"], url: "https://i.postimg.cc/Jhbk4fxG/face40017-(Trucy-Enigmar).png" },
+            { keywords: ["成步堂美贯", "美贯"], url: "https://i.postimg.cc/tghxCK5L/face40006-(Trucy-Wright).png" },
+
+            // --- 矢张 政志 ---
+            { keywords: ["天流斋真志守", "矢张(画家)"], url: "https://i.postimg.cc/P5vD0p8G/cast106-00-(Laurice-Deauxnim).png" },
+            { keywords: ["矢张政志", "矢张"], url: "https://i.postimg.cc/2yXqKrkd/itc1013-(Larry-Butz).png" },
+
+            // --- 检事与搜查官阵营 ---
+            { keywords: ["马堂一彻", "马堂"], url: "https://i.postimg.cc/c4bYDM6S/cast006-00-(Tyrell-Badd).png" },
+            { keywords: ["狼士龙", "狼"], url: "https://i.postimg.cc/KvHL9r4Z/cast100-00-(Shi-Long-Lang).png" },
+            { keywords: ["水镜秤", "水镜"], url: "https://i.postimg.cc/J42JTctr/cast102-00-(Justine-Courtney).png" },
+            { keywords: ["一柳弓彦", "弓彦"], url: "https://i.postimg.cc/8P0WyBsk/cast103-00-(Sebastian-Debeste).png" },
+            { keywords: ["一柳万才", "万才"], url: "https://i.postimg.cc/MGkBw6yL/cast21c-00-(Blaise-Debeste).png" },
+            { keywords: ["信乐盾之(年轻)", "信乐(年轻)", "信乐(小)"], url: "https://i.postimg.cc/VNytwfjb/cast214-00-(Raymond-Shields).png" },
+            { keywords: ["信乐盾之", "信乐"], url: "https://i.postimg.cc/sDNSn91D/cast104-00-(Raymond-Shields).png" },
+            { keywords: ["狩魔豪", "狩魔(父)"], url: "https://i.postimg.cc/YCLFTGL5/cast105-00-(Manfred-von-Karma).png" },
+            { keywords: ["歌德", "神乃木庄龙", "神乃木"], url: "https://i.postimg.cc/4y37Pmgs/it3028-(Godot).png" },
+            { keywords: ["王泥喜法介", "王泥喜"], url: "https://i.postimg.cc/1tsNgv7f/face40026-(Apollo-Justice).png" },
+            { keywords: ["审判长", "法官", "裁判长"], url: "https://i.postimg.cc/zXVHRb79/item3033-(The-Judge).png" },
+
+            // --- 检事2 / 或真敷魔术团 / 4代关键人物 ---
+            { keywords: ["王帝君", "总统"], url: "https://i.postimg.cc/YCLFTGmw/cast200-00-(Di-Jun-Huang).png" },
+            { keywords: ["内藤马乃介", "内藤"], url: "https://i.postimg.cc/fRSd1t0M/cast201-00-(Horace-Knightley).png" },
+            { keywords: ["速水美纪子", "速水"], url: "https://i.postimg.cc/T35bBLWf/cast202-00-(Nicole-Swift).png" },
+            { keywords: ["虎狼死家左左右卫门", "虎狼死家", "田中太郎"], url: "https://i.postimg.cc/kgRSL6tn/cast203-00-(Shelly-de-Killer).png" },
+            { keywords: ["风院坊了贤", "了贤"], url: "https://i.postimg.cc/Z5vNXByY/cast204-00-(Sirhan-Dogen).png" },
+            { keywords: ["猿代草太(黑化)", "草太(真凶)"], url: "https://i.postimg.cc/CKjqL3Nm/cast220-00-(Simon-Keyes).png" },
+            { keywords: ["猿代草太", "草太"], url: "https://i.postimg.cc/qv6KWhCq/cast205-00-(Simon-Keyes).png" },
+            { keywords: ["折中秀治", "折中"], url: "https://i.postimg.cc/JzHXSDBh/cast206-00-(Jay-Elbird).png" },
+            { keywords: ["美和玛丽", "美和"], url: "https://i.postimg.cc/T35bBLWy/cast207-00-(Patricia-Roland).png" },
+            { keywords: ["相泽诗纹", "诗纹"], url: "https://i.postimg.cc/jSnfBwJH/cast20f-00-(John-Marsh).png" },
+            { keywords: ["天海一诚(年轻)", "天海(18年前)"], url: "https://i.postimg.cc/3wMGh8gd/cast211-00-(Jeffery-Master).png" },
+            { keywords: ["天海一诚", "天海"], url: "https://i.postimg.cc/vZxnCg65/cast210-00-(Jeffery-Master).png" },
+            { keywords: ["绪屋敷司(年轻)", "绪屋敷(18年前)"], url: "https://i.postimg.cc/TP8bxdr5/cast213-00-(Katherine-Hall).png" },
+            { keywords: ["绪屋敷司", "绪屋敷"], url: "https://i.postimg.cc/Gp0DRLk4/cast212-00-(Katherine-Hall).png" },
+            { keywords: ["风见丰(年轻)", "风见(18年前)"], url: "https://i.postimg.cc/JhwX8rb5/cast217-00-(Dane-Gustavia).png" },
+            { keywords: ["风见丰", "风见"], url: "https://i.postimg.cc/W4RZVNM6/cast216-00-(Dane-Gustavia).png" },
+            { keywords: ["迪丽茜·司康", "迪丽茜", "司康"], url: "https://i.postimg.cc/mrx94LQ7/cast215-00-(Delicia-Scones).png" },
+            { keywords: ["冰堂伊作", "冰堂"], url: "https://i.postimg.cc/xdrmQfKP/cast218-00-(Isaac-Dover).png" },
+            { keywords: ["武藤瞳子", "武藤"], url: "https://i.postimg.cc/zfmhNznM/cast21d-00-(Karin-Jenson).png" },
+            { keywords: ["外城涯", "外城"], url: "https://i.postimg.cc/QML7D8pv/cast21e-00-(Ethan-Rooke).png" },
+            { keywords: ["笼目翼", "笼目"], url: "https://i.postimg.cc/0NgSvkpT/cast21f-00-(Jill-Crane).png" },
+            { keywords: ["龟井隆二", "龟井"], url: "https://i.postimg.cc/bvQtN7Tm/cast222-00-(Jack-Cameron).png" },
+            { keywords: ["一条九间"], url: "https://i.postimg.cc/5N6QFYgh/item3029-(Byrne-Faraday).png" },
+            { keywords: ["葛冰见子", "希娜"], url: "https://i.postimg.cc/RVNJn6Gr/item3035-(Calisto-Yew).png" },
+            { keywords: ["卡内基·欧雷德", "卡内基", "大使"], url: "https://i.postimg.cc/ncgjKFSP/item4070-(Quercus-Alba).png" },
+
+            // --- 4代篇证人与相关人物 ---
+            { keywords: ["逆居雅香(女仆)"], url: "https://i.postimg.cc/R0cHVkRb/face40002-(Olga-Orly).png" },
+            { keywords: ["逆居雅香", "雅香"], url: "https://i.postimg.cc/rpSrFBJH/face40003-(Olga-Orly).png" },
+            { keywords: ["并奈美波", "美波"], url: "https://i.postimg.cc/W4MkbB8L/face40008-(Alita-Tiala).png" },
+            { keywords: ["北木泷太", "泷太"], url: "https://i.postimg.cc/3wgvJs1h/face40009-(Wocky-Kitaki).png" },
+            { keywords: ["河津京作", "河津"], url: "https://i.postimg.cc/MGyQKC5S/face40011-(Wesley-Stickler).png" },
+            { keywords: ["矢田吹麦面", "麦面"], url: "https://i.postimg.cc/9fG7F6bm/face40013-(Guy-Eldoon).png" },
+            { keywords: ["北木常胜", "常胜"], url: "https://i.postimg.cc/g0vZkCs0/face40014(us)-(Winfred-Kitaki).png" },
+            { keywords: ["堀田院长", "引田院长", "堀田", "引田"], url: "https://i.postimg.cc/254Z8sG6/face40015-(Dr-Hickfield).png" },
+            { keywords: ["宇狩辉夫", "宇狩"], url: "https://i.postimg.cc/3wgvJs1W/face40016-(Pal-Meraktis).png" },
+            { keywords: ["绘濑真琴(幼年)", "真琴(小)"], url: "https://i.postimg.cc/NMBrydCg/face40020-(Vera-Misham).png" },
+            { keywords: ["绘濑真琴", "真琴"], url: "https://i.postimg.cc/SskzXg1m/face40019-(Vera-Misham).png" },
+            { keywords: ["绘濑土武六", "土武六"], url: "https://i.postimg.cc/9MCq4LgX/face40021-(Drew-Misham).png" },
+            { keywords: ["或真敷巴朗(年轻)", "巴朗(年轻)"], url: "https://i.postimg.cc/ydsSJLpN/face40023-(Valant-Gramarye).png" },
+            { keywords: ["或真敷巴朗", "巴朗"], url: "https://i.postimg.cc/gJm6wgtk/face40022-(Valant-Gramarye).png" },
+            { keywords: ["浦伏影郎", "奈奈伏影郎", "或真敷扎克", "扎克"], url: "https://i.postimg.cc/qR4Ct1Dq/face40024-(Zak-Gramarye).png" },
+            { keywords: ["或真敷天斋", "天斋"], url: "https://i.postimg.cc/PxT8LSVC/face40027-(Magnifi-Gramarye).png" },
+            { keywords: ["或真敷优海", "优海"], url: "https://i.postimg.cc/26rBq09W/face40030-(Thalassa-Gramarye).png" },
+            { keywords: ["罗梅因·莱塔斯", "莱塔斯"], url: "https://i.postimg.cc/Y9Mm4dDY/face40031-(Le-Touse).png" },
+            { keywords: ["拉米洛亚"], url: "https://i.postimg.cc/Y9Mm4dDQ/face40032-(Lamiroir).png" },
+            { keywords: ["马基·托巴尤", "马基"], url: "https://i.postimg.cc/mDBFcmpN/face40033-(Machi-Tobaye).png" },
+            { keywords: ["眉月大庵", "眉月"], url: "https://i.postimg.cc/63tG7Mbc/face40034-(Daryan-Crescend).png" },
+
+            // --- 1~3代经典证人、涉案嫌疑人 ---
+            { keywords: ["宝月巴", "巴"], url: "https://i.postimg.cc/B6418m7g/it1078-(Lana-Skye).png" },
+            { keywords: ["市之谷响华", "响华", "便当大姐"], url: "https://i.postimg.cc/mDj177KH/it1079-(Angel-Starr).png" },
+            { keywords: ["零木真子", "真子"], url: "https://i.postimg.cc/MT5f11gR/it2008-(Maggey-Byrde).png" },
+            { keywords: ["诸平野贵雅", "诸平野"], url: "https://i.postimg.cc/ZRHv66Xp/it2009-(Richard-Wellington).png" },
+            { keywords: ["町尾守", "町尾"], url: "https://i.postimg.cc/JnxHjjSN/it200c-(Dustin-Prince).png" },
+            { keywords: ["雾崎哲郎", "雾崎"], url: "https://i.postimg.cc/FRpk00wb/it201e-(Dr-Turner-Grey).png" },
+            { keywords: ["叶中未实", "未实"], url: "https://i.postimg.cc/769JSSjm/it2022-(Mimi-Miney).png" },
+            { keywords: ["叶中长闲", "长闲"], url: "https://i.postimg.cc/fLCSYY18/it2023-(Ini-Miney).png" },
+            { keywords: ["马克思"], url: "https://i.postimg.cc/26GLnngc/it203d-(Max).png" },
+            { keywords: ["立见里香", "里香"], url: "https://i.postimg.cc/G2KTvv6g/it203e-(Regina-Berry).png" },
+            { keywords: ["阿库罗"], url: "https://i.postimg.cc/vBhx55Ck/it2042-(Acro).png" },
+            { keywords: ["立见七百三", "立见团长"], url: "https://i.postimg.cc/ydj30022/it2043-(Russell-Berry).png" },
+            { keywords: ["巴特"], url: "https://i.postimg.cc/qRw622WP/it2044-(Bat).png" },
+            { keywords: ["藤见野勋", "藤见野"], url: "https://i.postimg.cc/ZRHv66X1/it2047-(Juan-Corrida).png" },
+            { keywords: ["王都楼真悟", "王都楼"], url: "https://i.postimg.cc/k4sRWWk3/it2048-(Matt-Engarde).png" },
+            { keywords: ["华宫雾绪", "雾绪"], url: "https://i.postimg.cc/j5cnyyGb/it2049-(Adrian-Andrews).png" },
+            { keywords: ["天野由利惠", "由利惠"], url: "https://i.postimg.cc/Gtp8KH1S/it204a-(Celeste-Inpax).png" },
+            { keywords: ["星影宇宙之介", "星影"], url: "https://i.postimg.cc/SRK2dJp5/it3009-(Marvin-Grossberg).png" },
+            { keywords: ["亚内武文", "亚内"], url: "https://i.postimg.cc/pr196RW0/itc1016-(Winston-Payne).png" },
+            { keywords: ["吞田大介", "吞田"], url: "https://i.postimg.cc/wMBy27pd/it300c-(Doug-Swallow).png" },
+            { keywords: ["天杉优作", "优作"], url: "https://i.postimg.cc/4y37Pmgg/it3024-(Ron-De-Lite).png" },
+            { keywords: ["假面怪盗"], url: "https://i.postimg.cc/8cCJ4jSD/it3025-(Mask-De-Masque).png" },
+            { keywords: ["天杉希华", "希华"], url: "https://i.postimg.cc/D0zJ68T7/it3026-(Desiree-De-Lite).png" },
+            { keywords: ["星威岳哀牙", "哀牙"], url: "https://i.postimg.cc/j2jwcLbs/it3027-(Luke-Atmey).png" },
+            { keywords: ["鹿羽里美", "里美"], url: "https://i.postimg.cc/QCM9mH3M/it304a-(Viola-Cadaverini).png" },
+            { keywords: ["小池惠子", "小池"], url: "https://i.postimg.cc/Gtp8KHC2/it304e-(Lisa-Basil).png" },
+            { keywords: ["冈高夫"], url: "https://i.postimg.cc/x8dJ5c28/it304f-(Glen-Elg).png" },
+            { keywords: ["尾并田美散", "尾并田"], url: "https://i.postimg.cc/mkrzjtsP/it3058-(Terry-Fawles).png" },
+            { keywords: ["神乃木庄龙(年轻)"], url: "https://i.postimg.cc/L5sYDnpq/it305a-(Diego-Armando).png" },
+            { keywords: ["松竹梅世", "梅世"], url: "https://i.postimg.cc/x8Fk4nfz/itc100b-(April-May).png" },
+            { keywords: ["酒店服务生", "侍者"], url: "https://i.postimg.cc/sx0BNsjW/itc100c-(Bellboy).png" },
+            { keywords: ["小中大"], url: "https://i.postimg.cc/C56ZQShD/itc100d-(Redd-White).png" },
+            { keywords: ["高日美佳"], url: "https://i.postimg.cc/HnPJhdYt/itc1014-(Cindy-Stone).png" },
+            { keywords: ["山野星雄", "山野"], url: "https://i.postimg.cc/kGhVpqJc/itc1015-(Frank-Sahwit).png" },
+            { keywords: ["大泷九太", "九太"], url: "https://i.postimg.cc/ZYfyRF8b/itc102a-(Cody-Hackins).png" },
+            { keywords: ["荷星三郎", "荷星", "大将军"], url: "https://i.postimg.cc/mZdFDNYZ/itc102b-(Will-Powers).png" },
+            { keywords: ["姬神樱", "姬神"], url: "https://i.postimg.cc/y6fSdXm8/itc102c-(Dee-Vasquez).png" },
+            { keywords: ["宇在拓也", "宇在"], url: "https://i.postimg.cc/L4yZXBtX/itc102d-(Assistant).png" },
+            { keywords: ["衣袋武史", "衣袋"], url: "https://i.postimg.cc/kMjt4FQG/itc102f-(Jack-Hammer).png" },
+            { keywords: ["大场香", "大婶"], url: "https://i.postimg.cc/Pf68xzWN/itc1030-(Security-Lady).png" },
+            { keywords: ["大泽木夏美", "夏美"], url: "https://i.postimg.cc/mZdFDNYt/itc103a-(Lotta-Hart).png" },
+            { keywords: ["生仓雪男", "生仓"], url: "https://i.postimg.cc/c1D8HMRw/itc103d-(Robert-Hammond).png" },
+            { keywords: ["灰根高太郎", "灰根"], url: "https://i.postimg.cc/05tJQdY7/itc103e-(Yanni-Yogi).png" },
+            { keywords: ["罪门恭介", "罪门"], url: "https://i.postimg.cc/HWS7x4w0/itc107a-(Jake-Marshall).png" },
+            { keywords: ["罪门直斗"], url: "https://i.postimg.cc/ryhtmC1C/itc107b-(Neil-Marshall).png" },
+            { keywords: ["岩徒海慈", "岩徒", "署长"], url: "https://i.postimg.cc/J4GHBDxy/itc107c-(Damon-Gant).png" },
+            { keywords: ["多田敷道夫", "多田敷"], url: "https://i.postimg.cc/02bKJMnM/itc107d-(Bruce-Goodman).png" },
+            { keywords: ["毘忌尼", "比基尼修女", "修女"], url: "https://i.postimg.cc/02bKJMnK/itc305e-(Bikini).png" },
+            { keywords: ["间宫由美子", "由美子"], url: "https://i.postimg.cc/52QzDYFF/cast20c-00-(Penny-Nichols).png" },
+            { keywords: ["仲间户真"], url: "https://i.postimg.cc/9FrwqRbq/item0008-(Buddy-Faith).png" },
+            { keywords: ["优木诚人", "优木"], url: "https://i.postimg.cc/Nf52r9DT/item0011-(Jacques-Portsman).png" },
+            { keywords: ["积木木造"], url: "https://i.postimg.cc/5N6QFYg8/item1029-(Akbey-Hicks).png" },
+            { keywords: ["木之路一缕", "一缕", "空姐"], url: "https://i.postimg.cc/15fVNnBG/item1032-(Rhoda-Teneiro).png" },
+            { keywords: ["金克·怀特", "金克"], url: "https://i.postimg.cc/Nf52r9D8/item1033-(Zinc-Lablanc).png" },
+            { keywords: ["白音若菜", "若菜"], url: "https://i.postimg.cc/KvR3gkfN/item1034-(Cammy-Meele).png" },
+            { keywords: ["小仓真澄"], url: "https://i.postimg.cc/kXBRt6sT/item2031-(Oliver-Deacon).png" }
+        ];
+
+        // 智能匹配人物头像：先查专属库，无匹配时自动兜底为黑影轮廓
+        function matchProfileIcon(name) {
+            if (!name) return DEFAULT_UNKNOWN_AVATAR;
+            for (const item of CHARACTER_AVATAR_RULES) {
+                if (item.keywords.some(k => name.includes(k))) {
+                    return item.url;
+                }
+            }
+            return DEFAULT_UNKNOWN_AVATAR;
+        }
+
         // ================= 2. 真实高清背景字典 =================
         const SCENE_GROUPS = [
             { title: "事务所·办公室", scenes: [
@@ -1131,6 +2143,34 @@
                 ["警察署·证物室警卫站", "https://i.postimg.cc/j5jS7Lyt/bg1077-(Evidence-Room-Entrance-Guard-Station).png"],
                 ["地方检察厅·1202室检事局", "https://i.postimg.cc/d0w1JW13/bg1073-(High-Prosecutor-s-Office-Room-1202).png"],
             ] },
+            { title: "日常·居所", scenes: [
+                ["御剑家·卧室", "https://i.postimg.cc/Qt9HPvzJ/yu-jian-jia-wo-shi.jpg"],
+                ["御剑家·客厅", "https://i.postimg.cc/xCwcStrL/yu-jian-jia-ke-ting.jpg"],
+                ["成步堂的卧室", "https://i.postimg.cc/vBJcd3RN/cheng-bu-tang-de-wo-shi.jpg"],
+                ["牙琉家·卧室", "https://i.postimg.cc/3N2WrmYT/ya-liu-jia-wo-shi.jpg"],
+                ["温馨客厅", "https://i.postimg.cc/prKyVzxg/wen-xin-ke-ting.jpg"],
+            ] },
+            { title: "餐厅·餐饮场所", scenes: [
+                ["咖啡厅", "https://i.postimg.cc/NM95VZnR/ka-fei-ting.jpg"],
+                ["拉面店", "https://i.postimg.cc/DZ98KBVg/la-mian-dian.jpg"],
+                ["日式家庭餐厅", "https://i.postimg.cc/qRPzdjfb/ri-shi-jia-ting-can-ting.jpg"],
+                ["海边餐厅", "https://i.postimg.cc/cHprNXy0/hai-bian-can-ting.jpg"],
+                ["自助餐厅", "https://i.postimg.cc/wMD3xLgT/zi-zhu-can-ting.jpg"],
+                ["观景餐厅", "https://i.postimg.cc/x8LqjMnC/guan-jing-can-ting.jpg"],
+                ["高档西餐厅", "https://i.postimg.cc/gj3rc8m6/gao-dang-xi-can-ting.jpg"],
+                ["吐丽美庵 法式餐厅", "https://i.postimg.cc/59hQZSwg/bg3300(s)-(Tres-Bien).png"],
+                ["波鲁哈吉 罗宋汤俱乐部", "https://i.postimg.cc/qMN6FZhN/bg0035-(Borscht-Bowl-Club).png"],
+            ] },
+            { title: "演艺·公众·街景", scenes: [
+                ["阳光竞技场", "https://i.postimg.cc/dtgZcmrV/bg0027(us)-(Sunshine-Coliseum).png"],
+                ["舞台侧翼", "https://i.postimg.cc/ZRBCgXQW/bg001b-(In-the-Wings)-(The-Stage).png"],
+                ["幕后走廊", "https://i.postimg.cc/wvy7Pnrh/bg001d(us)-(Backstage-Hallway)-(Headset).png"],
+                ["商场", "https://i.postimg.cc/rm0Kb7H9/shang-chang.jpg"],
+                ["机场", "https://i.postimg.cc/63kyNYsF/ji-chang.jpg"],
+                ["红枫街道", "https://i.postimg.cc/x8LqjMn0/hong-feng-jie-dao.jpg"],
+                ["车站", "https://i.postimg.cc/Dwq0kV2h/bg1055-(Station).png"],
+                ["维他命广场", "https://i.postimg.cc/ncq9Z9ky/bg3302(s)-(Vitamin-Square).png"],
+            ] },
             { title: "仓院之里", scenes: [
                 ["仓院之里·村庄", "https://i.postimg.cc/RFbVQ4TN/bg2200(s)-(Kurain-Village).png"],
                 ["仓院之里·本堂", "https://i.postimg.cc/rs0yf3h1/bg2201(s)-(Fey-Manor-Meditation-Room).png"],
@@ -1157,7 +2197,6 @@
                 ["立见大马戏团·主帐篷", "https://i.postimg.cc/wxZj1xMT/bg2300(s)-(Berry-Big-Circus-Big-Top).png"],
                 ["立见大马戏团·食堂", "https://i.postimg.cc/hPmPTFQD/bg2301(s)-(Big-Top-Cafeteria).png"],
                 ["立见大马戏团·团长室", "https://i.postimg.cc/J4X4ZwHk/bg2302(s)-(Big-Top-Ringmaster-s-Room).png"],
-                ["立见大马戏团·未命名场景", "https://i.postimg.cc/QdrNq6cY/bg2304(s).png"],
                 ["宿舍·广场", "https://i.postimg.cc/htbDZ90H/bg2305-(Lodging-House-Plaza).png"],
                 ["宿舍·托米的房间", "https://i.postimg.cc/52q4Kwmh/bg2306(s)-(Lodging-Hall-1st-Floor-Moe-s-Room).png"],
             ] },
@@ -1173,6 +2212,9 @@
                 ["高菱屋·展厅", "https://i.postimg.cc/QtPhKSXW/bg3200(s)-(Lordly-Tailor-Main-Exibit-Hall).png"],
                 ["高菱屋·地下仓库", "https://i.postimg.cc/VvC1qM64/bg3201(s)-(Lordly-Tailor-Basement-Warehouse).png"],
                 ["假面怪盗·藏身处", "https://i.postimg.cc/RqxmXFJ0/bg3203-(Mask-De-Masque-s-Hideout).png"],
+                ["卡里尤借贷金融", "https://i.postimg.cc/Sxq2KQ12/bg3304(s)-(Tender-Lender).png"],
+                ["宇狩外科医院", "https://i.postimg.cc/ryntQLp7/bg000a-(Hickfield-Clinic).png"],
+                ["堀田诊所·接待处", "https://i.postimg.cc/DfHwSfZM/bg2207(s)-(Hotti-Clinic-Reception).png"],
             ] },
             { title: "叶樱院", scenes: [
                 ["叶樱院·正门", "https://i.postimg.cc/Sxq2KQ1R/bg3500(j)-(Hazakura-Temple-Main-Gate).png"],
@@ -1186,18 +2228,7 @@
                 ["叶樱院·黄昏桥(二)", "https://i.postimg.cc/0NyzpWsP/bg3504(s)-(Dusky-Bridge).png"],
                 ["叶樱院·黄昏桥(三)", "https://i.postimg.cc/7LtfX3Hx/bg3505(s)-(Dusky-Bridge).png"],
                 ["叶樱院·黄昏桥地图", "https://i.postimg.cc/cCrCVrJ9/bg350f(s)-(Dusky-Bridge-Map).png"],
-                ["叶樱院·未命名场景", "https://i.postimg.cc/yxkxwkNL/bg350b(j).png"],
-            ] },
-            { title: "城市·其他", scenes: [
-                ["车站", "https://i.postimg.cc/Dwq0kV2h/bg1055-(Station).png"],
-                ["吐丽美庵 法式餐厅", "https://i.postimg.cc/59hQZSwg/bg3300(s)-(Tres-Bien).png"],
-                ["维他命广场", "https://i.postimg.cc/ncq9Z9ky/bg3302(s)-(Vitamin-Square).png"],
-                ["卡里尤借贷金融", "https://i.postimg.cc/Sxq2KQ12/bg3304(s)-(Tender-Lender).png"],
-                ["阳光竞技场", "https://i.postimg.cc/dtgZcmrV/bg0027(us)-(Sunshine-Coliseum).png"],
-                ["波鲁哈吉 罗宋汤俱乐部", "https://i.postimg.cc/qMN6FZhN/bg0035-(Borscht-Bowl-Club).png"],
-                ["宇狩外科医院", "https://i.postimg.cc/ryntQLp7/bg000a-(Hickfield-Clinic).png"],
-                ["堀田诊所·接待处", "https://i.postimg.cc/DfHwSfZM/bg2207(s)-(Hotti-Clinic-Reception).png"],
-            ] },
+            ] }
         ];
         // 自动由上面的分组生成：名字 -> 背景图。新增场景只改 SCENE_GROUPS 即可
         const locationBgMap = {};
@@ -1250,16 +2281,16 @@
                     { name: "看破手镯", desc: "由特定金属打造的神奇手镯。\n感知到证人说谎动摇时会剧烈收紧，\n借此看破对方不易察觉的微表情动作。", icon: "https://i.postimg.cc/NMm8VsNY/it4005c-(Dummy)-(Bracelet).png" }
                 ],
                 affinities: {
-                    "成步堂 龙一": { score: 65, level: "所长导师", avatar: "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png" },
-                    "绫里 真宵": { score: 75, level: "元气副所长", avatar: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
-                    "绫里 千寻": { score: 80, level: "所长前辈", avatar: "https://i.postimg.cc/bJCVyNxY/itc1012-(Mia-Fey).png" }
+                    "成步堂 龙一": { score: 20, avatar: "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png" },
+                    "绫里 真宵": { score: 25, avatar: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
+                    "绫里 千寻": { score: 20, avatar: "https://i.postimg.cc/bJCVyNxY/itc1012-(Mia-Fey).png" }
                 },
                 phoneContacts: ["成步堂 龙一", "绫里 真宵", "绫里 千寻"],
                 initialDailyScript: [
-                    "[发言] 成步堂 龙一(微笑): 事务所的实习合同已经替你办妥了，咖啡机里刚煮了蓝山，随意点吧。",
-                    "[发言] 绫里 千寻(微笑): 欢迎你加入事务所！不论遇到多么棘手的证词，只要从反方向思考，就一定能找到逆转的契机。",
-                    "[发言] 绫里 真宵(开心): 太好了！今天事务所还没接到委托，午餐我们可以点大份味噌拉面吗？",
-                    "[发言] 系统提示: 当前处于【平淡日常篇】。你可以点击左下角[💬 发言]与成步堂、千寻、真宵闲聊，或在[设定]中主动触发案件！"
+                    "[发言] 成步堂 龙一(微笑): 事务所的实习合同已经替你办好了。别紧张，作为新来的律师助手，平时多熟悉一下卷宗就好。咖啡机里刚煮了蓝山，随意点吧。",
+                    "[发言] 绫里 千寻(微笑): 欢迎你以助手的身份加入事务所！哪怕现在只是见习，不论遇到多么棘手的证词，只要从反方向思考，就一定能找到逆转的契机。",
+                    "[发言] 绫里 真宵(开心): 太好啦！终于有人来帮我分担杂务了！今天还没接到委托，午餐我们可以点大份味噌拉面吗？",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。你目前以助理身份在事务所见习！可点击[💬 发言]与成步堂、千寻、真宵闲聊，或在[设定]中接案！"
                 ]
             },
             "检事": {
@@ -1269,13 +2300,13 @@
                     { name: "狩魔之鞭", desc: "特制皮鞭。\n象征着不容置疑的庭审掌控力与对迟钝者的惩戒。", icon: "https://i.postimg.cc/cJrPvbmb/itc2066-(Whip).png" }
                 ],
                 affinities: {
-                    "御剑 怜侍": { score: 40, level: "严谨首席", avatar: "https://i.postimg.cc/fLTgQ00H/itc101e-(Miles-Edgeworth).png" }
+                    "御剑 怜侍": { score: 15, avatar: "https://i.postimg.cc/fLTgQ00H/itc101e-(Miles-Edgeworth).png" }
                 },
                 phoneContacts: ["御剑 怜侍"],
                 initialDailyScript: [
-                    "[发言] 御剑 怜侍(待机): 如果你想问今天的情况……托系锯刑警那份错漏百出的报告的福，我今晚大概又得靠特调红茶撑通宵了。",
-                    "[发言] 御剑 怜侍(思考): 检方的职责是追求无懈可击的真实，在没有凶案开庭的午后，仔细审阅法典与证据法才是检事的基本功。",
-                    "[发言] 系统提示: 当前处于【平淡日常篇】。这里是检察厅1202室办公室！可点击[💬 发言]与御剑交流判例，或在[设定]中接手重案！"
+                    "[发言] 御剑 怜侍(待机): 你就是今天刚分配到1202室的见习事务官吗？托系锯刑警那份错漏百出的报告的福，桌上的卷宗先替我整理校对一遍。",
+                    "[发言] 御剑 怜侍(思考): 检方的职责是追求无懈可击的真实。即使你才刚来见习，在没有凶案开庭的午后，仔细审阅法典与证据法也是基本功。",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。这里是检察厅1202室办公室！你作为见习事务官，可点击[💬 发言]与御剑交流判例，或在[设定]中接手重案！"
                 ]
             },
             "刑警": {
@@ -1285,14 +2316,14 @@
                     { name: "鲁米诺试剂", desc: "微量血迹显色试剂。\n喷洒在已被擦拭的地面，暗处激发出幽蓝荧光。", icon: "https://i.postimg.cc/QMHvFyb4/it40065-(Dummy)-(Luminol).png" }
                 ],
                 affinities: {
-                    "系锯 圭介": { score: 80, level: "热血课长搭档", avatar: "https://i.postimg.cc/3xvstpg9/cast001-00-(Dick-Gumshoe).png" },
-                    "宝月 茜": { score: 65, level: "科学搜查指导", avatar: "https://i.postimg.cc/HL1fRxzg/cast003-00-(Ema-Skye).png" }
+                    "系锯 圭介": { score: 25, avatar: "https://i.postimg.cc/3xvstpg9/cast001-00-(Dick-Gumshoe).png" },
+                    "宝月 茜": { score: 20, avatar: "https://i.postimg.cc/HL1fRxzg/cast003-00-(Ema-Skye).png" }
                 },
                 phoneContacts: ["系锯 圭介", "宝月 茜"],
                 initialDailyScript: [
-                    "[发言] 系锯 圭介(叉腰大笑): 哟！新搭档，今天刑事课难得没有命案初动警报，真是太和平了汪！",
-                    "[发言] 宝月 茜(嚼江米棒): 趁着没有凶杀案，先把试剂箱里的鲁米诺试剂和指纹铝粉盘点一遍吧。",
-                    "[发言] 系统提示: 当前处于【平淡日常篇】。点击[💬 发言]可与搭档闲聊巡查日常，或在[设定]中接收紧急报案！"
+                    "[发言] 系锯 圭介(叉腰大笑): 哟！新来的辅警搭档，今天刑事课难得没有命案初动警报，真是太和平了汪！",
+                    "[发言] 宝月 茜(嚼江米棒): 趁着没有凶杀案，先把试剂箱里的鲁米诺试剂和指纹铝粉盘点一遍吧，这可是搜查新人的必修课。",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。你目前是警察署刑事课的见习辅警。点击[💬 发言]可与搭档闲聊巡查日常，或在[设定]中接收紧急报案！"
                 ]
             },
             "灵媒师": {
@@ -1301,14 +2332,14 @@
                     { name: "仓院流勾玉", desc: "蕴含强大精神力的古老勾玉。\n感知到对方隐瞒真相时，能够具象化显现出紧锁的心灵之锁（Psychic Lock）。", icon: "https://i.postimg.cc/wB7n1GVW/it201c-(Maya-s-Magatama).png" }
                 ],
                 affinities: {
-                    "绫里 真宵": { score: 85, level: "仓院同胞掌门", avatar: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
-                    "绫里 春美": { score: 80, level: "乖巧小表妹", avatar: "https://i.postimg.cc/TYZS5wZw/it201f-(Pearl-Fey).png" }
+                    "绫里 真宵": { score: 25, avatar: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
+                    "绫里 春美": { score: 20, avatar: "https://i.postimg.cc/TYZS5wZw/it201f-(Pearl-Fey).png" }
                 },
                 phoneContacts: ["绫里 真宵", "绫里 春美"],
                 initialDailyScript: [
                     "[发言] 绫里 真宵(微笑): 今天的山间灵气真不错！擦拭完修行堂的灵玉后，我们去烤红薯怎么样？",
-                    "[发言] 绫里 春美(可爱拍手): 姐姐，春美刚把仓院流的修行古籍整理好了！",
-                    "[发言] 系统提示: 当前处于【平淡日常篇】。这里是仓院之里本堂！平时可以静心修行，遇到事件时再大显身手！"
+                    "[发言] 绫里 春美(可爱拍手): 姐姐，今天大家一起把仓院流的修行古籍整理好了！",
+                    "[发言] 系统提示: 当前处于【平淡日常篇】。这里是仓院之里本堂！作为修行中的同门新人，平时可以静心修行，遇到事件时再大显身手！"
                 ]
             }
         };
@@ -1436,24 +2467,90 @@
         let isAutoAdvance = false;
         let autoAdvanceTimer = null;
 
+        // 重试机制用到的“上一轮”记录
+        let lastUserActionText = "";   // 上一轮玩家输入
+        let lastTurnState = 'none';    // 'none' 没有可重试的 / 'ok' 上一轮AI成功 / 'failed' 上一轮失败
+        let lastTurnStart = 0;         // 上一轮AI台词在队列里的起点
+        let lastTurnLineCount = 0;     // 上一轮AI台词行数
+        let lastTurnLogId = null;      // 上一轮在剧情回放里的记录 id
+        let lastTurnSnapshot = null;   // 上一轮开始前的游戏状态（好感/证物/场景等），重试时回滚
+
+        // 剧情回放里统一去掉 "[发言] " 前缀
+        function stripSpeakTag(l) { return String(l).replace(/^\[发言\]\s*/, ''); }
+
+        // 兼容新旧两种回放记录格式，拼成给 AI 的上下文
+        function getHistoryContext(n) {
+            return historyLog.slice(-n).map(item => {
+                if (item.aiText !== undefined) {
+                    let block = '';
+                    if (item.userText) block += `${item.playerName || '玩家'}: ${item.userText}\n`;
+                    return block + item.aiText;
+                }
+                return `${item.speaker}: ${item.content}`;
+            }).join('\n\n');
+        }
+
+        // 恢复一份游戏状态快照（并刷新好感度/记录簿/通讯录/背景）
+        function restoreGameState(snap) {
+            if (!snap) return;
+            gameState = JSON.parse(snap);
+            renderAffinityList();
+            renderRecordAll();
+            renderPhoneList();
+            const bg = locationBgMap[gameState.currentLocation] || locationBgMap["成步堂法律事务所"];
+            document.getElementById('game-stage').style.backgroundImage = `url('${bg}')`;
+            updateStatusBar();
+        }
+
+        // 根据当前是不是最后一句，刷新“下一句箭头”和“重新生成”按钮
+        function updateTurnControls() {
+            const retryBtn = document.getElementById('btn-retry-action');
+            const arrow = document.getElementById('click-arrow');
+            const hasLines = dialogueQueue.length > 0;
+            const isLast = hasLines && currentQueueIndex >= dialogueQueue.length - 1;
+            if (arrow) arrow.style.display = (hasLines && !isLast && !isAILoading) ? 'block' : 'none';
+            if (retryBtn) {
+                const canRetry = !isAILoading && ((lastTurnState === 'ok' && isLast) || lastTurnState === 'failed');
+                retryBtn.style.display = canRetry ? 'inline-block' : 'none';
+            }
+        }
+
         function loadDialogueQueue(scriptArray) {
             dialogueQueue = scriptArray;
             currentQueueIndex = 0;
+            lastTurnState = 'none';
+
+            // 整段剧本作为一块存入剧情回放（纯系统提示不记）
+            const shown = scriptArray.filter(l => !String(l).startsWith('[发言] 系统提示'));
+            if (shown.length > 0) {
+                historyLog.push({
+                    id: Date.now() + Math.random(),
+                    userText: '',
+                    playerName: gameState.profile.name,
+                    aiText: shown.map(stripSpeakTag).join('\n'),
+                    lineCount: shown.length
+                });
+            }
             displayCurrentLine();
         }
 
         function displayCurrentLine() {
             const viewport = document.getElementById('actor-viewport');
 
-            if (currentQueueIndex >= dialogueQueue.length) {
+            // 队列是空的（刚开局/刚读档）：显示提示
+            if (dialogueQueue.length === 0) {
                 document.getElementById('speaker-name').innerText = "系统提示";
                 document.getElementById('dialogue-content').innerText = 
                     (gameState.mode === 'daily')
                     ? "【日常对话告一段落】\n点击左下角[💬 发言]继续闲聊，或在[设定]中主动触发突发案件！"
                     : "【当前场景线索已收集】\n可点击[💬 发言]继续检证，或在[设定]中前往看守所会见嫌疑人！";
                 viewport.style.display = 'none';
+                updateTurnControls();
                 return;
             }
+            // 读到最后一句就停住，角色和台词都保留
+            if (currentQueueIndex < 0) currentQueueIndex = 0;
+            if (currentQueueIndex >= dialogueQueue.length) currentQueueIndex = dialogueQueue.length - 1;
 
             const rawLine = dialogueQueue[currentQueueIndex];
             const match = rawLine.match(/\[发言\]\s*([^(（:：]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*(.*)/);
@@ -1481,10 +2578,8 @@
             document.getElementById('speaker-name').innerText = displaySpeaker;
             document.getElementById('dialogue-content').innerText = content;
 
-            // 自动归档进【剧情回放】
-            if (!historyLog.some(l => l.raw === rawLine)) {
-                historyLog.push({ id: Date.now() + Math.random(), speaker: displaySpeaker, content, raw: rawLine });
-            }
+            // 刷新箭头 / 重新生成按钮
+            updateTurnControls();
 
             const isCourtScene = gameState.currentLocation.includes('法庭');
 
@@ -1602,12 +2697,11 @@
                 if (action.includes('乖巧') || action.includes('平静')) actionKey = "Composed";
                 else if (action.includes('哭') || action.includes('泪')) actionKey = "Crying";
                 else if (action.includes('坚定') || action.includes('决心')) actionKey = "Determined";
-                else if (action.includes('吃惊') || action.includes('呆住')) actionKey = "Shocked1";
+                else if (action.includes('吃惊') || action.includes('呆住') || action.includes('震惊') || action.includes('吓')) actionKey = "Shocked";
                 else if (action.includes('思考') || action.includes('想')) actionKey = "Thinking";
                 else if (action.includes('陶醉') || action.includes('期待')) actionKey = "Enchanted";
                 else if (action.includes('开心') || action.includes('笑') || action.includes('高兴')) actionKey = "Joyful";
                 else if (action.includes('失落') || action.includes('沮丧')) actionKey = "Disappointed";
-                else if (action.includes('震惊') || action.includes('吓')) actionKey = "Shocked2";
                 animator.playFromRegistry("春美_正面", actionKey);
             }
             // 6. 狩魔冥（只要带“冥”字就抓，避免误伤狩魔豪）
@@ -1656,8 +2750,178 @@
                     animator.playFromRegistry("响也_正面", actionKey);
                 }
             }
+            // 8. 矢张政志
+            else if (speaker.includes('矢张')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('逞强') || action.includes('自信') || action.includes('大笑')) actionKey = "Bravado";
+                else if (action.includes('感动') || action.includes('哭') || action.includes('泪')) actionKey = "Emotional";
+                else if (action.includes('赞同') || action.includes('点头') || action.includes('双手')) actionKey = "Agreeable";
+                else if (action.includes('认真') || action.includes('严肃')) actionKey = "Seriously";
+                else if (action.includes('糟了') || action.includes('慌') || action.includes('汗')) actionKey = "Uh Oh";
+                else if (action.includes('圣诞')) actionKey = "Santa";
+                else if (action.includes('耍帅') || action.includes('自命不凡')) actionKey = "Pretentious";
+                else if (action.includes('生气') || action.includes('怒')) actionKey = "Angry";
+                else if (action.includes('败露') || action.includes('抓包') || action.includes('震惊')) actionKey = "Busted";
+                else if (action.includes('思考')) actionKey = "Thinking";
+                animator.playFromRegistry("矢张_正面", actionKey);
+            }
+            // 9. 大场香 (大婶)
+            else if (speaker.includes('大场') || speaker.includes('大婶')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('生气') || action.includes('怒') || action.includes('机关枪')) actionKey = "Angry";
+                else if (action.includes('坏心眼') || action.includes('得意')) actionKey = "Meanie";
+                else if (action.includes('大笑') || action.includes('笑')) actionKey = "Laughing Off";
+                else if (action.includes('受创') || action.includes('震惊')) actionKey = "Damage";
+                else if (action.includes('陶醉') || action.includes('御剑') || action.includes('花痴')) actionKey = "Enchanted";
+                animator.playFromRegistry("大场香_正面", actionKey);
+            }
+            // 10. 宝月巴
+            else if (speaker.includes('宝月巴') || (speaker.includes('巴') && !speaker.includes('审判'))) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('侧头') || action.includes('避开')) actionKey = "Averting Eyes";
+                else if (action.includes('吃惊') || action.includes('动摇')) actionKey = "Taken Aback";
+                else if (action.includes('严肃') || action.includes('生气')) actionKey = "Angry";
+                else if (action.includes('难以置信') || action.includes('震惊')) actionKey = "Disbelief";
+                else if (action.includes('微笑') || action.includes('笑')) actionKey = "Smiling";
+                else if (action.includes('汗') || action.includes('流汗')) actionKey = "Nervous Sweat";
+                else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
+                else if (action.includes('前倾') || action.includes('逼近')) actionKey = "Leaning Forward";
+                animator.playFromRegistry("宝月巴_法庭", actionKey);
+            }
+            // 11. 立见里香
+            else if (speaker.includes('里香') || speaker.includes('立见')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('自信') || action.includes('抱胸')) actionKey = "Confident";
+                else if (action.includes('思考')) actionKey = "Thinking";
+                else if (action.includes('开心') || action.includes('狂喜')) actionKey = "Overjoyed";
+                else if (action.includes('陶醉') || action.includes('飞吻')) actionKey = "Enchanted";
+                else if (action.includes('伤心') || action.includes('失落')) actionKey = "Sad";
+                else if (action.includes('哭') || action.includes('大哭')) actionKey = "Heavy Crying";
+                else if (action.includes('特殊') || action.includes('猴')) actionKey = "Special";
+                animator.playFromRegistry("里香_正面", actionKey);
+            }
+            // 12. 绫里舞子
+            else if (speaker.includes('舞子')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('微笑') || action.includes('笑')) actionKey = "Smiling";
+                animator.playFromRegistry("舞子_正面", actionKey);
+            }
+            // 13. 绫里纪美子
+            else if (speaker.includes('纪美子')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('瞪') || action.includes('冷笑')) actionKey = "Glaring";
+                else if (action.includes('皱眉') || action.includes('不悦')) actionKey = "Furrowed Brow";
+                else if (action.includes('伤心') || action.includes('抹泪') || action.includes('叹气')) actionKey = "Sad";
+                animator.playFromRegistry("纪美子_正面", actionKey);
+            }
+            // 14. 美柳千奈美
+            else if (speaker.includes('千奈美')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('汗') || action.includes('流汗')) actionKey = "Nervous Sweat";
+                else if (action.includes('哭') || action.includes('柔弱') || action.includes('抹泪')) actionKey = "Crying";
+                else if (action.includes('居高临下') || action.includes('轻蔑') || action.includes('冷淡')) actionKey = "Condescending";
+                else if (action.includes('思考')) actionKey = "Thinking";
+                else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
+                else if (action.includes('撩发') || action.includes('蝴蝶')) actionKey = "Hair Flick";
+                else if (action.includes('崩溃') || action.includes('动摇')) actionKey = "Breaking Point";
+                else if (action.includes('微笑') || action.includes('天使') || action.includes('笑')) actionKey = "Smiling";
+                animator.playFromRegistry("千奈美_法庭", actionKey);
+            }
+            // 15. 成步堂美贯
+            else if (speaker.includes('美贯')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('开心') || action.includes('笑')) actionKey = "Happy";
+                else if (action.includes('自信') || action.includes('叉腰')) actionKey = "Confident";
+                else if (action.includes('思考')) actionKey = "Thinking";
+                else if (action.includes('震惊') || action.includes('吃惊')) actionKey = "Shocked";
+                else if (action.includes('担心') || action.includes('咬唇')) actionKey = "Worried";
+                else if (action.includes('魔术') || action.includes('神秘') || action.includes('扑克')) actionKey = "Mysterious";
+                else if (action.includes('生气') || action.includes('鼓腮')) actionKey = "Angry";
+                else if (action.includes('消沉') || action.includes('失落')) actionKey = "Depressed";
+                else if (action.includes('害羞') || action.includes('尴尬')) actionKey = "Embarrassed";
+                else if (action.includes('坚定') || action.includes('决心')) actionKey = "Determined";
+                else if (action.includes('哭') || action.includes('大哭')) actionKey = "Crying";
+                animator.playFromRegistry("美贯_正面", actionKey);
+            }
+            // 16. 叶樱院绫美 (彩芽)
+            else if (speaker.includes('绫美') || speaker.includes('彩芽')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('吃惊') || action.includes('震惊')) actionKey = "Shocked";
+                else if (action.includes('害羞') || action.includes('脸红')) actionKey = "Blushing";
+                else if (action.includes('严肃') || action.includes('认真')) actionKey = "Serious";
+                else if (action.includes('思考')) actionKey = "Thinking";
+                else if (action.includes('哭') || action.includes('泪')) actionKey = "Crying";
+                else if (action.includes('居高临下') || action.includes('冷淡')) actionKey = "Condescending";
+                else if (action.includes('头巾待机') || action.includes('兜帽')) actionKey = "Normal - Hood";
+                else if (action.includes('头巾吃惊') || action.includes('兜帽吃惊')) actionKey = "Shocked - Hood";
+                else if (action.includes('汗') || action.includes('流汗')) actionKey = "Nervous Sweat";
+                else if (action.includes('得意') || action.includes('坏笑')) actionKey = "Grinning";
+                else if (action.includes('生气') || action.includes('怒')) actionKey = "Angry";
+                else if (action.includes('撩发')) actionKey = "Hair Flick";
+                else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
+                animator.playFromRegistry("绫美_正面", actionKey);
+            }
+            // 17. 审判长 (法官)
+            else if (speaker.includes('审判长') || speaker.includes('法官')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('点头')) actionKey = "Nodding";
+                else if (action.includes('摇头')) actionKey = "Shaking Head";
+                else if (action.includes('警告') || action.includes('敲槌') || action.includes('肃静')) actionKey = "Warning";
+                else if (action.includes('震惊') || action.includes('胡子') || action.includes('慌乱')) actionKey = "Shocked";
+                animator.playFromRegistry("审判长_法庭", actionKey);
+            }
             else if (speaker !== '旁白') {
                 viewport.style.display = 'none';
+            }
+            // 18. 系锯圭介 (系锯刑警)
+            else if (speaker.includes('系锯') || speaker.includes('刑警')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('笑') || action.includes('大笑') || action.includes('叉腰大笑')) actionKey = "Laughing";
+                else if (action.includes('思考') || action.includes('抓头') || action.includes('挠头')) actionKey = "Thinking";
+                else if (action.includes('坚定') || action.includes('认真') || action.includes('决心')) actionKey = "Determined";
+                else if (action.includes('自信') || action.includes('叉腰')) actionKey = "Confident";
+                else if (action.includes('生气') || action.includes('怒') || action.includes('火大')) actionKey = "Angry";
+                else if (action.includes('失落') || action.includes('沮丧') || action.includes('扣薪') || action.includes('工资')) actionKey = "Disheartened";
+                else if (action.includes('侧头') || action.includes('看旁边')) actionKey = "Looking to the Side";
+                animator.playFromRegistry("系锯_正面", actionKey);
+            }
+            // 19. 宝月茜 (科学搜查官)
+            else if (speaker.includes('宝月茜') || (speaker.includes('茜') && !speaker.includes('巴'))) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('江米棒') || action.includes('嚼') || action.includes('不爽') || action.includes('不高兴')) actionKey = "Grumpy";
+                else if (action.includes('生气') || action.includes('怒') || action.includes('暴躁')) actionKey = "Angry";
+                else if (action.includes('侧头') || action.includes('看旁边')) actionKey = "Looking to the Side";
+                else if (action.includes('自信') || action.includes('叉腰') || action.includes('科学')) actionKey = "Confident";
+                else if (action.includes('吃惊') || action.includes('震惊') || action.includes('吓')) actionKey = "Shocked";
+                else if (action.includes('开心') || action.includes('笑') || action.includes('高兴')) actionKey = "Happy";
+                else if (action.includes('墨镜') || action.includes('太阳镜') || action.includes('眼镜')) actionKey = "Sunglasses";
+                else if (action.includes('思考') || action.includes('琢磨') || action.includes('鉴定')) actionKey = "Thinking";
+                animator.playFromRegistry("茜_正面", actionKey);
+            }
+            // 20. 牙琉雾人
+            else if (speaker.includes('雾人')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('推眼镜') || action.includes('眼镜')) actionKey = "Pushing Glasses";
+                else if (action.includes('阴险') || action.includes('冷笑') || action.includes('诡异')) actionKey = "Sinister Smile";
+                else if (action.includes('自信') || action.includes('微笑') || action.includes('从容')) actionKey = "Confident";
+                else if (action.includes('居高临下') || action.includes('轻蔑') || action.includes('俯视')) actionKey = "Condescending";
+                else if (action.includes('受创') || action.includes('破防') || action.includes('动摇')) actionKey = "Damage";
+                else if (action.includes('瞪') || action.includes('愤怒') || action.includes('失态') || action.includes('黑化')) actionKey = "Glaring";
+                else if (action.includes('汗') || action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
+                animator.playFromRegistry("雾人_法庭", actionKey);
             }
         }
 
@@ -1671,14 +2935,14 @@
                 return;
             }
 
+            if (lastTurnState === 'failed') lastTurnState = 'none';
+
             if (currentQueueIndex < dialogueQueue.length - 1) {
                 currentQueueIndex++;
                 displayCurrentLine();
-            } else if (currentQueueIndex === dialogueQueue.length - 1) {
-                currentQueueIndex++;
-                displayCurrentLine();
             } else {
-                openSpeakModal();
+                // 已经是最后一句：不跳“对话结束”，保留角色与台词，等玩家点【发言】或【重新生成】
+                return;
             }
         }
 
@@ -1692,8 +2956,12 @@
                 e.preventDefault();
                 handleUserNextStep();
             } else if (e.code === 'KeyR') {
-                toggleRecord();
-            }
+    const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    const isTyping = tag === 'input' || tag === 'textarea' || document.getElementById('speak-modal').classList.contains('active');
+    if (!isTyping) {
+        toggleRecord();
+    }
+}
         });
 
         function toggleAutoAdvance() {
@@ -1729,14 +2997,23 @@
             closeSpeakModal();
             document.getElementById('player-input-text').value = '';
 
-            // 1. 玩家台词进队列展示
-            const playerLine = `[发言] ${gameState.profile.name}: ${val}`;
-            dialogueQueue.splice(currentQueueIndex + 1, 0, playerLine);
-            currentQueueIndex++;
-            displayCurrentLine();
-
-            // 2. 锁定主界面，触发 AI 思考
+            // 玩家的话在等待期间显示在对话框里，并作为一块写进剧情回放
             triggerAIStep(val);
+        }
+
+        // 重新生成上一轮：撤销上一轮台词、回放记录和指令副作用，然后重新请求 AI
+        function retryLastTurn() {
+            if (isAILoading) return;
+            if (lastTurnState === 'ok') {
+                dialogueQueue.splice(lastTurnStart, lastTurnLineCount);
+                const idx = historyLog.findIndex(h => h.id === lastTurnLogId);
+                if (idx >= 0) historyLog.splice(idx, 1);
+                restoreGameState(lastTurnSnapshot);
+                currentQueueIndex = lastTurnStart - 1;   // 新台词会插回原来的位置
+            } else if (lastTurnState !== 'failed') {
+                return;
+            }
+            triggerAIStep(lastUserActionText);
         }
 
         async function triggerAIStep(userActionText = "") {
@@ -1747,40 +3024,56 @@
             const respondent = gameState.phoneContacts[0] || "御剑 怜侍";
             const playerName = gameState.profile.name;
 
-            // 🔒 进入锁定状态
+            lastUserActionText = userActionText;
+            const turnSnapshot = JSON.stringify(gameState);   // 重试时用来回滚好感/证物/场景等副作用
+
+            // 🔒 进入锁定状态：对话框里直接显示玩家刚才说的话
             isAILoading = true;
+            lastTurnState = 'none';
             document.getElementById('click-arrow').style.display = 'none';
+            const retryBtnEl = document.getElementById('btn-retry-action');
+            if (retryBtnEl) retryBtnEl.style.display = 'none';
             document.getElementById('main-dialogue-box').classList.add('loading-lock');
-            document.getElementById('speaker-name').innerText = `${respondent} (思考回复中...)`;
-            document.getElementById('dialogue-content').innerText = `【剧情生成中，内容较长，请稍候……】`;
+            document.getElementById('speaker-name').innerText = userActionText ? playerName : "系统思考中";
+            document.getElementById('dialogue-content').innerText = userActionText
+                ? `${userActionText}\n\n（${respondent} 正在思考回复中……）`
+                : `【剧情生成中，请稍候……】`;
 
             const worldPrompt = document.getElementById('world-prompt').value;
 
             // 代码层追加的硬性规范：即使玩家改了上面的世界观文本，这些规则也始终生效
             const hardRules = `
 
-【输出硬性规范——优先级最高】
-1. 篇幅严控：本次回复只写 10 至 15 句独立台词（旁白+角色发言合计 10~15 行），严禁超过 15 行，严禁大段长篇大论！
-2. 角色称谓必须严格遵守原作官方称谓，禁止乱起昵称：
-   - 必须称呼「成步堂」（禁止写“龙一”）
-   - 必须称呼「御剑」（禁止写“怜侍”）
-   - 必须称呼「真宵」
-   - 必须称呼「千寻」
-   - 必须称呼「春美」
-   - 必须称呼「狩魔冥」（严禁只写“狩魔”，必须带“冥”字）
-   - 必须称呼「牙琉响也」或「响也」
-3. 严禁替玩家「${playerName}」说话、做决定，也不要描写他的内心想法或动作；只写其他角色对玩家的反应。第 10~15 句结尾停在需要玩家回应的地方。
-4. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白/环境用 [发言] 旁白: 内容。单句严禁超长。
-5. 动作姿态写在括号内，用下列词之一：
+【输出硬性规范——最高优先级】
+1. 篇幅严控：本次回复只写 10 至 15 行（每行一两句话，不超过 40 字），严禁超过 15 行！
+2. 称谓铁律：
+   - 默认一律称呼【姓氏】（如：成步堂、御剑、系锯、宝月）。
+   - 仅在同姓氏冲突时称呼全名或名字：
+     * 绫里家必须写「真宵」、「千寻」、「春美」（或绫里真宵、绫里千寻等）；
+     * 狩魔家必须写「狩魔冥」（禁止只写狩魔）；
+     * 牙琉家必须写「牙琉响也」、「牙琉雾人」（或响也、雾人）。
+3. 严禁替玩家「${playerName}」说话、做决定，也不要描写他的内心想法；结尾停在需要玩家回应的地方。
+4. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
+5. 自动系统指令（根据剧情发生时，在行尾或独立成行输出，系统将自动识别执行）：
+   - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]
+   - 场景转移：[场景: 地点名]（如 [场景: 拉面店]、[场景: 拘留所·看守所会见室]）
+     * 【场景铁律】：必须且仅当主角一行人【真实动身并到达新地点】时输出！
+     * 严禁情况：口头讨论某个地点、回忆过去、推测凶案发生地、或电话提及某人在某处时，绝对严禁输出场景指令！
+   - 新证物获得：[证物: 证物名称 | 证物详细描述]
+   - 新人物登记：[人物: 人物姓名 | 身份背景描述]
+6. 动作姿态写在括号内：
    - 成步堂：思考、汗、震惊、傻笑、自信、拍桌、指认、异议、端咖啡、喝咖啡、点头、摇头、弯腰、泼咖啡
-   - 御剑：生气、思考、困惑、侧头、烦躁（法庭中：拍桌、指认、自信、抱胸）
+   - 御剑：生气、思考、困惑、侧头、烦躁（法庭：拍桌、指认、自信、抱胸）
    - 真宵：开心、点头、抱头、担心、生气、自信、坚定、思考、消沉、伤心、含泪、震惊
    - 春美：乖巧、哭、坚定、吃惊、思考、陶醉、开心、失落、震惊
    - 狩魔冥：闭眼、轻蔑、自信、抱胸、挥鞭、准备、流汗、行礼、破防、恢复、思考、指认、居高临下、哭、生气
    - 牙琉响也：轻蔑、笑、思考、无语、破防、指认、流汗、敲墙、严肃、摆pose
-6. 只输出剧情行，不要解释，不要使用 markdown 或代码块。`;
+   - 牙琉雾人：推眼镜、阴险、自信、居高临下、受创、瞪、流汗
+   - 系锯：笑、大笑、思考、抓头、坚定、自信、生气、失落、侧头
+   - 宝月茜：江米棒、生气、侧头、自信、吃惊、开心、墨镜、思考
+7. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
 
-            const recent = historyLog.slice(-30).map(l => `${l.speaker}: ${l.content}`).join('\n');
+            const recent = getHistoryContext(5);
 
             const isDaily = gameState.mode === 'daily';
             let modeRules;
@@ -1812,8 +3105,9 @@ ${recent || '（刚刚开始）'}
 【玩家刚刚的动作或发言】
 ${userActionText || '（玩家静静等待对方说话）'}
 
-请接着写下一段剧情：不少于 600 字，让在场的多位角色都参与互动，且不要替${playerName}说话。`;
+请接着写下一段剧情：让在场的多位角色都参与互动，且不要替${playerName}说话。`;
 
+            let failed = false;
             try {
                 const res = await fetch(config.endpoint.replace(/\/+$/, '') + '/chat/completions', {
                     method: 'POST',
@@ -1837,16 +3131,39 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 if (newLines.length === 0) throw new Error('模型返回内容为空');
 
                 // 插到当前这句后面，而不是队尾，避免被残余旧台词打断
-                dialogueQueue.splice(currentQueueIndex + 1, 0, ...newLines);
-                currentQueueIndex++;
-                displayCurrentLine();
+                const insertAt = currentQueueIndex + 1;
+                dialogueQueue.splice(insertAt, 0, ...newLines);
+
+                // 整轮对话作为一整块存进剧情回放，并绑定玩家说的话
+                const logId = Date.now() + Math.random();
+                historyLog.push({
+                    id: logId,
+                    userText: userActionText || '',
+                    playerName: playerName,
+                    aiText: newLines.map(stripSpeakTag).join('\n'),
+                    lineCount: newLines.length
+                });
+
+                // 记下这一轮，供【重新生成】使用
+                lastTurnStart = insertAt;
+                lastTurnLineCount = newLines.length;
+                lastTurnLogId = logId;
+                lastTurnSnapshot = turnSnapshot;
+                lastTurnState = 'ok';
+
+                currentQueueIndex = insertAt;
             } catch (err) {
-                document.getElementById('dialogue-content').innerText = "【调用大模型失败，请检查网络或配置】" + err.message;
+                failed = true;
+                lastTurnState = 'failed';
+                if (JSON.stringify(gameState) !== turnSnapshot) restoreGameState(turnSnapshot);
+                document.getElementById('speaker-name').innerText = "系统提示";
+                document.getElementById('dialogue-content').innerText = "【调用大模型失败，请检查网络或配置】" + err.message + "\n可点击左下角【🔄 重新生成】再试一次。";
             } finally {
                 // 🔓 解除锁定
                 isAILoading = false;
-                document.getElementById('click-arrow').style.display = 'block';
                 document.getElementById('main-dialogue-box').classList.remove('loading-lock');
+                if (failed) updateTurnControls();
+                else displayCurrentLine();
             }
         }
 
@@ -1856,17 +3173,72 @@ ${userActionText || '（玩家静静等待对方说话）'}
             const out = [];
             if (!reply) return out;
 
-            // 1. 先把可能存在的 markdown 符号、多余空行清理掉
             let cleanReply = reply.replace(/\*\*/g, '').replace(/###/g, '');
             const rawLines = cleanReply.split('\n').map(s => s.trim()).filter(Boolean);
 
             for (let line of rawLines) {
-                // 如果模型输出了“好的”、“接下来是”这种废话开场白，直接跳过
                 if (line.startsWith('好的') || line.startsWith('以下是') || line.startsWith('```')) continue;
 
-                // 尝试抓取 [发言] 角色(动作): 台词
+                // 1. 好感变动：[好感 御剑 +5]
+                const affMatch = line.match(/\[好感\s*([^\s+-\]]+)\s*([+-]\d+)\]/);
+                if (affMatch) {
+                    const charName = affMatch[1].trim();
+                    const delta = parseInt(affMatch[2], 10);
+                    const targetKey = Object.keys(gameState.affinities).find(k => k.includes(charName) || charName.includes(k));
+                    if (targetKey) {
+                        gameState.affinities[targetKey].score = Math.max(0, Math.min(100, gameState.affinities[targetKey].score + delta));
+                        renderAffinityList();
+                    }
+                    continue;
+                }
+
+                // 2. 场景转移：显式指令 [场景: 地点名]
+                const sceneMatch = line.match(/\[场景[:：]\s*([^\]]+)\]/);
+                if (sceneMatch) {
+                    const scName = sceneMatch[1].trim();
+                    const matchedLoc = Object.keys(locationBgMap).find(l => l.includes(scName) || scName.includes(l));
+                    if (matchedLoc) changeLocation(matchedLoc);
+                    continue;
+                }
+
+                // 3. 获得新证物：[证物: 证物名 | 描述] (全自动匹配图库)
+                const eviMatch = line.match(/\[证物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/);
+                if (eviMatch) {
+                    const eName = eviMatch[1].trim();
+                    const eDesc = eviMatch[2] ? eviMatch[2].trim() : "在调查过程中获取的关键线索。";
+                    if (!gameState.evidence.some(e => e.name === eName)) {
+                        gameState.evidence.push({
+                            name: eName,
+                            desc: eDesc,
+                            icon: matchEvidenceIcon(eName, eDesc)
+                        });
+                        renderRecordAll();
+                    }
+                    continue;
+                }
+
+                // 4. 登记人物：[人物: 姓名 | 描述]
+                const profMatch = line.match(/\[人物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/);
+                if (profMatch) {
+                    const pName = profMatch[1].trim();
+                    const pDesc = profMatch[2] ? profMatch[2].trim() : "案情相关嫌疑人/证人。";
+                    if (!gameState.profiles.some(p => p.name === pName)) {
+                        gameState.profiles.push({
+                            name: pName,
+                            desc: pDesc,
+                            icon: matchProfileIcon(pName)
+                        });
+                        if (!gameState.phoneContacts.includes(pName)) {
+                            gameState.phoneContacts.push(pName);
+                            renderPhoneList();
+                        }
+                        renderRecordAll();
+                    }
+                    continue;
+                }
+
+                // 普通台词处理
                 let m = line.match(/(?:\[发言\]|\(发言\))?\s*([^(（:：\s]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*([\s\S]*)/);
-                
                 let speaker = "旁白";
                 let action = "";
                 let content = line;
@@ -1876,15 +3248,13 @@ ${userActionText || '（玩家静静等待对方说话）'}
                     action = m[2] ? m[2].trim() : '';
                     content = m[3].trim();
                 } else {
-                    // 如果模型完全没按规则写冒号，直接全当成旁白剧情，绝不丢弃！
                     speaker = "旁白";
                     content = line.replace(/^\[发言\]\s*/, '');
                 }
 
-                // 过滤替玩家说话的行
                 if (playerName && speaker === playerName.trim()) continue;
 
-                // 拆分过长句子，避免对话框被撑爆
+
                 const sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
                 let buf = '';
                 const chunks = [];
@@ -1900,7 +3270,6 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 });
             }
 
-            // 兜底保障：万一无论怎么解析还是空，直接把原文硬塞进去当旁白，绝对不报错！
             if (out.length === 0 && reply.trim()) {
                 out.push(`[发言] 旁白: ${reply.trim().slice(0, 80)}`);
             }
@@ -1909,30 +3278,76 @@ ${userActionText || '（玩家静静等待对方说话）'}
         }
 
         // ================= 7. 📜 剧情回放 (Log) 管理 =================
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
         function renderHistoryLog() {
             const container = document.getElementById('log-list-box');
             container.innerHTML = '';
 
             if (historyLog.length === 0) {
-                container.innerHTML = '<div style="color:#6f8cb2; font-size:12px; text-align:center; padding:30px;">暂无历史台词记录</div>';
+                container.innerHTML = '<div style="color:#6f8cb2; font-size:12px; text-align:center; padding:30px;">暂无历史剧情记录</div>';
                 return;
             }
 
             historyLog.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'log-item-card';
-                card.innerHTML = `
-                    <div class="log-meta-bar">
-                        <span class="log-speaker-badge">${item.speaker}</span>
-                        <div class="log-btn-group">
-                            <button class="log-btn-tiny" onclick="editLogLine(${index})">✏️ 编辑</button>
-                            <button class="log-btn-tiny log-btn-del" onclick="deleteLogLine(${index})">🗑️ 删除</button>
+
+                if (item.aiText !== undefined) {
+                    // 新格式：一整轮一张卡片
+                    let userHtml = '';
+                    if (item.userText) {
+                        userHtml = `
+                        <div style="background: #17385c; padding: 6px 12px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid #ff9900;">
+                            <span style="color: #ff9900; font-weight: bold; font-size: 12px;">👤 ${escapeHtml(item.playerName || '你')}: </span>
+                            <span style="color: #ffffff; font-size: 13px;">${escapeHtml(item.userText)}</span>
+                        </div>`;
+                    }
+                    card.innerHTML = `
+                        <div class="log-meta-bar">
+                            <span class="log-speaker-badge">第 ${index + 1} 幕剧情</span>
+                            <div class="log-btn-group">
+                                <button class="log-btn-tiny" onclick="editLogTurn(${index})">✏️ 编辑</button>
+                                <button class="log-btn-tiny log-btn-del" onclick="deleteLogTurn(${index})">🗑️ 删除整轮</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="log-item-text" id="log-text-${index}">${item.content}</div>
-                `;
+                        ${userHtml}
+                        <div class="log-item-text" id="log-text-${index}" style="line-height: 1.6; white-space: pre-wrap; color: #d1e2f7;">${escapeHtml(item.aiText)}</div>
+                    `;
+                } else {
+                    // 旧格式（逐句记录 / 短信记录）：保持原样
+                    card.innerHTML = `
+                        <div class="log-meta-bar">
+                            <span class="log-speaker-badge">${escapeHtml(item.speaker)}</span>
+                            <div class="log-btn-group">
+                                <button class="log-btn-tiny" onclick="editLogLine(${index})">✏️ 编辑</button>
+                                <button class="log-btn-tiny log-btn-del" onclick="deleteLogLine(${index})">🗑️ 删除</button>
+                            </div>
+                        </div>
+                        <div class="log-item-text" id="log-text-${index}">${escapeHtml(item.content)}</div>
+                    `;
+                }
                 container.appendChild(card);
             });
+        }
+
+        function editLogTurn(index) {
+            const item = historyLog[index];
+            const newText = prompt("编辑此整轮剧情台词内容：", item.aiText);
+            if (newText !== null && newText.trim() !== "") {
+                item.aiText = newText.trim();
+                renderHistoryLog();
+            }
+        }
+
+        function deleteLogTurn(index) {
+            if (confirm("确定要删除这整轮剧情记录吗？")) {
+                historyLog.splice(index, 1);
+                renderHistoryLog();
+            }
         }
 
         function editLogLine(index) {
@@ -1973,6 +3388,8 @@ ${userActionText || '（玩家静静等待对方说话）'}
             document.getElementById(`pane-${tabId}`).classList.add('active');
 
             if (tabId === 'tab-log') renderHistoryLog();
+            if (tabId === 'tab-phone') renderPhoneList();
+            if (tabId === 'tab-affinity') renderAffinityList();
         }
 
         async function triggerCaseInitiation() {
@@ -2158,10 +3575,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 div.innerHTML = `
                     <div style="display:flex; align-items:center; gap:10px;">
                         <img src="${item.avatar}" style="width:36px; height:36px; border-radius:4px; object-fit:cover;">
-                        <div>
-                            <div style="font-weight:bold; color:#fff; font-size:13px;">${name}</div>
-                            <div style="font-size:11px; color:#ff9900;">${item.level}</div>
-                        </div>
+                        <div style="font-weight:bold; color:#fff; font-size:13px;">${name}</div>
                     </div>
                     <div style="color:#ff7373; font-weight:bold; font-size:13px;">${item.score}%</div>
                 `;
@@ -2169,19 +3583,113 @@ ${userActionText || '（玩家静静等待对方说话）'}
             }
         }
 
-        function renderPhoneList() {
-            document.getElementById('phone-contact-header').innerText = `当前通讯录：${gameState.phoneContacts.join('、')}`;
+        let currentPhoneContact = "";
+        let phoneChatHistories = {};
+
+        function selectPhoneContact(name) {
+            currentPhoneContact = name;
+            renderPhoneList();
+            renderPhoneMessages();
         }
-        function sendPhoneSMS() {
+
+        function renderPhoneList() {
+            const listEl = document.getElementById('phone-contact-list');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            if (!gameState.phoneContacts || gameState.phoneContacts.length === 0) {
+                listEl.innerHTML = '<div style="color:#6582a8;font-size:11px;text-align:center;padding:10px;">暂无联系人</div>';
+                return;
+            }
+            if (!currentPhoneContact || !gameState.phoneContacts.includes(currentPhoneContact)) {
+                currentPhoneContact = gameState.phoneContacts[0];
+            }
+            gameState.phoneContacts.forEach(name => {
+                const btn = document.createElement('div');
+                const isCur = (name === currentPhoneContact);
+                btn.style.cssText = `padding: 6px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold; ${isCur ? 'background: #1e6eb5; color: #fff;' : 'background: #0d192b; color: #8da5c4;'}`;
+                btn.innerText = name;
+                btn.onclick = () => selectPhoneContact(name);
+                listEl.appendChild(btn);
+            });
+            document.getElementById('phone-chat-target').innerText = `当前对话：${currentPhoneContact}`;
+            renderPhoneMessages();
+        }
+
+        function renderPhoneMessages() {
+            const container = document.getElementById('phone-msg-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const msgs = phoneChatHistories[currentPhoneContact] || [];
+            if (msgs.length === 0) {
+                container.innerHTML = `<div style="color:#6582a8;font-size:12px;text-align:center;margin-top:60px;">与【${currentPhoneContact}】的短信记录为空</div>`;
+                return;
+            }
+            msgs.forEach(m => {
+                const bubble = document.createElement('div');
+                const isMe = (m.sender === 'me');
+                bubble.style.cssText = isMe
+                    ? "align-self: flex-end; background: #1976d2; color: #fff; padding: 6px 12px; border-radius: 12px 12px 2px 12px; font-size: 12px; max-width: 80%; line-height: 1.4; word-break: break-all;"
+                    : "align-self: flex-start; background: #23436d; color: #e2ecf8; padding: 6px 12px; border-radius: 12px 12px 12px 2px; font-size: 12px; max-width: 80%; line-height: 1.4; word-break: break-all;";
+                bubble.innerText = m.text;
+                container.appendChild(bubble);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendPhoneSMS() {
             const input = document.getElementById('phone-input');
             const val = input.value.trim();
-            if (!val) return;
-            const container = document.getElementById('phone-msg-container');
-            const p = document.createElement('div');
-            p.style.cssText = "align-self:flex-end; background:#1976d2; color:#fff; padding:5px 10px; border-radius:8px 8px 0 8px; font-size:12px; margin-bottom:4px;";
-            p.innerText = val;
-            container.appendChild(p);
+            if (!val || !currentPhoneContact) return;
             input.value = '';
+
+            if (!phoneChatHistories[currentPhoneContact]) phoneChatHistories[currentPhoneContact] = [];
+            phoneChatHistories[currentPhoneContact].push({ sender: 'me', text: val });
+            renderPhoneMessages();
+
+            historyLog.push({ id: Date.now(), speaker: gameState.profile.name, content: `[发送给${currentPhoneContact}的短信] ${val}`, raw: `[短信] ${gameState.profile.name}: ${val}` });
+
+            const s = localStorage.getItem('ace_api_config');
+            if (!s) return;
+            const config = JSON.parse(s);
+
+            const contactHistory = (phoneChatHistories[currentPhoneContact] || []).slice(-8).map(m => `${m.sender === 'me' ? gameState.profile.name : currentPhoneContact}: ${m.text}`).join('\n');
+            const mainContext = getHistoryContext(10);
+
+            const smsPrompt = `你正在《逆转裁判》世界中，通过手机短信与玩家（${gameState.profile.name}）发信息。
+你的身份是：${currentPhoneContact}。
+【重要规则】
+1. 保持人物性格，你只知道你本人经历的事情和此前与玩家的交流，绝对不能拥有其他未联系角色的全知视角（禁止开天眼）。
+2. 这是短信交流，回复要简练口语化，1~3句话即可。
+3. 直接回复短信内容，禁止包含 [发言]、动作描述或系统前缀。
+
+【外部当前发生的剧情参考】
+${mainContext}
+
+【你与${gameState.profile.name}的近期短信往来】
+${contactHistory}
+
+请以${currentPhoneContact}的身份回复这条短信：`;
+
+            try {
+                const res = await fetch(config.endpoint.replace(/\/+$/, '') + '/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
+                    body: JSON.stringify({
+                        model: config.model,
+                        max_tokens: 300,
+                        temperature: 0.8,
+                        messages: [{ role: "user", content: smsPrompt }]
+                    })
+                });
+                const data = await res.json();
+                const replyText = (data.choices[0].message.content || '').trim();
+                phoneChatHistories[currentPhoneContact].push({ sender: currentPhoneContact, text: replyText });
+                historyLog.push({ id: Date.now(), speaker: currentPhoneContact, content: `[${currentPhoneContact}的短信回复] ${replyText}`, raw: `[短信] ${currentPhoneContact}: ${replyText}` });
+                renderPhoneMessages();
+            } catch (err) {
+                phoneChatHistories[currentPhoneContact].push({ sender: currentPhoneContact, text: "（网络无信号，发送失败）" });
+                renderPhoneMessages();
+            }
         }
 
         // ================= 9. 法庭记录簿 =================
