@@ -845,13 +845,13 @@
             },
             // 6. 成步堂龙一 · 法庭辩护篇 (待机三帧循环)
             "成步堂_法庭": {
-                scale: 0.85,
+                scale: 0.85, offsetY: 60, // 统一下沉60px完美贴合底栏，彻底告别悬空
                 "Normal": { type: "loop", frameDelay: 340, frames: ["https://i.postimg.cc/85QnXPRt/pl100316-00.png", "https://i.postimg.cc/Y2xy87hk/pl100300-01.png", "https://i.postimg.cc/ZYLDjmCS/pl100300-02.png"] },
                 "Thinking": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/0jZWNYL3/pl100302-00.png", "https://i.postimg.cc/WzSW4GQy/pl100302-01.png", "https://i.postimg.cc/1XMCzGLj/pl100302-02.png", "https://i.postimg.cc/wMFfBXSb/pl100302-03.png", "https://i.postimg.cc/sxK62Yt6/pl100302-04.png", "https://i.postimg.cc/WzSW4GQ9/pl100302-05.png", "https://i.postimg.cc/4ywL36rP/pl100302-06.png"] },
                 "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], sfx: "https://files.catbox.moe/hv9kys.flac", shake: true, frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
                 "Pointing": { type: "once_reset", frameDelays: [140, 140, 140, 200, 200, 0], voice: "https://files.catbox.moe/hov7xo.flac", shake: true, frames: ["https://i.postimg.cc/d3nH02zy/pl10030a-00.png", "https://i.postimg.cc/L5vCstrZ/pl10030a-01.png", "https://i.postimg.cc/C5JPKGWB/pl10030a-02.png", "https://i.postimg.cc/MHtPG7hX/pl10030a-03.png", "https://i.postimg.cc/QCS4MQRF/pl10030a-04.png", "https://i.postimg.cc/5yp7tBZH/pl10030a-05.png"] },
                 "Document": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/VvzZ1GHb/pl10030b-00.png", "https://i.postimg.cc/4yX2ZLFH/pl10030b-01.png", "https://i.postimg.cc/L5mQRC0q/pl10030b-02.png", "https://i.postimg.cc/j2R3KgkD/pl10030b-03.png", "https://i.postimg.cc/7hqtDsQf/pl10030b-04.png", "https://i.postimg.cc/VvzZ1GHv/pl10030b-05.png", "https://i.postimg.cc/5yfK17k0/pl10030b-06.png", "https://i.postimg.cc/HnTvHZPL/pl10030b-07.png"] },
-                "Nervous Sweat": { type: "loop", frameDelay: 220, offsetY: 65, frames: ["https://i.postimg.cc/x89pYxF1/pl10030d-00.png", "https://i.postimg.cc/3N3f7Sbr/pl10030d-01.png", "https://i.postimg.cc/mkTpRX6L/pl10030d-02.png", "https://i.postimg.cc/NFQCYJPQ/pl10030d-03.png", "https://i.postimg.cc/VvzZ1GH1/pl10030d-04.png", "https://i.postimg.cc/HnTvHZPm/pl10030d-05.png", "https://i.postimg.cc/Y0tDknyH/pl10030d-06.png"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/x89pYxF1/pl10030d-00.png", "https://i.postimg.cc/3N3f7Sbr/pl10030d-01.png", "https://i.postimg.cc/mkTpRX6L/pl10030d-02.png", "https://i.postimg.cc/NFQCYJPQ/pl10030d-03.png", "https://i.postimg.cc/VvzZ1GH1/pl10030d-04.png", "https://i.postimg.cc/HnTvHZPm/pl10030d-05.png", "https://i.postimg.cc/Y0tDknyH/pl10030d-06.png"] },
                 "Shocked": { type: "once_hold", frameDelays: [100, 100, 100, 150, 150, 150, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/zvq25tP1/pl10030f-00.png", "https://i.postimg.cc/7hqtDsQv/pl10030f-01.png", "https://i.postimg.cc/hvKZgyZk/pl10030f-02.png", "https://i.postimg.cc/brqV8CVK/pl10030f-03.png", "https://i.postimg.cc/tJ9vySvw/pl10030f-04.png", "https://i.postimg.cc/9Mdg651h/pl10030f-05.png", "https://i.postimg.cc/B6T7r9NG/pl10030f-06.png"] },
                 "Embarrassed Laugh": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/mDYpvfVW/pl100311-00.png", "https://i.postimg.cc/j5H3p0vV/pl100311-01.png", "https://i.postimg.cc/bJxV7cgW/pl100311-02.png"] },
                 "Confident": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/Y96D5KRV/pl100313-00.png", "https://i.postimg.cc/tT3vKQkm/pl100313-01.png", "https://i.postimg.cc/1tG7khBW/pl100313-02.png"] },
@@ -1701,7 +1701,9 @@
                 const anim = charObj[animKey] || charObj["Normal"] || charObj["Smiling"] || Object.values(charObj).find(v => typeof v === 'object' && v.frames);
                 if (!anim || !anim.frames || !anim.frames.length) return;
 
-                const offsetY = anim.offsetY ? ` translateY(${anim.offsetY}px)` : '';
+                // 读取角色的统一下沉高度，成步堂的所有动作都会固定在同一水平线
+                const oy = (anim.offsetY !== undefined ? anim.offsetY : charObj.offsetY) || 0;
+                const offsetY = oy ? ` translateY(${oy}px)` : '';
                 this.imgEl.style.transform = `scale(${charObj.scale || 1.0})${offsetY}`;
 
                 // 喝咖啡必须接在端咖啡后面：如果上一个动作不是端咖啡，先端起来，再喝
@@ -1920,7 +1922,7 @@
         }
 
 // ================= 人物小头像高精度映射库 (172张全收录) =================
-        const DEFAULT_UNKNOWN_AVATAR = "https://i.postimg.cc/8C8vGphR/cast215-01-(Delicia-Scones).png"; // 黑色人影轮廓兜底
+        const DEFAULT_UNKNOWN_AVATAR = "https://i.postimg.cc/mrx94LQ7/cast215-00-(Delicia-Scones).png"; // 真正的黑影人剪影
 
         const CHARACTER_AVATAR_RULES = [
             // --- 狩魔 冥 (按年龄与时期分流) ---
@@ -1953,7 +1955,7 @@
             // --- 绫里一家 ---
             { keywords: ["绫里真宵", "真宵"], url: "https://i.postimg.cc/vBhx55Cn/it2007-(Maya-Fey).png" },
             { keywords: ["绫里春美", "春美"], url: "https://i.postimg.cc/hjsQVVN1/it201f-(Pearl-Fey).png" },
-            { keywords: ["绫里千寻", "千寻"], url: "https://i.postimg.cc/90N4nCmG/itc1012-(Mia-Fey).png" },
+            { keywords: ["绫里千寻", "千寻"], url: "https://i.postimg.cc/SNZ8TXmL/it1012-(Mia-Fey).png" },
             { keywords: ["绫里纪美子", "纪美子"], url: "https://i.postimg.cc/V6g0XX2R/it2021-(Morgan-Fey).png" },
             { keywords: ["天流斋艾莉", "绫里舞子", "舞子"], url: "https://i.postimg.cc/Wz4F8hvq/it305f-(Elise-Deauxnim).png" },
             { keywords: ["绫美(兜帽)", "彩芽(兜帽)"], url: "https://i.postimg.cc/2yXqKrk1/it307c-(Dummy)-(Iris-with-Hood).png" },
@@ -1976,7 +1978,7 @@
 
             // --- 矢张 政志 ---
             { keywords: ["天流斋真志守", "矢张(画家)"], url: "https://i.postimg.cc/P5vD0p8G/cast106-00-(Laurice-Deauxnim).png" },
-            { keywords: ["矢张政志", "矢张"], url: "https://i.postimg.cc/2yXqKrkd/itc1013-(Larry-Butz).png" },
+            { keywords: ["矢张政志", "矢张"], url: "https://i.postimg.cc/8PyWKFTj/it1013-(Larry-Butz).png" },
 
             // --- 检事与搜查官阵营 ---
             { keywords: ["马堂一彻", "马堂"], url: "https://i.postimg.cc/c4bYDM6S/cast006-00-(Tyrell-Badd).png" },
@@ -2008,7 +2010,7 @@
             { keywords: ["绪屋敷司", "绪屋敷"], url: "https://i.postimg.cc/Gp0DRLk4/cast212-00-(Katherine-Hall).png" },
             { keywords: ["风见丰(年轻)", "风见(18年前)"], url: "https://i.postimg.cc/JhwX8rb5/cast217-00-(Dane-Gustavia).png" },
             { keywords: ["风见丰", "风见"], url: "https://i.postimg.cc/W4RZVNM6/cast216-00-(Dane-Gustavia).png" },
-            { keywords: ["迪丽茜·司康", "迪丽茜", "司康"], url: "https://i.postimg.cc/mrx94LQ7/cast215-00-(Delicia-Scones).png" },
+            { keywords: ["迪丽茜·司康", "迪丽茜", "司康"], url: "https://i.postimg.cc/8C8vGphR/cast215-01-(Delicia-Scones).png" },
             { keywords: ["冰堂伊作", "冰堂"], url: "https://i.postimg.cc/xdrmQfKP/cast218-00-(Isaac-Dover).png" },
             { keywords: ["武藤瞳子", "武藤"], url: "https://i.postimg.cc/zfmhNznM/cast21d-00-(Karin-Jenson).png" },
             { keywords: ["外城涯", "外城"], url: "https://i.postimg.cc/QML7D8pv/cast21e-00-(Ethan-Rooke).png" },
@@ -2283,7 +2285,7 @@
                 affinities: {
                     "成步堂 龙一": { score: 20, avatar: "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png" },
                     "绫里 真宵": { score: 25, avatar: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
-                    "绫里 千寻": { score: 20, avatar: "https://i.postimg.cc/bJCVyNxY/itc1012-(Mia-Fey).png" }
+                    "绫里 千寻": { score: 20, avatar: "https://i.postimg.cc/SNZ8TXmL/it1012-(Mia-Fey).png" }
                 },
                 phoneContacts: ["成步堂 龙一", "绫里 真宵", "绫里 千寻"],
                 initialDailyScript: [
@@ -2349,7 +2351,7 @@
             { name: "成步堂 龙一 (33岁)", desc: "沉稳内敛的前辩护律师。\n戴顶浅蓝针织帽，在俄罗斯餐馆弹钢琴度日，底细深不可测。", icon: "https://i.postimg.cc/yxGGPYxL/face40001-(Phoenix-Wright).png" },
             { name: "成步堂 龙一 (20岁)", desc: "勇盟大学艺术系学生。\n身穿粉色爱心感冒毛衣，曾卷入感冒药投毒案。", icon: "https://i.postimg.cc/N0tzbnGK/it3008-(Phoenix-Wright).png" },
             { name: "御剑 怜侍", desc: "地方检察厅首席检事。\n成步堂的宿敌与挚友，执着于还原纯粹的真相，严谨而高傲。", icon: "https://i.postimg.cc/fLTgQ00H/itc101e-(Miles-Edgeworth).png" },
-            { name: "绫里 千寻", desc: "成步堂的恩师，正义感极强的优秀辩护律师。\n成步堂事务所的精神支柱。", icon: "https://i.postimg.cc/bJCVyNxY/itc1012-(Mia-Fey).png" },
+            { name: "绫里 千寻", desc: "成步堂的恩师，正义感极强的优秀辩护律师。\n成步堂事务所的精神支柱。", icon: "https://i.postimg.cc/SNZ8TXmL/it1012-(Mia-Fey).png" },
             { name: "绫里 真宵", desc: "仓院流灵媒道掌门继承人。\n成步堂的得力副所长，极度热爱大江户战士与味噌拉面。", icon: "https://i.postimg.cc/Cxk2G0g9/it2007-(Maya-Fey).png" },
             { name: "绫里 春美", desc: "真宵的表妹，仓院分家之女。\n虽然年纪尚幼，却拥有超越常人的深厚灵力。", icon: "https://i.postimg.cc/TYZS5wZw/it201f-(Pearl-Fey).png" },
             { name: "系锯 圭介", desc: "管辖警察署刑事课刑警。\n负责命案初动搜查，薪水经常面临被御剑削减的危机汪！", icon: "https://i.postimg.cc/3xvstpg9/cast001-00-(Dick-Gumshoe).png" },
