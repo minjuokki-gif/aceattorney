@@ -1422,8 +1422,8 @@
             },
             // 22. 审判长 · 法庭审判席
             "审判长_法庭": {
-                scale: 0.9,
-                offsetY: 70, // 统一下沉70px，把身体稳稳插进审判长席木台桌后
+                scale: 1.0,
+                offsetY: 100, // 统一下沉70px，把身体稳稳插进审判长席木台桌后
                 "Normal": { 
                     type: "loop", 
                     frameDelay: 320, 
@@ -2193,10 +2193,70 @@
 
         // ================= 💥 尖刺大字气泡触发器 (扎入中心+全屏震动) =================
         const SHOUT_BUBBLE_URLS = {
-            "objection": "https://i.postimg.cc/kXmGQKz6/etc100a(j)-(Objection-).png", // 异议あり！
-            "hold_it": "https://i.postimg.cc/02sjYDFC/etc100b(j)-(Hold-it-).png",     // 待った！ (等等)
-            "take_that": "https://i.postimg.cc/9Fh0dZKb/etc1012(st)-(Take-that-).png"  // くらえ！ (看招)
+            "objection": "https://i.postimg.cc/xT0gV7W3/etc100a-Objection.png", // 异议あり！(红色尖刺大字)
+            "hold_it": "https://i.postimg.cc/85bN3x2V/etc100b-Hold-it.png",     // 待った！(绿色/蓝色尖刺大字)
+            "take_that": "https://i.postimg.cc/9Fh0dZKb/etc1012(st)-(Take-that-).png"  // くらえ！(看招)
         };
+
+        // 气泡触发器：先扎入气泡与人声，再联动执行拍桌动作
+        function triggerShoutBubble(type, voiceRole = "", onSlamCallback = null) {
+            const overlay = document.getElementById('shout-bubble-overlay');
+            const img = document.getElementById('shout-bubble-img');
+            const url = SHOUT_BUBBLE_URLS[type];
+            if (!overlay || !img) return;
+
+            // 兜底保障：若外部图床偶尔加载失败，自动换为纯矢量逆转尖刺红/绿字，确保绝对不白板
+            img.onerror = function() {
+                const colors = { objection: '#d32f2f', hold_it: '#1b5e20', take_that: '#c2185b' };
+                const texts = { objection: 'OBJECTION!', hold_it: 'HOLD IT!', take_that: 'TAKE THAT!' };
+                const c = colors[type] || '#d32f2f';
+                const t = texts[type] || 'OBJECTION!';
+                this.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180"><polygon points="210,5 245,50 320,20 320,65 395,60 360,100 405,140 340,145 330,175 260,150 210,175 170,145 100,170 95,135 25,130 65,90 30,50 105,55 100,15 170,45" fill="${c}" stroke="%23ffffff" stroke-width="6"/><text x="210" y="112" font-family="sans-serif" font-weight="900" font-size="52" fill="%23ffffff" stroke="%23000000" stroke-width="4" text-anchor="middle" paint-order="stroke fill" font-style="italic">${t}</text></svg>`;
+            };
+
+            img.src = url || "";
+            overlay.classList.remove('active');
+            void overlay.offsetWidth;
+            overlay.classList.add('active');
+
+            // 扎入屏幕的一瞬间播放人声语音
+            let roleKey = '成步堂';
+            if (voiceRole === gameState.profile.name || voiceRole === 'user') {
+                roleKey = 'user';
+            } else if (voiceRole.includes('御剑')) {
+                roleKey = '御剑';
+            } else if (voiceRole.includes('千寻')) {
+                roleKey = '千寻';
+            } else if (voiceRole.includes('冥')) {
+                roleKey = '冥';
+            } else if (voiceRole.includes('王泥喜')) {
+                roleKey = '王泥喜';
+            } else if (voiceRole.includes('响也')) {
+                roleKey = '响也';
+            } else if (voiceRole.includes('雾人')) {
+                roleKey = '雾人';
+            } else if (voiceRole.includes('歌德') || voiceRole.includes('神乃木')) {
+                roleKey = '歌德';
+            } else if (voiceRole.includes('亚内')) {
+                roleKey = '亚内';
+            }
+            const voiceUrl = SHOUT_VOICE_MAP[roleKey] && SHOUT_VOICE_MAP[roleKey][type];
+            if (voiceUrl) {
+                new Audio(voiceUrl).play().catch(() => {});
+            }
+
+            // 扎入屏幕时全屏猛烈震颤
+            const stage = document.getElementById('game-stage');
+            stage.classList.remove('shake-screen');
+            void stage.offsetWidth;
+            stage.classList.add('shake-screen');
+
+            if (onSlamCallback) {
+                setTimeout(() => { onSlamCallback(); }, 240);
+            }
+
+            setTimeout(() => { overlay.classList.remove('active'); }, 850);
+        }
 
         // 角色专属语音插槽 (成步堂 / 御剑 / 千寻与主角)
         const SHOUT_VOICE_MAP = {
@@ -3693,28 +3753,21 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             closeSpeakModal();
             inp.value = '';
 
-            // 🎯 女主角发言自动触发专属语音与特效联动
-            const hasSlam = val.includes('[拍桌]');
-
-            if (hasSlam) {
-                // 单独或附带拍桌音效与震屏
-                new Audio("./audio/se01c (Slamming Desk).flac").play().catch(() => {});
-                const stage = document.getElementById('game-stage');
-                stage.classList.remove('shake-screen');
-                void stage.offsetWidth;
-                stage.classList.add('shake-screen');
-            }
-
+            // 🎯 玩家在输入框选择标签时，精确对应触发气泡大字与音效
             if (val.includes('[异议]') || val.includes('异议あり') || val.includes('我有异议')) {
                 triggerShoutBubble('objection', 'user');
                 playBGM('objection');
             } else if (val.includes('[等等]') || val.includes('等一下') || val.includes('待った')) {
                 triggerShoutBubble('hold_it', 'user');
-            } else if (val.includes('[看招]') || val.includes('[出示证物]') || val.includes('看招') || val.includes('くらえ')) {
+            } else if (val.includes('[看招]') || val.includes('[出示证物]') || val.includes('看招') || val.includes('くらえ') || val.includes('[指认]')) {
                 triggerShoutBubble('take_that', 'user');
                 playBGM('pursuit');
-            } else if (val.includes('[指认]')) {
-                triggerShoutBubble('take_that', 'user');
+            } else if (val.includes('[拍桌]')) {
+                new Audio("./audio/se01c (Slamming Desk).flac").play().catch(() => {});
+                const stage = document.getElementById('game-stage');
+                stage.classList.remove('shake-screen');
+                void stage.offsetWidth;
+                stage.classList.add('shake-screen');
             }
 
             triggerAIStep(val);
@@ -3800,21 +3853,28 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
      * 狩魔家必须写「狩魔冥」；
      * 牙琉家必须写「牙琉响也」、「牙琉雾人」。
 3. 严格遵循在场人物约束（绝不乱入）：
-   - 必须仔细观察玩家的动作和台词！如果玩家表明是与某人独处/单独外出（如“我和真宵在逛街”），其他事务所/局里人员（如成步堂、千寻）绝不允许在现场说话！
+   - 必须仔细观察玩家的动作和台词！如果玩家表明是与某人独处/单独外出，不在场人员严禁插嘴！
    - 只允许真实在场的人物发言或互动。
-4. 【禁止每轮结尾机械式反问玩家】：
+4. 【法庭攻防大招与主动推进（重点）】：
+   - 绝不能全等玩家一个人推进！对方检方与我方辩护搭档必须有强烈的对抗互动！
+   - 检方（御剑/冥/响也/雾人/亚内）反驳我方或指出漏洞时，必须主动使用异议指令：
+     例如：[发言] 御剑(异议): 异议あり！这种程度的推论根本站不住脚。
+   - 辩护方（成步堂/千寻）或助手打断伪证、提出关键翻转时，主动使用：
+     例如：[发言] 成步堂(等等): 待った！请等一下，这份证词的时间线不对！
+     例如：[发言] 成步堂(看招): くらえ！看招！这就是决定性的物证！
+   - 审判长适时维持法庭秩序：[发言] 审判长(警告): 肃静！请辩护人注意你的发言！
+5. 【禁止每轮结尾机械式反问玩家】：
    - 严禁在最后一句总是反问“你要干嘛？”“我们接下来去哪？”“你觉得呢？”！
-   - 对话自然结在角色的动作、感慨、吐槽或情境收尾上，角色要有自己的行动倾向，不要事事请示玩家。
-5. 严禁替玩家「${playerName}」说话、做决定，也不要描写其内心想法。
-6. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
-7. 自动系统指令：
+   - 对话自然结在角色的动作、感慨、吐槽或情境收尾上，角色要有自己的主见和行动。
+6. 严禁替玩家「${playerName}」说话、做决定，也不要描写其内心想法。
+7. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
+8. 自动系统指令：
    - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]
-   - 场景转移：[场景: 地点名]（必须且仅当主角动身到达新地点时输出，系统会自动切换该场景专属BGM）
-   - 氛围变奏（可选，宁缺毋滥）：只有当剧情情绪出现明显转折时，才在转折那一句台词的【上一行】单独输出一行 [BGM: 曲目代号]。可选：suspense(命案/危机/不安)、truth(揭露真相/发现矛盾)、pursuit(追击/反击/逆转)、dl6(回忆/悲伤)、dahlia(阴谋/恶意)、simple_folk(轻松/玩笑)。平淡日常不要输出；系统本身也会根据台词情绪自动配乐。
+   - 场景转移：[场景: 地点名]
+   - 氛围变奏：[BGM: 曲目代号]
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
    - 新人物登记：[人物: 人物姓名 | 身份背景描述]
-8. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
-
+9. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
             const recent = getHistoryContext(5);
 
             const isDaily = gameState.mode === 'daily';
@@ -4678,9 +4738,8 @@ ${contactHistory}
             const item = list[recIndex];
             if (!item) return;
             toggleRecord();
-            // 出示证物瞬间玩家喊“看招！”
-            triggerShoutBubble('take_that', 'user'); // 指定为 user
-            // 2. 引爆最燃逆转神曲【追求 ～ 想抓住真凶】！
+
+            // 删掉原本提前调用的 triggerShoutBubble，避免和队列首句重复触发
             playBGM('pursuit');
             const presentLines = [
                 `[发言] ${gameState.profile.name}(指认): くらえ！(看招！)`,
