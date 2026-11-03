@@ -2093,6 +2093,91 @@
             }
         }
 
+        // ================= 🎭 剧情情绪 BGM 引擎（按"此刻台词的情绪"配乐，而不只按地点） =================
+        // 思路：地点只提供"底色曲"；每显示一句台词，就根据关键词 + 动作姿态给各种情绪累加分数，
+        // 分数会随台词推进自然衰减。只有情绪持续累积、超过阈值才切曲（防止一个词就乱跳），
+        // 情绪平复后自动回到地点底色曲。AI 若给了 [BGM:xxx] 标记，也会在读到那一句时才切（不再提前）。
+        const MOOD_RULES = [
+            { mood: 'truth',   bgm: 'truth',     w: 3, re: /真相|原来如此|破绽|矛盾|揭穿|证明了|凶手是|就是你|不可能|根本不是|露出马脚|谎言|撒谎|识破/ },
+            { mood: 'chase',   bgm: 'pursuit',   w: 3, re: /追上|追击|逃跑|快跑|快追|来不及|冲出|赶紧|拦住|反击|逆转|绝不能让|抓住他|别让他跑/ },
+            { mood: 'tense',   bgm: 'suspense',  w: 2, re: /血迹|血|尸体|遗体|死亡|被杀|杀害|凶器|凶案|命案|刀|枪|毒|可疑|不对劲|诡异|沉默|冷汗|僵住|脸色发白|倒吸一口|不祥|危险|恐惧|颤抖/ },
+            { mood: 'dark',    bgm: 'dahlia',    w: 2, re: /恶意|杀意|背叛|诅咒|灵媒|复仇|怨恨|阴谋|操纵|蛊惑|冷笑|阴冷|狞笑/ },
+            { mood: 'sad',     bgm: 'dl6',       w: 2, re: /回忆|当年|那一天|曾经|去世|离开了|已经不在|再也见不到|眼泪|泪水|哭|哽咽|对不起|遗憾|后悔|思念|想念|悲伤|难过/ },
+            { mood: 'relax',   bgm: 'simple_folk', w: 2, re: /哈哈|笑了|笑出|开心|好吃|拉面|汉堡|玩笑|吐槽|撒娇|害羞|脸红|轻松|太好了|干杯|有趣|搞笑|嘿嘿|呵呵/ },
+            { mood: 'invest',  bgm: 'investigation', w: 1.5, re: /线索|调查|勘查|现场|搜查|指纹|脚印|证物|验证|推理|检查/ }
+        ];
+        // 动作姿态也是情绪信号（立绘动作名常含 Sweat / Nervous / Thinking 之类）
+        const MOOD_ACTION_RULES = [
+            { mood: 'tense',  w: 1.5, re: /sweat|nervous|shock|surprise|panic|冷汗|惊|慌|紧张|汗/i },
+            { mood: 'truth',  w: 1.5, re: /point|objection|confident|指|异议|自信/i },
+            { mood: 'sad',    w: 1.5, re: /sad|cry|tear|悲|泣|泪|低头/i },
+            { mood: 'relax',  w: 1.5, re: /smile|laugh|happy|笑|开心|微笑/i }
+        ];
+        const MOOD_SWITCH_THRESHOLD = 3;   // 情绪累积到这个分数才切曲
+        const MOOD_MIN_GAP = 4;            // 两次切曲之间至少隔几句台词
+        const MOOD_CALM_LINES = 7;         // 连续这么多句无明显情绪 → 回到地点底色曲
+        let moodScores = {};
+        let moodCurrent = '';              // 当前由情绪接管的情绪名；空 = 正在播地点底色曲
+        let moodLinesSinceSwitch = 99;
+        let moodCalmStreak = 0;
+        let moodLockLines = 0;             // AI 显式指定曲目后，锁定若干句不被自动情绪打断
+        let moodLastKey = '';
+
+        function resetMoodState() {
+            moodScores = {}; moodCurrent = ''; moodLinesSinceSwitch = 99; moodCalmStreak = 0; moodLockLines = 0; moodLastKey = '';
+        }
+
+        function updateMoodBGM(content, action, lineKey) {
+            // 同一句重复显示（翻回上一句、刷新界面）不重复计分
+            if (lineKey === moodLastKey) return;
+            moodLastKey = lineKey;
+            // 法庭/对质期间有自己的曲目逻辑，这里不干涉
+            if (gameState.currentLocation && gameState.currentLocation.includes('法庭')) return;
+
+            moodLinesSinceSwitch++;
+            if (moodLockLines > 0) { moodLockLines--; return; }
+
+            // 1) 旧分数衰减
+            let anySignal = false;
+            for (const k of Object.keys(moodScores)) {
+                moodScores[k] *= 0.65;
+                if (moodScores[k] < 0.3) delete moodScores[k];
+            }
+            // 2) 本句新信号
+            for (const r of MOOD_RULES) {
+                if (r.re.test(content)) { moodScores[r.mood] = (moodScores[r.mood] || 0) + r.w; anySignal = true; }
+            }
+            if (action) {
+                for (const r of MOOD_ACTION_RULES) {
+                    if (r.re.test(action)) { moodScores[r.mood] = (moodScores[r.mood] || 0) + r.w; anySignal = true; }
+                }
+            }
+            moodCalmStreak = anySignal ? 0 : moodCalmStreak + 1;
+
+            // 3) 找当前最强情绪
+            let top = '', topScore = 0;
+            for (const [k, v] of Object.entries(moodScores)) { if (v > topScore) { top = k; topScore = v; } }
+
+            // 4) 达到阈值、且强过当前情绪、且离上次切曲够远 → 切曲
+            if (top && top !== moodCurrent && topScore >= MOOD_SWITCH_THRESHOLD && moodLinesSinceSwitch >= MOOD_MIN_GAP) {
+                const rule = MOOD_RULES.find(r => r.mood === top);
+                const curScore = moodCurrent ? (moodScores[moodCurrent] || 0) : 0;
+                if (rule && topScore > curScore + 0.8) {
+                    moodCurrent = top;
+                    moodLinesSinceSwitch = 0;
+                    playBGM(rule.bgm);
+                    return;
+                }
+            }
+            // 5) 情绪平复 → 回到地点底色曲
+            if (moodCurrent && moodCalmStreak >= MOOD_CALM_LINES && moodLinesSinceSwitch >= MOOD_MIN_GAP) {
+                moodCurrent = '';
+                moodLinesSinceSwitch = 0;
+                moodScores = {};
+                playBGM(autoSelectBGMForScene(gameState.currentLocation));
+            }
+        }
+
         // ================= 📜 飘动横幅调用系统 =================
         function triggerCourtBanner(text) {
             const banner = document.getElementById('court-banner');
@@ -2951,6 +3036,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             updateStatusBar();
             closeModal('settings-modal');
 
+            resetMoodState();
             if (!locName.includes('法庭')) {
                 const targetBGM = autoSelectBGMForScene(locName);
                 playBGM(targetBGM);
@@ -3074,7 +3160,10 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             if (currentQueueIndex < 0) currentQueueIndex = 0;
             if (currentQueueIndex >= dialogueQueue.length) currentQueueIndex = dialogueQueue.length - 1;
 
-            const rawLine = dialogueQueue[currentQueueIndex];
+            let rawLine = dialogueQueue[currentQueueIndex];
+            // AI 的 [BGM:xxx] 标记被绑在了某一句台词上：读到这一句时才真正切曲，保证和剧情同步
+            let cueFromAI = '';
+            rawLine = rawLine.replace(/\u27E6BGM:([a-z_0-9]+)\u27E7/i, (_, k) => { cueFromAI = k.toLowerCase(); return ''; });
             const match = rawLine.match(/\[发言\]\s*([^(（:：]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*(.*)/);
 
             let speaker = "旁白";
@@ -3113,6 +3202,14 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 playBGM('cross_exam');
             } else if (content.includes('证言结束') || content.includes('证词结束')) {
                 triggerCourtBanner('～ 证 言 结 束 ～');
+            }
+
+            // 🎭 按此刻台词的情绪配乐
+            if (cueFromAI && BGM_TRACKS[cueFromAI]) {
+                playBGM(cueFromAI);
+                moodCurrent = '__ai__'; moodLinesSinceSwitch = 0; moodLockLines = 6; moodLastKey = currentQueueIndex + '|' + rawLine;
+            } else {
+                updateMoodBGM(content, action === 'Normal' ? '' : action, currentQueueIndex + '|' + rawLine);
             }
 
             // 💥 尖刺气泡扎入检测（只有真正喊出台词时才扎气泡，纯拍桌绝不乱喊）
@@ -3712,7 +3809,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 7. 自动系统指令：
    - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]
    - 场景转移：[场景: 地点名]（必须且仅当主角动身到达新地点时输出，系统会自动切换该场景专属BGM）
-   - 氛围变奏（可选）：若情节突然紧张或揭露真相，可在行尾输出 [BGM: suspense] (危机)、[BGM: truth] (揭示真实)、[BGM: pursuit] (逆转反攻) 或 [BGM: simple_folk] (缓和轻松)
+   - 氛围变奏（可选，宁缺毋滥）：只有当剧情情绪出现明显转折时，才在转折那一句台词的【上一行】单独输出一行 [BGM: 曲目代号]。可选：suspense(命案/危机/不安)、truth(揭露真相/发现矛盾)、pursuit(追击/反击/逆转)、dl6(回忆/悲伤)、dahlia(阴谋/恶意)、simple_folk(轻松/玩笑)。平淡日常不要输出；系统本身也会根据台词情绪自动配乐。
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
    - 新人物登记：[人物: 人物姓名 | 身份背景描述]
 8. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
@@ -3819,6 +3916,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
         function normalizeAILines(reply, playerName) {
             const MAX_LEN = 60;
             const out = [];
+            let pendingBgmCue = '';
             if (!reply) return out;
 
             let cleanReply = reply.replace(/\*\*/g, '').replace(/###/g, '');
@@ -3856,7 +3954,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 if (bgmMatch) {
                     const bgmName = bgmMatch[1].trim().toLowerCase();
                     if (BGM_TRACKS[bgmName]) {
-                        playBGM(bgmName);
+                        pendingBgmCue = bgmName;   // 不立即播放，挂到下一句台词上，读到时再切
                     }
                     continue;
                 }
@@ -3886,6 +3984,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
                     if (existing) {
                         // 如果已存在该人，更新其最新案件描述，防止丢失信息
                         existing.desc = pDesc;
+                        renderRecordAll();
                     } else {
                         // 新人物直接稳稳加入法庭档案
                         const iconUrl = matchProfileIcon(pName);
@@ -3894,8 +3993,8 @@ ${userActionText || '（玩家静静等待对方说话）'}
                             desc: pDesc,
                             icon: iconUrl
                         });
-                    }
-                    renderRecordAll();
+
+                        renderRecordAll();
 
                         // 核心角色白名单：主角团、主要检察官与核心配角，结识后可录入手机与开启好感
                         const MAJOR_ROSTER = [
@@ -3952,7 +4051,9 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
                 chunks.forEach((c, i) => {
                     const act = (i === 0 && action) ? `(${action})` : '';
-                    out.push(`[发言] ${speaker}${act}: ${c}`);
+                    const cue = (i === 0 && pendingBgmCue) ? `\u27E6BGM:${pendingBgmCue}\u27E7` : '';
+                    if (i === 0) pendingBgmCue = '';
+                    out.push(`[发言] ${speaker}${act}: ${cue}${c}`);
                 });
             }
 
