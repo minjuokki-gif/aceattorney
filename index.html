@@ -3070,6 +3070,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             else if (speaker.includes('千寻')) displaySpeaker = '千寻';
             else if (speaker.includes('冥')) displaySpeaker = '狩魔冥';
             else if (speaker.includes('响也')) displaySpeaker = '牙琉响也';
+            else if (speaker === '宝月' || speaker.includes('茜')) displaySpeaker = '宝月茜';
+            else if (speaker.includes('巴')) displaySpeaker = '宝月巴';
 
             document.getElementById('speaker-name').innerText = displaySpeaker;
             document.getElementById('dialogue-content').innerText = content;
@@ -3333,7 +3335,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 animator.playFromRegistry("大场香_正面", actionKey);
             }
             // 10. 宝月巴
-            else if (speaker.includes('宝月巴') || (speaker.includes('巴') && !speaker.includes('审判'))) {
+            else if (speaker.includes('宝月巴') || (speaker.includes('巴') && !speaker.includes('宝月巴'))) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('侧头') || action.includes('避开')) actionKey = "Averting Eyes";
@@ -3448,8 +3450,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('侧头') || action.includes('看旁边')) actionKey = "Looking to the Side";
                 animator.playFromRegistry("系锯_正面", actionKey);
             }
-            // 19. 宝月茜 (科学搜查官)
-            else if (speaker.includes('宝月茜') || (speaker.includes('茜') && !speaker.includes('巴'))) {
+            // 19. 宝月茜 (科学搜查官) - 单独写“宝月”、“茜”、“宝月茜”全部通吃！
+            else if (speaker === '宝月' || speaker.includes('宝月茜') || speaker.includes('茜') || (speaker.includes('宝月') && !speaker.includes('巴'))) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('江米棒') || action.includes('嚼') || action.includes('不爽') || action.includes('不高兴')) actionKey = "Grumpy";
@@ -3841,16 +3843,20 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 if (profMatch) {
                     const pName = profMatch[1].trim();
                     const pDesc = profMatch[2] ? profMatch[2].trim() : "案情相关人员。";
-                    if (!gameState.profiles.some(p => p.name === pName)) {
+                    const existing = gameState.profiles.find(p => p.name === pName);
+                    if (existing) {
+                        // 如果已存在该人，更新其最新案件描述，防止丢失信息
+                        existing.desc = pDesc;
+                    } else {
+                        // 新人物直接稳稳加入法庭档案
                         const iconUrl = matchProfileIcon(pName);
-                        gameState.profiles.unshift({
+                        gameState.profiles.push({
                             name: pName,
                             desc: pDesc,
                             icon: iconUrl
                         });
-                        recPage = 0;
-                        recIndex = 0;
-                        renderRecordAll();
+                    }
+                    renderRecordAll();
 
                         // 核心角色白名单：主角团、主要检察官与核心配角，结识后可录入手机与开启好感
                         const MAJOR_ROSTER = [
@@ -4629,18 +4635,11 @@ ${contactHistory}
             dialogueQueue = parsed.queue || [];
             currentQueueIndex = parsed.queueIndex || 0;
 
-            // 核心修复：强行清洗掉旧存档里残留的20多位未出场全明星，绝不让旧数据污染
-            const role = (gameState.profile && gameState.profile.role) || "辩护律师";
-            const cfg = careerConfigs[role] || careerConfigs["辩护律师"];
-            if (gameState.mode === 'daily') {
-                // 日常模式下：只留当前路线真实在场的搭档（成步堂/御剑等），删掉多余全明星和主角自己
-                gameState.profiles = fullRosterProfiles.filter(p => cfg.phoneContacts.includes(p.name));
-            } else {
-                // 案件模式下：只留搭档 + 案子里真实出场的人，剔除多余的预填角色
-                gameState.profiles = gameState.profiles.filter(p => 
-                    p.name !== gameState.profile.name && 
-                    (cfg.phoneContacts.includes(p.name) || p.desc.includes('本案') || p.desc.includes('嫌疑') || p.desc.includes('证人') || p.desc.includes('案情'))
-                );
+            // 保护案卷档案：只要在案件模式中，所有登记过的被害人、嫌疑人、证人全部原封不动永久保留！
+            // 只有在回到日常篇重置时（点resetToDailyMode），才会清理案卷
+            if (gameState.profiles) {
+                // 仅剔除可能误存入的主角自己，绝不删除任何剧情人物
+                gameState.profiles = gameState.profiles.filter(p => p.name !== gameState.profile.name);
             }
             
             closeModal('settings-modal');
