@@ -414,14 +414,15 @@
             100% { transform: scale(1.08); opacity: 0; }
         }
 
-        /* ================= ⚖️ 有罪 / 无罪 经典分步猛砸动画 ================= */
+        /* ================= ⚖️ 有罪 / 无罪 经典分步猛砸动画（砸完停留，点屏幕才消失） ================= */
         .verdict-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px);
             display: none; justify-content: center; align-items: center;
-            z-index: 195; pointer-events: none;
+            z-index: 195; pointer-events: auto;
         }
         .verdict-overlay.active { display: flex; }
+        .verdict-overlay.dismissable { cursor: pointer; }
         .verdict-box {
             display: flex; justify-content: center; align-items: center; gap: 40px;
             width: 100%; height: 100%;
@@ -432,26 +433,14 @@
             opacity: 0;
             transform: translateY(-120vh) scale(1.6);
         }
-        /* 左边第一个字（无/有）：率先猛砸 */
-        .verdict-slam-left {
-            animation: slamLeftAnim 3.0s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        /* 两个字用同一个“砸下来并停住”的动画；第二个字的延迟由 JS 按 VERDICT_GAP_MS 设置 */
+        .verdict-slam-left, .verdict-slam-right {
+            animation: verdictSlam 0.55s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
         }
-        @keyframes slamLeftAnim {
-            0% { transform: translateY(-120vh) scale(1.6); opacity: 0; }
-            12% { transform: translateY(0) scale(1.0); opacity: 1; }
-            82% { transform: translateY(0) scale(1.0); opacity: 1; }
-            100% { transform: translateY(0) scale(1.0); opacity: 0; }
-        }
-        /* 右边第二个字（罪）：延后 0.38 秒紧接着猛砸 */
-        .verdict-slam-right {
-            animation: slamRightAnim 3.0s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
-            animation-delay: 0.38s;
-        }
-        @keyframes slamRightAnim {
-            0% { transform: translateY(-120vh) scale(1.6); opacity: 0; }
-            12% { transform: translateY(0) scale(1.0); opacity: 1; }
-            82% { transform: translateY(0) scale(1.0); opacity: 1; }
-            100% { transform: translateY(0) scale(1.0); opacity: 0; }
+        @keyframes verdictSlam {
+            0%   { transform: translateY(-120vh) scale(1.6); opacity: 0; }
+            25%  { transform: translateY(0) scale(1.0); opacity: 1; }
+            100% { transform: translateY(0) scale(1.0); opacity: 1; }
         }
         .record-panel {
             position: relative; width: 80%; max-width: 960px;
@@ -544,7 +533,7 @@
         </div>
 
         <!-- ⚖️ 有罪 / 无罪 从天而降超大判决层 -->
-        <div class="verdict-overlay" id="verdict-overlay">
+        <div class="verdict-overlay" id="verdict-overlay" onclick="dismissVerdict(event)">
             <div class="verdict-box" id="verdict-box">
                 <img class="verdict-char-img" id="verdict-char-1" src="" alt="判决1">
                 <img class="verdict-char-img" id="verdict-char-2" src="" alt="判决2">
@@ -1899,8 +1888,10 @@
                 this.imgEl.src = anim.frames[0];
 
                 const isCourt = gameState.currentLocation.includes('法庭');
-                if (anim.voice && isCourt) new Audio(anim.voice).play().catch(() => {});
-                if (anim.sfx && isCourt) new Audio(anim.sfx).play().catch(() => {});
+                // 如果刚刚已经播了角色专属的喊话语音，就不再叠播立绘自带的旧语音
+                const _shoutJustPlayed = (Date.now() - _lastShoutVoiceAt) < 2500;
+                if (anim.voice && isCourt && !_shoutJustPlayed) playVoiceFile(anim.voice);
+                if (anim.sfx && isCourt) playVoiceFile(anim.sfx);
                 if (anim.shake && isCourt) {
                     const stage = document.getElementById('game-stage');
                     stage.classList.remove('shake-screen');
@@ -2057,6 +2048,7 @@
         // 核心：突破浏览器的自动播放策略（只要玩家在页面上产生任意一次交互，立即解锁声音）
         function unlockAudio() {
             audioUnlocked = true;
+            if (typeof unlockAudioPool === 'function') unlockAudioPool();
             if (currentBgmKey && bgmAudio.paused) {
                 bgmAudio.play().catch(() => {});
             }
@@ -2065,6 +2057,7 @@
         window.addEventListener('click', unlockAudio);
         window.addEventListener('keydown', unlockAudio);
         window.addEventListener('touchstart', unlockAudio);
+        window.addEventListener('touchend', unlockAudio);
 
         function playBGM(key) {
             if (!key || key === "stop") {
@@ -2201,29 +2194,29 @@
         // 角色专属语音插槽 (成步堂 / 御剑 / 千寻与主角)
         const SHOUT_VOICE_MAP = {
             "成步堂": {
-                "objection": "./audio/成步堂Objection! (Japanese) 異議あり! Igiari!.flac",
-                "hold_it": "./audio/成步堂Hold it! (Jiten) 待った! Matta!.flac",
-                "take_that": "./audio/成步堂Take that! (Japanese) くらえ! Kurae!.flac"
+                "objection": "./audio/成步堂Objection! (Japanese) 異議あり！ Igiari!.flac",
+                "hold_it": "./audio/成步堂Hold it! (Jiten) 待った！ Matta!.flac",
+                "take_that": "./audio/成步堂Take that! (Japanese) くらえ！ Kurae!.flac"
             },
             "御剑": {
-                "objection": "./audio/御剑Objection! (Japanese) 異議あり! Igiari!.flac",
-                "hold_it": "./audio/御剑Hold it! (Japanese) 待った! Matta!.flac",
-                "take_that": "./audio/御剑Take that! (Japanese) くらえ! Kurae!.flac",
-                "eureka": "./audio/御剑Eureka! (Japanese) これだ! Kore da!.flac"
+                "objection": "./audio/御剑Objection! (Japanese) 異議あり！ Igiari!.flac",
+                "hold_it": "./audio/御剑Hold it! (Japanese) 待った！ Matta!.flac",
+                "take_that": "./audio/御剑Take that! (Japanese) くらえ！ Kurae!.flac",
+                "eureka": "./audio/御剑Eureka! (Japanese) これだ！ Kore da!.flac"
             },
             "千寻": {
-                "objection": "./audio/千寻Objection! (Japanese) 異議あり! Igiari!.flac",
-                "hold_it": "./audio/千寻Hold it! (Japanese) 待った! Matta!.flac",
-                "take_that": "./audio/千寻Take that! (Japanese) くらえ! Kurae!.flac"
+                "objection": "./audio/千寻Objection! (Japanese) 異議あり！ Igiari!.flac",
+                "hold_it": "./audio/千寻Hold it! (Japanese) 待った！ Matta!.flac",
+                "take_that": "./audio/千寻Take that! (Japanese) くらえ！ Kurae!.flac"
             },
             "冥": {
-                "objection": "./audio/冥Objection! (Japanese) 異議あり! Igiari!.flac"
+                "objection": "./audio/冥Objection! (Japanese) 異議あり！ Igiari!.flac"
             },
             "王泥喜": {
-                "objection": "./audio/王泥喜Objection! (Japanese) 異議あり! Igiari!.flac",
-                "hold_it": "./audio/王泥喜Hold it! (Japanese) 待った! Matta!.flac",
-                "take_that": "./audio/王泥喜Take that! (Japanese) くらえ! Kurae!.flac",
-                "got_it": "./audio/王泥喜Gotcha! (Japanese) そこだ! Soko da!.flac"
+                "objection": "./audio/王泥喜Objection! (Japanese) 異議あり！ Igiari!.flac",
+                "hold_it": "./audio/王泥喜Hold it! (Japanese) 待った！ Matta!.flac",
+                "take_that": "./audio/王泥喜Take that! (Japanese) くらえ！ Kurae!.flac",
+                "got_it": "./audio/王泥喜Gotcha! (Japanese) そこ だ！ Soko da!.flac"
             },
             "响也": {
                 // 牙琉响也
@@ -2235,10 +2228,10 @@
             },
             "歌德": {
                 // 神乃木
-                "objection": "./audio/哥德Objection! (Japanese) 異議あり! Igiari!.flac"
+                "objection": "./audio/歌德Objection! (Japanese) 異議あり！ Igiari!.flac"
             },
             "亚内": {
-                "objection": "./audio/亚内Objection! (Japanese) 異議あり! Igiari!.flac"
+                "objection": "./audio/亚内Objection! (Japanese) 異議あり！ Igiari!.flac"
             },
             "user": {
                 // 玩家女主专属语音
@@ -2249,25 +2242,95 @@
             }
         };
 
-        // 🔊 喊话语音播放：自动做 URL 编码，文件加载失败时在屏幕上提示具体路径（方便排查文件名对不对）
+        // 🔊 统一音频播放：预先“解锁”一组音频播放器（手机浏览器必须在点击里解锁，之后才允许脚本自动出声）
+        // 文件加载失败时：先试 NFD/NFC 两种文件名写法（Mac 的文件名常是 NFD），再试备用链接，最后才提示
+        const AUDIO_POOL_SIZE = 8;
+        const _audioPool = [];
+        let _audioPoolIdx = 0;
+        let _poolUnlocked = false;
+        let _playTokenCounter = 0;
+        var _lastShoutVoiceAt = 0;   // 最近一次角色喊话语音的时间（防止和立绘自带的旧语音重叠）
+        const _SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=";
+
+        function unlockAudioPool() {
+            if (_poolUnlocked) return;
+            if (_audioPool.length === 0) {
+                for (let i = 0; i < AUDIO_POOL_SIZE; i++) {
+                    const a = new Audio();
+                    a.preload = 'auto';
+                    _audioPool.push(a);
+                }
+            }
+            _audioPool.forEach(a => {
+                if (!a.paused) return;
+                a.muted = true;
+                a.src = _SILENT_WAV;
+                const pr = a.play();
+                if (pr && pr.then) {
+                    pr.then(() => { a.pause(); a.muted = false; _poolUnlocked = true; })
+                      .catch(() => { a.muted = false; });
+                } else {
+                    a.muted = false;
+                }
+            });
+        }
+
+        function _nextAudioEl() {
+            if (_audioPool.length === 0) return new Audio();
+            const a = _audioPool[_audioPoolIdx % _audioPool.length];
+            _audioPoolIdx++;
+            return a;
+        }
+
+        function _safeEncodeUrl(u) {
+            try { return encodeURI(decodeURI(u)); } catch (e) { return encodeURI(u); }
+        }
+
         const _voiceWarned = {};
-        function playVoiceFile(url) {
+        function playVoiceFile(url, fallbacks) {
             if (!url) return;
-            const a = new Audio();
-            a.onerror = () => {
-                if (_voiceWarned[url]) return;
-                _voiceWarned[url] = true;
-                console.warn('语音文件加载失败:', url);
-                const stage = document.getElementById('game-stage');
-                if (!stage) return;
-                const tip = document.createElement('div');
-                tip.textContent = '🔇 语音文件没找到：' + url;
-                tip.style.cssText = 'position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.8);color:#ffb3b3;border:1px solid #ff7373;padding:6px 12px;border-radius:6px;font-size:12px;max-width:90%;word-break:break-all;pointer-events:none;';
-                stage.appendChild(tip);
-                setTimeout(() => tip.remove(), 4500);
+            const candidates = [];
+            const add = u => { if (u && candidates.indexOf(u) === -1) candidates.push(u); };
+            add(url);
+            // 日文后面的 ! 可能是全角 ！，后面的空格也可能是一个/两个/全角空格：都试一遍
+            const fw = url.replace(/([\u3040-\u30ff\u4e00-\u9fff])!/g, '$1\uFF01');
+            add(fw);
+            add(fw.replace(/\uFF01 /g, '\uFF01  '));
+            add(fw.replace(/\uFF01 /g, '\uFF01\u3000'));
+            add(fw.replace(/\uFF01 /g, '\uFF01'));
+            add(fw.replace('そこ だ', 'そこだ'));
+            const base = candidates.slice();
+            try { base.forEach(u => { add(u.normalize('NFD')); add(u.normalize('NFC')); }); } catch (e) {}
+            (fallbacks || []).forEach(add);
+
+            const a = _nextAudioEl();
+            const tok = ++_playTokenCounter;
+            a._tok = tok;
+            let i = 0;
+            const tryNext = () => {
+                if (a._tok !== tok) return;           // 这个播放器已经被别的声音占用了，放弃
+                if (i >= candidates.length) {
+                    if (_voiceWarned[url]) return;
+                    _voiceWarned[url] = true;
+                    console.warn('语音文件加载失败:', url);
+                    const stage = document.getElementById('game-stage');
+                    if (!stage) return;
+                    const tip = document.createElement('div');
+                    tip.textContent = '🔇 语音文件没找到：' + url;
+                    tip.style.cssText = 'position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.8);color:#ffb3b3;border:1px solid #ff7373;padding:6px 12px;border-radius:6px;font-size:12px;max-width:90%;word-break:break-all;pointer-events:none;';
+                    stage.appendChild(tip);
+                    setTimeout(() => tip.remove(), 4500);
+                    return;
+                }
+                const u = candidates[i++];
+                a.onerror = tryNext;
+                a.muted = false;
+                a.src = _safeEncodeUrl(u);
+                try { a.currentTime = 0; } catch (e) {}
+                const pr = a.play();
+                if (pr && pr.catch) pr.catch(() => {});
             };
-            a.src = encodeURI(decodeURI(url));   // 先解码再编码，避免已编码的链接被二次编码
-            a.play().catch(() => {});
+            tryNext();
         }
 
         // 💥 拍桌：音效 + 全屏震动（不依赖是否在法庭，NPC 喊话/拍桌时用）
@@ -2321,6 +2384,7 @@
             }
             const voiceUrl = roleKey && SHOUT_VOICE_MAP[roleKey] && SHOUT_VOICE_MAP[roleKey][type];
             if (voiceUrl) {
+                _lastShoutVoiceAt = Date.now();
                 playVoiceFile(voiceUrl);
             }
 
@@ -2350,6 +2414,43 @@
             ]
         };
 
+        // 判决状态：砸完之后一直停留，只有点一下屏幕才会消失
+        var verdictActive = false;
+        var verdictDismissable = false;
+        var verdictTimers = [];
+        const VERDICT_GAP_MS = 900;      // 第一个字落下 → 第二个字落下 之间的间隔（想更慢就改大）
+        const VERDICT_SLAM_SFX = ["https://files.catbox.moe/1gcl54.flac", "./audio/se01c (Slamming Desk).flac"];
+
+        function _vTimer(fn, ms) { const t = setTimeout(fn, ms); verdictTimers.push(t); return t; }
+
+        function _verdictShakeAndSound() {
+            const stage = document.getElementById('game-stage');
+            stage.classList.remove('shake-screen');
+            void stage.offsetWidth;
+            stage.classList.add('shake-screen');
+            playVoiceFile(VERDICT_SLAM_SFX[0], VERDICT_SLAM_SFX.slice(1));
+        }
+
+        function resetVerdictState() {
+            verdictTimers.forEach(clearTimeout);
+            verdictTimers = [];
+            verdictActive = false;
+            verdictDismissable = false;
+            const overlay = document.getElementById('verdict-overlay');
+            const c1 = document.getElementById('verdict-char-1');
+            const c2 = document.getElementById('verdict-char-2');
+            if (overlay) overlay.classList.remove('active', 'dismissable');
+            if (c1) c1.classList.remove('verdict-slam-left');
+            if (c2) c2.classList.remove('verdict-slam-right');
+        }
+
+        // 点一下屏幕：判决大字消失（两个字都砸定之后才允许，避免误触）
+        function dismissVerdict(e) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            if (!verdictActive || !verdictDismissable) return;
+            resetVerdictState();
+        }
+
         function triggerVerdict(type) {
             const overlay = document.getElementById('verdict-overlay');
             const c1 = document.getElementById('verdict-char-1');
@@ -2359,6 +2460,10 @@
             const viewport = document.getElementById('actor-viewport');
             if (!overlay || !c1 || !c2 || !pair) return;
 
+            resetVerdictState();
+            verdictActive = true;          // 从这一刻起锁住点击推进，直到玩家点掉判决大字
+            verdictDismissable = false;
+
             // 💥 第一步：镜头先切至【法庭·审判长席】，审判长敲槌并肃静
             stage.style.backgroundImage = `url('${locationBgMap["法庭·审判长席"]}')`;
             viewport.style.display = 'flex';
@@ -2366,50 +2471,41 @@
             playBGM('suspense'); // 极度悬疑与屏息
 
             // 💥 第二步：1.2秒后，镜头切到【法庭·全景】，审判长立绘退下，全场静止屏息！
-            setTimeout(() => {
+            _vTimer(() => {
                 viewport.style.display = 'none';
                 stage.style.backgroundImage = `url('${locationBgMap["法庭·全景"]}')`;
 
                 c1.src = pair[0];
                 c2.src = pair[1];
 
-                // 重置两个字的动画类
+                // 重置两个字的动画类，并设置第二个字的延迟
                 c1.classList.remove('verdict-slam-left');
                 c2.classList.remove('verdict-slam-right');
-                overlay.classList.remove('active');
+                c1.style.animationDelay = '0s';
+                c2.style.animationDelay = (VERDICT_GAP_MS / 1000) + 's';
+                overlay.classList.remove('active', 'dismissable');
                 void overlay.offsetWidth;
 
                 overlay.classList.add('active');
                 c1.classList.add('verdict-slam-left');
                 c2.classList.add('verdict-slam-right');
 
-                // 💥 第三步：左字（无/有）猛砸下来（约140ms处触底），全屏剧烈震颤 + 砸地音效
-                setTimeout(() => {
-                    stage.classList.remove('shake-screen');
-                    void stage.offsetWidth;
-                    stage.classList.add('shake-screen');
-                    new Audio("https://files.catbox.moe/1gcl54.flac").play().catch(() => {});
-                }, 140);
+                // 💥 第三步：第一个字（无/有）落地（约140ms）→ 框！震屏 + 砸地音效
+                _vTimer(_verdictShakeAndSound, 140);
 
-                // 💥 第四步：右字（罪）在 0.38s 后紧跟着猛砸下来（约520ms处触底），第二次剧烈震颤！
-                setTimeout(() => {
-                    stage.classList.remove('shake-screen');
-                    void stage.offsetWidth;
-                    stage.classList.add('shake-screen');
-                    new Audio("https://files.catbox.moe/1gcl54.flac").play().catch(() => {});
-                }, 520);
+                // 💥 第四步：隔了 VERDICT_GAP_MS 之后，第二个字（罪）落地 → 再一声 框！
+                _vTimer(_verdictShakeAndSound, VERDICT_GAP_MS + 140);
 
-                // 💥 第五步：双字全部砸定后，如果是无罪，瞬间切入最燃胜诉 BGM【Ending】！
-                setTimeout(() => {
-                    if (type === 'not_guilty') {
-                        playBGM('ending');
-                    }
-                }, 750);
+                // 💥 第五步：两个字都砸定后，如果是无罪，切入胜诉 BGM【Ending】
+                _vTimer(() => {
+                    if (type === 'not_guilty') playBGM('ending');
+                }, VERDICT_GAP_MS + 450);
 
-                // 判决大字展示 3 秒后优雅淡出，恢复辩护席/全景
-                setTimeout(() => {
-                    overlay.classList.remove('active');
-                }, 3200);
+                // 第六步：两个字停稳后，才允许点屏幕关闭；一直停留在画面上，不再自动淡出
+                _vTimer(() => {
+                    verdictDismissable = true;
+                    overlay.classList.add('dismissable');
+                }, VERDICT_GAP_MS + 650);
 
             }, 1200);
         }
@@ -3157,6 +3253,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
         }
 
         function loadDialogueQueue(scriptArray) {
+            if (typeof resetVerdictState === 'function') resetVerdictState();
             dialogueQueue = scriptArray;
             currentQueueIndex = 0;
             lastTurnState = 'none';
@@ -3660,6 +3757,11 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
         // 点击推进逻辑（AI思考中时完全锁死）
         function handleUserNextStep() {
+            // 判决大字还在屏幕上：点一下只负责把它关掉，不推进剧情
+            if (verdictActive) {
+                if (verdictDismissable) dismissVerdict();
+                return;
+            }
             if (isAILoading) return;
 
             if (document.getElementById('settings-modal').classList.contains('active') ||
@@ -3703,7 +3805,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             if (isAutoAdvance) {
                 btn.classList.add('auto-active');
                 btn.innerHTML = `<span class="bar-icon" style="background:#d32f2f;">■</span> 自动推进中`;
-                autoAdvanceTimer = setInterval(() => handleUserNextStep(), 2800);
+                autoAdvanceTimer = setInterval(() => { if (!verdictActive) handleUserNextStep(); }, 2800);
             } else {
                 btn.classList.remove('auto-active');
                 btn.innerHTML = `<span class="bar-icon">-</span> 自动推进文字`;
@@ -3750,7 +3852,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 triggerShoutBubble('take_that', 'user');
                 playBGM('pursuit');
             } else if (val.includes('[拍桌]')) {
-                new Audio("./audio/se01c (Slamming Desk).flac").play().catch(() => {});
+                playVoiceFile("./audio/se01c (Slamming Desk).flac");
                 const stage = document.getElementById('game-stage');
                 stage.classList.remove('shake-screen');
                 void stage.offsetWidth;
