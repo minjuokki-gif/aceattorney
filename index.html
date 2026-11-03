@@ -522,6 +522,16 @@
 
         .mobile-touch-advance { position: absolute; top: 0; left: 0; width: 100%; height: 75%; z-index: 20; cursor: pointer; }
         #avatar-file-input { display: none; }
+    
+        /* 手机短信气泡 */
+        .sms-row { display: flex; align-items: flex-end; gap: 6px; width: 100%; }
+        .sms-row.me { justify-content: flex-end; }
+        .sms-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #2c5282; background: #0d192b; }
+        .sms-bubble { position: relative; padding: 7px 12px; border-radius: 14px; font-size: 12px; line-height: 1.5; max-width: 72%; word-break: break-all; white-space: pre-wrap; }
+        .sms-row.me .sms-bubble { background: #1976d2; color: #fff; margin-right: 8px; }
+        .sms-row.me .sms-bubble::after { content: ''; position: absolute; right: -5px; bottom: 8px; border-left: 6px solid #1976d2; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+        .sms-row.them .sms-bubble { background: #23436d; color: #e2ecf8; margin-left: 2px; }
+        .sms-row.them .sms-bubble::before { content: ''; position: absolute; left: -5px; bottom: 8px; border-right: 6px solid #23436d; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
     </style>
 </head>
 <body>
@@ -3455,6 +3465,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             gameState.profiles = [...coreProfiles];
 
             historyLog = [];
+            phoneChatHistories = {};
+            currentPhoneContact = "";
 
             changeLocation(cfg.location);
             navigateTo('view-game');
@@ -4573,7 +4585,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 7. 严禁替玩家「${playerName}」说话、做决定，也不要描写其内心想法。
 8. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
 9. 自动系统指令：
-   - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]
+   - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]（必须单独占一行；任何在场的主要角色都可以加减好感，角色名写常用名即可，如 御剑）
+   - 获得联系方式：[通讯录: 角色名 | 简短身份]（当某角色与玩家互留/交换联系方式，或玩家提出想要联系方式而对方答应时，必须在台词之后单独输出这一行；对方拒绝则不输出）
    - 场景转移：[场景: 地点名]
    - 氛围变奏：[BGM: 曲目代号]
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
@@ -4677,6 +4690,110 @@ ${userActionText || '（玩家静静等待对方说话）'}
             }
         }
 
+        // ================= 通讯录 / 好感度 辅助函数 =================
+        const MAJOR_ROSTER = [
+            "成步堂", "龙一", "御剑", "真宵", "千寻", "春美", "系锯", "茜", "冥",
+            "牙琉响也", "响也", "牙琉雾人", "雾人", "王泥喜", "美贯", "心音",
+            "矢张", "神乃木", "歌德", "信乐", "美云", "狼士龙", "弓彦"
+        ];
+        function normCharName(n) {
+            return String(n || '').replace(/[（(][^)）]*[)）]/g, '').replace(/[\s·・]/g, '');
+        }
+        function sameChar(a, b) {
+            const x = normCharName(a), y = normCharName(b);
+            if (!x || !y) return false;
+            return x === y || x.includes(y) || y.includes(x);
+        }
+        function findRosterProfile(name) {
+            const cands = fullRosterProfiles.filter(p => !/裁判长/.test(p.name) && sameChar(p.name, name));
+            if (cands.length === 0) return null;
+            return cands.find(p => !/[（(]/.test(p.name)) || cands[0];
+        }
+        function canonicalCharName(name) {
+            const rp = findRosterProfile(name);
+            const base = rp ? rp.name : String(name || '');
+            return base.replace(/\s*[（(][^)）]*[)）]\s*/g, '').trim();
+        }
+        function isMajorName(name) {
+            const n = String(name || '');
+            return MAJOR_ROSTER.some(k => n.includes(k)) || !!findRosterProfile(n);
+        }
+        function gameToast(msg) {
+            try {
+                const d = document.createElement('div');
+                d.textContent = msg;
+                d.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);background:rgba(13,25,43,.95);color:#fff;border:1px solid #1e6eb5;padding:8px 14px;border-radius:6px;font-size:13px;z-index:99999;pointer-events:none;';
+                document.body.appendChild(d);
+                setTimeout(() => d.remove(), 2200);
+            } catch (e) {}
+        }
+        // 加入手机通讯录（同时开启好感度、登记人物档案）。force=true 表示 AI 明确用标签要求加入
+        function addContact(rawName, desc, force) {
+            rawName = String(rawName || '').trim();
+            if (!rawName) return false;
+            if (gameState.profile && gameState.profile.name && sameChar(rawName, gameState.profile.name) && rawName.length > 1) return false;
+            if (!force && !isMajorName(rawName)) return false;
+            if (!isMajorName(rawName) && /被害|死者|尸体|遇害|遗体/.test(rawName + (desc || ''))) return false;
+
+            const name = canonicalCharName(rawName);
+            const rp = findRosterProfile(rawName);
+            const icon = rp ? rp.icon : matchProfileIcon(rawName);
+            if (!gameState.phoneContacts) gameState.phoneContacts = [];
+            if (!gameState.affinities) gameState.affinities = {};
+            if (!gameState.profiles) gameState.profiles = [];
+
+            let added = false;
+            if (!gameState.phoneContacts.some(c => sameChar(c, name))) {
+                gameState.phoneContacts.push(name);
+                added = true;
+            }
+            if (!Object.keys(gameState.affinities).some(k => sameChar(k, name))) {
+                gameState.affinities[name] = { score: 10, avatar: icon };
+            }
+            if (!gameState.profiles.some(p => sameChar(p.name, name))) {
+                gameState.profiles.push({ name: name, desc: desc || (rp ? rp.desc : '新结识的联系人。'), icon: icon });
+            }
+            renderPhoneList();
+            renderAffinityList();
+            renderRecordAll();
+            if (added) gameToast('📱 已加入通讯录：' + name);
+            return added;
+        }
+        // 好感度加减：列表里没有的主要角色会自动开启好感条
+        function applyAffinity(rawName, delta) {
+            rawName = String(rawName || '').trim();
+            if (!rawName || !gameState.affinities) return;
+            let key = Object.keys(gameState.affinities).find(k => sameChar(k, rawName));
+            if (!key) {
+                if (!isMajorName(rawName)) return;
+                const rp = findRosterProfile(rawName);
+                key = canonicalCharName(rawName);
+                gameState.affinities[key] = { score: 10, avatar: rp ? rp.icon : matchProfileIcon(rawName) };
+            }
+            const o = gameState.affinities[key];
+            o.score = Math.max(0, Math.min(100, o.score + delta));
+            renderAffinityList();
+            gameToast('💖 ' + key + ' 好感 ' + (delta >= 0 ? '+' : '') + delta);
+        }
+        // 兜底：AI 忘了输出 [通讯录] 标签，但台词里明显在互留联系方式
+        function maybeAutoContact(speaker, text, playerName) {
+            if (!text) return;
+            if (!/(联系方式|电话号码|手机号|号码|电话|通讯录|LINE|Line|好友)/.test(text)) return;
+            if (!/(给|留|存|交换|互换|记下|录入|加|收下|写下|告诉|报上|拿去|这是|这就是)/.test(text)) return;
+            if (/没有.{0,4}(联系方式|号码|电话)|不.{0,2}(给|留|告诉)|拒绝|不方便/.test(text)) return;
+            const cands = new Set();
+            if (speaker && speaker !== '旁白' && speaker !== '系统提示' && isMajorName(speaker)) cands.add(speaker);
+            fullRosterProfiles.forEach(p => {
+                if (/裁判长/.test(p.name)) return;
+                const parts = p.name.replace(/\s*[（(][^)）]*[)）]\s*/g, '').split(/\s+/).filter(x => x.length >= 2);
+                if (parts.some(x => text.includes(x))) cands.add(p.name);
+            });
+            cands.forEach(n => {
+                if (playerName && sameChar(n, playerName)) return;
+                addContact(n, '', false);
+            });
+        }
+
         // 整理 AI 输出：超强兼容版，绝不误吞字
         function normalizeAILines(reply, playerName) {
             const MAX_LEN = 60;
@@ -4690,18 +4807,18 @@ ${userActionText || '（玩家静静等待对方说话）'}
             for (let line of rawLines) {
                 if (line.startsWith('好的') || line.startsWith('以下是') || line.startsWith('```')) continue;
 
-                // 1. 好感变动：[好感 御剑 +5]
-                const affMatch = line.match(/\[好感\s*([^\s+-\]]+)\s*([+-]\d+)\]/);
-                if (affMatch) {
-                    const charName = affMatch[1].trim();
-                    const delta = parseInt(affMatch[2], 10);
-                    const targetKey = Object.keys(gameState.affinities).find(k => k.includes(charName) || charName.includes(k));
-                    if (targetKey) {
-                        gameState.affinities[targetKey].score = Math.max(0, Math.min(100, gameState.affinities[targetKey].score + delta));
-                        renderAffinityList();
-                    }
-                    continue;
-                }
+                // 0. 通讯录：[通讯录: 御剑 | 身份]（可夹在台词里，可一行多个）
+                line = line.replace(/\[(?:通讯录|联系方式|加联系人)\s*[:：]\s*([^|｜\]]+?)\s*(?:[|｜]\s*([^\]]*))?\]/g, (_, n, d) => {
+                    addContact(n.trim(), (d || '').trim(), true);
+                    return '';
+                }).trim();
+
+                // 1. 好感变动：[好感 御剑 +5]（兼容冒号、全角加减号、百分号、夹在台词里）
+                line = line.replace(/\[好感度?\s*[:：]?\s*([^\]+＋\-－]+?)\s*[:：]?\s*([+＋\-－])\s*(\d+)\s*%?\s*\]/g, (_, n, sign, num) => {
+                    applyAffinity(n.trim(), (/[-－]/.test(sign) ? -1 : 1) * parseInt(num, 10));
+                    return '';
+                }).trim();
+                if (!line) continue;
 
                 // 2. 场景转移：显式指令 [场景: 地点名] (自动联动换BGM)
                 const sceneMatch = line.match(/\[场景[:：]\s*([^\]]+)\]/);
@@ -4761,27 +4878,10 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
                         renderRecordAll();
 
-                        // 核心角色白名单：主角团、主要检察官与核心配角，结识后可录入手机与开启好感
-                        const MAJOR_ROSTER = [
-                            "成步堂", "龙一", "御剑", "真宵", "千寻", "春美", "系锯", "茜", "冥", 
-                            "牙琉响也", "响也", "牙琉雾人", "雾人", "王泥喜", "美贯", "心音", 
-                            "矢张", "神乃木", "歌德", "信乐", "美云", "狼士龙", "弓彦"
-                        ];
-
-                        const isMajorCharacter = MAJOR_ROSTER.some(k => pName.includes(k));
+                        // 主要角色且存活：录入手机并开启好感
                         const isDead = /被害|死者|尸体|遇害|遗体/.test(pName + pDesc);
-
-                        // 只有主要角色且存活才录入通讯录并激活羁绊
-                        if (isMajorCharacter && !isDead) {
-                            if (!gameState.phoneContacts.includes(pName)) {
-                                gameState.phoneContacts.push(pName);
-                                renderPhoneList();
-                            }
-                            const hasAffinity = Object.keys(gameState.affinities).some(k => k.includes(pName) || pName.includes(k));
-                            if (!hasAffinity) {
-                                gameState.affinities[pName] = { score: 10, avatar: iconUrl };
-                                renderAffinityList();
-                            }
+                        if (isMajorName(pName) && !isDead) {
+                            addContact(pName, pDesc, false);
                         }
                     }
                     continue;
@@ -4803,6 +4903,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 }
 
                 if (playerName && speaker === playerName.trim()) continue;
+                maybeAutoContact(speaker, content, playerName);
 
 
                 const sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
@@ -5096,28 +5197,40 @@ ${userActionText || '（玩家静静等待对方说话）'}
         function resetToDailyMode() {
             gameState.mode = "daily";
             gameState.hiddenCase = null;
-            
+
             const role = gameState.profile.role;
             const cfg = careerConfigs[role];
+
+            // 先记下案件期间结识的主要角色（联系人 + 好感度 + 档案），重置时保留
+            const oldAff = gameState.affinities || {};
+            const keptContacts = (gameState.phoneContacts || []).filter(n =>
+                isMajorName(n) && !cfg.phoneContacts.some(c => sameChar(c, n)));
+            const keptProfiles = (gameState.profiles || []).filter(p =>
+                keptContacts.some(n => sameChar(n, p.name)));
 
             // 1. 证物重置回当前职业的初始专属物（清空凶案证据）
             gameState.evidence = JSON.parse(JSON.stringify(cfg.evidence));
 
-            // 2. 人物档案剔除案件中的 NPC，只精确保留当前时空搭档，绝不把玩家自己写进人物档案
+            // 2. 人物档案：本线搭档 + 已结识的联系人，剔除案件 NPC
             const coreProfiles = fullRosterProfiles.filter(p => cfg.phoneContacts.includes(p.name));
             gameState.profiles = [...coreProfiles];
+            keptProfiles.forEach(p => {
+                if (!gameState.profiles.some(q => sameChar(q.name, p.name))) gameState.profiles.push(p);
+            });
 
-            // 3. 通讯录与好感度清空案发 NPC，恢复为本线搭档
-            gameState.phoneContacts = JSON.parse(JSON.stringify(cfg.phoneContacts));
+            // 3. 通讯录：本线搭档 + 已结识的联系人；好感度保留原有分数
+            gameState.phoneContacts = [...JSON.parse(JSON.stringify(cfg.phoneContacts)), ...keptContacts];
             const baseAffinities = JSON.parse(JSON.stringify(cfg.affinities));
-            for (let k in gameState.affinities) {
-                if (!cfg.phoneContacts.some(c => k.includes(c))) {
-                    delete gameState.affinities[k];
-                }
+            const newAff = {};
+            for (const k in baseAffinities) {
+                const old = Object.keys(oldAff).find(o => sameChar(o, k));
+                newAff[k] = old ? oldAff[old] : baseAffinities[k];
             }
-            for (let k in baseAffinities) {
-                if (!gameState.affinities[k]) gameState.affinities[k] = baseAffinities[k];
-            }
+            keptContacts.forEach(n => {
+                const old = Object.keys(oldAff).find(o => sameChar(o, n));
+                if (old) newAff[old] = oldAff[old];
+            });
+            gameState.affinities = newAff;
 
             updateStatusBar();
             closeModal('settings-modal');
@@ -5264,7 +5377,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
             if (gameState.phoneContacts && gameState.profiles) {
                 gameState.phoneContacts = gameState.phoneContacts.filter(name => {
                     const p = gameState.profiles.find(item => item.name === name);
-                    if (p && /被害|死者|尸体|遇害|遗体/.test(p.name + (p.desc || ''))) return false;
+                    if (p && !isMajorName(name) && /被害|死者|尸体|遇害|遗体/.test(p.name + (p.desc || ''))) return false;
                     return true;
                 });
             }
@@ -5288,6 +5401,16 @@ ${userActionText || '（玩家静静等待对方说话）'}
             renderPhoneMessages();
         }
 
+        // 联系人头像：优先好感度列表，其次人物档案，再次角色名册
+        function getContactAvatar(name) {
+            const ak = Object.keys(gameState.affinities || {}).find(k => sameChar(k, name));
+            if (ak && gameState.affinities[ak].avatar) return gameState.affinities[ak].avatar;
+            const p = (gameState.profiles || []).find(p => sameChar(p.name, name));
+            if (p && p.icon) return p.icon;
+            const rp = findRosterProfile(name);
+            return rp ? rp.icon : matchProfileIcon(name);
+        }
+
         function renderPhoneMessages() {
             const container = document.getElementById('phone-msg-container');
             if (!container) return;
@@ -5297,14 +5420,22 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 container.innerHTML = `<div style="color:#6582a8;font-size:12px;text-align:center;margin-top:60px;">与【${currentPhoneContact}】的短信记录为空</div>`;
                 return;
             }
+            const avatarUrl = getContactAvatar(currentPhoneContact);
             msgs.forEach(m => {
-                const bubble = document.createElement('div');
                 const isMe = (m.sender === 'me');
-                bubble.style.cssText = isMe
-                    ? "align-self: flex-end; background: #1976d2; color: #fff; padding: 6px 12px; border-radius: 12px 12px 2px 12px; font-size: 12px; max-width: 80%; line-height: 1.4; word-break: break-all;"
-                    : "align-self: flex-start; background: #23436d; color: #e2ecf8; padding: 6px 12px; border-radius: 12px 12px 12px 2px; font-size: 12px; max-width: 80%; line-height: 1.4; word-break: break-all;";
+                const row = document.createElement('div');
+                row.className = 'sms-row ' + (isMe ? 'me' : 'them');
+                if (!isMe) {
+                    const img = document.createElement('img');
+                    img.className = 'sms-avatar';
+                    img.src = avatarUrl;
+                    row.appendChild(img);
+                }
+                const bubble = document.createElement('div');
+                bubble.className = 'sms-bubble';
                 bubble.innerText = m.text;
-                container.appendChild(bubble);
+                row.appendChild(bubble);
+                container.appendChild(row);
             });
             container.scrollTop = container.scrollHeight;
         }
@@ -5317,6 +5448,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
             if (!phoneChatHistories[currentPhoneContact]) phoneChatHistories[currentPhoneContact] = [];
             phoneChatHistories[currentPhoneContact].push({ sender: 'me', text: val });
+            autoSaveGame();
             renderPhoneMessages();
 
             historyLog.push({ id: Date.now(), speaker: gameState.profile.name, content: `[发送给${currentPhoneContact}的短信] ${val}`, raw: `[短信] ${gameState.profile.name}: ${val}` });
@@ -5357,6 +5489,7 @@ ${contactHistory}
                 const data = await res.json();
                 const replyText = (data.choices[0].message.content || '').trim();
                 phoneChatHistories[currentPhoneContact].push({ sender: currentPhoneContact, text: replyText });
+                autoSaveGame();
                 historyLog.push({ id: Date.now(), speaker: currentPhoneContact, content: `[${currentPhoneContact}的短信回复] ${replyText}`, raw: `[短信] ${currentPhoneContact}: ${replyText}` });
                 renderPhoneMessages();
             } catch (err) {
@@ -5464,7 +5597,7 @@ ${contactHistory}
 
         // ================= 10. 存读档与数据导出 =================
         function saveToSlot(id) {
-            localStorage.setItem(`ace_save_${id}`, JSON.stringify({ time: new Date().toLocaleString(), data: gameState, history: historyLog }));
+            localStorage.setItem(`ace_save_${id}`, JSON.stringify({ time: new Date().toLocaleString(), data: gameState, history: historyLog, phone: phoneChatHistories }));
             updateSaveLabels();
             alert(`已成功保存至 存档位 ${id}！`);
         }
@@ -5474,6 +5607,8 @@ ${contactHistory}
             const parsed = JSON.parse(s);
             gameState = parsed.data;
             historyLog = parsed.history || [];
+            phoneChatHistories = parsed.phone || {};
+            currentPhoneContact = "";
             closeModal('settings-modal');
             navigateTo('view-game');
             changeLocation(gameState.currentLocation);
@@ -5496,7 +5631,7 @@ ${contactHistory}
         updateSaveLabels();
 
         function exportSaveFile() {
-            const blob = new Blob([JSON.stringify({ data: gameState, history: historyLog }, null, 2)], { type: "application/json" });
+            const blob = new Blob([JSON.stringify({ data: gameState, history: historyLog, phone: phoneChatHistories }, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -5513,6 +5648,8 @@ ${contactHistory}
                     const parsed = JSON.parse(evt.target.result);
                     gameState = parsed.data || parsed;
                     historyLog = parsed.history || [];
+                    phoneChatHistories = parsed.phone || {};
+                    currentPhoneContact = "";
                     closeModal('settings-modal');
                     navigateTo('view-game');
                     changeLocation(gameState.currentLocation);
@@ -5529,13 +5666,18 @@ ${contactHistory}
         function autoSaveGame() {
             // 只有在已经建立好档案进入游戏时，才进行自动保存
             if (gameState && gameState.profile && gameState.profile.name) {
-                localStorage.setItem('ace_autosave', JSON.stringify({
-                    time: new Date().toLocaleString(),
-                    data: gameState,
-                    history: historyLog,
-                    queue: dialogueQueue,
-                    queueIndex: currentQueueIndex
-                }));
+                try {
+                    localStorage.setItem('ace_autosave', JSON.stringify({
+                        time: new Date().toLocaleString(),
+                        data: gameState,
+                        history: historyLog,
+                        phone: phoneChatHistories,
+                        queue: dialogueQueue,
+                        queueIndex: currentQueueIndex
+                    }));
+                } catch (e) {
+                    console.warn('自动存档失败（可能是浏览器存储空间已满，头像图片过大时常见）', e);
+                }
             }
         }
 
@@ -5545,6 +5687,8 @@ ${contactHistory}
             const parsed = JSON.parse(s);
             gameState = parsed.data;
             historyLog = parsed.history || [];
+            phoneChatHistories = parsed.phone || {};
+            currentPhoneContact = "";
             dialogueQueue = parsed.queue || [];
             currentQueueIndex = parsed.queueIndex || 0;
 
@@ -5589,6 +5733,14 @@ ${contactHistory}
                     autoSaveGame();
                 }
             }, 5000);
+        });
+
+        // 切到后台、锁屏、关闭或刷新页面时立刻存一次，避免 5 秒间隔里的进度丢失
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && document.getElementById('view-game').classList.contains('active')) autoSaveGame();
+        });
+        window.addEventListener('pagehide', () => {
+            if (document.getElementById('view-game').classList.contains('active')) autoSaveGame();
         });
     </script>
 </body>
