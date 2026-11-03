@@ -2680,16 +2680,6 @@
             const tryNext = () => {
                 if (a._tok !== tok) return;           // 这个播放器已经被别的声音占用了，放弃
                 if (i >= candidates.length) {
-                    if (_voiceWarned[url]) return;
-                    _voiceWarned[url] = true;
-                    console.warn('语音文件加载失败:', url);
-                    const stage = document.getElementById('game-stage');
-                    if (!stage) return;
-                    const tip = document.createElement('div');
-                    tip.textContent = '🔇 语音文件没找到：' + url;
-                    tip.style.cssText = 'position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.8);color:#ffb3b3;border:1px solid #ff7373;padding:6px 12px;border-radius:6px;font-size:12px;max-width:90%;word-break:break-all;pointer-events:none;';
-                    stage.appendChild(tip);
-                    setTimeout(() => tip.remove(), 4500);
                     return;
                 }
                 const u = candidates[i++];
