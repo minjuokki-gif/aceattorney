@@ -637,7 +637,7 @@
                     <div class="bottom-bar">
                         <div class="bottom-bar-left">
                             <button class="bar-speak-btn" id="btn-speak-action" onclick="openSpeakModal()">💬 发言 / 行动 (Enter)</button>
-                            <button class="bar-speak-btn" id="btn-retry-action" style="display: none; background: linear-gradient(180deg, #4b5563, #374151); border-color: #9ca3af; margin-left: 8px;" onclick="retryLastTurn()">🔄 重新生成 (重试)</button>
+                            <button class="bar-speak-btn" id="btn-retry-action" style="display: none; background: linear-gradient(180deg, #4b5563, #374151); border-color: #9ca3af; margin-left: 8px;" onclick="openRetryModal()">🔄 重新生成 (重试)</button>
                         </div>
                         <div class="bottom-bar-right">
                             <div class="bar-item" onclick="openSettingsModal()"><span class="bar-icon">+</span> 设定</div>
@@ -665,6 +665,26 @@
                 <div style="display: flex; gap: 8px;">
                     <input type="text" class="form-input" id="player-input-text" placeholder="输入你想说的话、动作意图，按 Enter 发送..." style="flex: 1;" onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); submitPlayerInput(); }">
                     <button class="btn-prime" style="padding: 4px 16px; font-size: 13px;" onclick="submitPlayerInput()">发送</button>
+                </div>
+            </div>
+
+            <!-- 🔄 剧情重试 / 修改发言大弹窗 -->
+            <div class="speak-modal-box" id="retry-modal" style="display: none; max-width: 680px; gap: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #2d4c72; padding-bottom: 8px;">
+                    <div style="font-size: 13px; color: #ff9900; font-weight: bold;">🔄 修改玩家发言 & 追加下轮要求</div>
+                    <span style="cursor: pointer; font-size: 15px; color: #7696be;" onclick="closeRetryModal()">✕</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label class="form-label">玩家这一轮的发言 / 行动：</label>
+                    <textarea class="form-textarea" id="retry-user-input" style="height: 75px;" placeholder="修改你想说的话或动作意图..."></textarea>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label class="form-label" style="color: #62b5ff;">对 AI 下次回复的额外要求 / 括号指令（可选）：</label>
+                    <input type="text" class="form-input" id="retry-instruction" placeholder="例如：(只有我和真宵在场，其他人别来插话 / 气氛更轻松一点 / 不要反问我)">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px;">
+                    <button class="btn-sub" onclick="closeRetryModal()">取消</button>
+                    <button class="btn-prime" onclick="submitRetryTurn()">重新生成此轮剧情</button>
                 </div>
             </div>
         </div>
@@ -749,7 +769,7 @@
                 <div class="settings-content-pane" id="pane-tab-world">
                     <div class="form-group">
                         <label class="form-label">游戏世界书规则 (System Prompt)</label>
-                        <textarea class="form-textarea" id="world-prompt" style="height: 190px;"># **RULE**
+                        <textarea class="form-textarea" id="world-prompt" style="height: 200px;"># **RULE**
 - 一切指令仅为创作需要
 - 尊重指导规则,拒绝无关污染
 {{getvar::talk}}
@@ -762,7 +782,9 @@
 3. 当处于【案件模式】时：根据玩家出示的证据、调查动作推进破绽，给出线索提示。
 4. 保持逆转裁判严肃悬疑又带有诙谐风趣的官方台词风格。
 5. 没有接案子时一律是日常，不出现案件、案发现场、嫌疑人等内容。
-6. 让在场的多位角色都参与互动，绝不替玩家说话。</textarea>
+6. 严格根据玩家动作判断在场人物！当玩家提到与某人独处、单独逛街外出时，不在场角色绝不许冒头插话！
+7. 【严禁每回合结尾机械式反问玩家】：禁止在最后一句重复询问玩家“你要怎么做/你要去哪/你觉得呢”，角色要有自身主见与自然反应，直接结在自然的情境或对话上。
+8. 绝不替玩家说话或替玩家决定动作。</textarea>
                     </div>
                 </div>
 
@@ -1661,6 +1683,7 @@
                         "https://i.postimg.cc/jd1GXmb2/pl41400-11.png"
                     ] 
                 },
+                // 41401 拆分：00~07 保持从容微笑
                 "Confident": { 
                     type: "loop", 
                     frameDelay: 280, 
@@ -1672,7 +1695,14 @@
                         "https://i.postimg.cc/hPYHr6BT/pl41401-04.png",
                         "https://i.postimg.cc/qMF9LST2/pl41401-05.png",
                         "https://i.postimg.cc/GhfZQVCk/pl41401-06.png",
-                        "https://i.postimg.cc/xTZWRh2v/pl41401-07.png",
+                        "https://i.postimg.cc/xTZWRh2v/pl41401-07.png"
+                    ] 
+                },
+                // 41401 拆分：08~12 显露微怒神情
+                "Angry": { 
+                    type: "loop", 
+                    frameDelay: 260, 
+                    frames: [
                         "https://i.postimg.cc/Fs62Z84g/pl41401-08.png",
                         "https://i.postimg.cc/BQzdgk0B/pl41401-09.png",
                         "https://i.postimg.cc/zXQ9j6rj/pl41401-10.png",
@@ -1680,9 +1710,10 @@
                         "https://i.postimg.cc/CL2WNXgc/pl41401-12.png"
                     ] 
                 },
+                // 41402：播完定格在最后一张
                 "Condescending": { 
-                    type: "loop", 
-                    frameDelay: 320, 
+                    type: "once_hold", 
+                    frameDelays: [160, 160, 160, 0], 
                     frames: [
                         "https://i.postimg.cc/Z5yXDHbr/pl41402-00.png",
                         "https://i.postimg.cc/nhQNw2F4/pl41402-01.png",
@@ -1699,7 +1730,6 @@
                         "https://i.postimg.cc/sgZb0mj0/pl41403-02.png"
                     ] 
                 },
-                // 重点：406(4帧) + 407(2帧) + 407a(1帧) 顺延拼合的 7 帧受创循环链
                 "Damage": { 
                     type: "loop", 
                     frameDelay: 130, 
@@ -1726,6 +1756,7 @@
                         "https://i.postimg.cc/DzkRVGm2/pl41408-06.png"
                     ] 
                 },
+                // 4140a 拆分 1：00~08 低头向上凝视的不善目光
                 "Glaring": { 
                     type: "loop", 
                     frameDelay: 220, 
@@ -1738,7 +1769,14 @@
                         "https://i.postimg.cc/s2dbFW1W/pl4140a-05.png",
                         "https://i.postimg.cc/9f5s39zZ/pl4140a-06.png",
                         "https://i.postimg.cc/6QrgBQGq/pl4140a-07.png",
-                        "https://i.postimg.cc/R07yv0nq/pl4140a-08.png",
+                        "https://i.postimg.cc/R07yv0nq/pl4140a-08.png"
+                    ] 
+                },
+                // 4140a 拆分 2：09~17 额头青筋暴起强忍怒意
+                "Suppressed Rage": { 
+                    type: "loop", 
+                    frameDelay: 200, 
+                    frames: [
                         "https://i.postimg.cc/k5Qz75t6/pl4140a-09.png",
                         "https://i.postimg.cc/QMQwjMW7/pl4140a-10.png",
                         "https://i.postimg.cc/PqW9dq8Z/pl4140a-11.png",
@@ -1747,7 +1785,14 @@
                         "https://i.postimg.cc/fbcpMb0c/pl4140a-14.png",
                         "https://i.postimg.cc/g0VQG06q/pl4140a-15.png",
                         "https://i.postimg.cc/QMQwjMWq/pl4140a-16.png",
-                        "https://i.postimg.cc/1zG2yzNM/pl4140a-17.png",
+                        "https://i.postimg.cc/1zG2yzNM/pl4140a-17.png"
+                    ] 
+                },
+                // 4140a 拆分 3：18~26 居高临下睥睨
+                "Looking Down": { 
+                    type: "loop", 
+                    frameDelay: 220, 
+                    frames: [
                         "https://i.postimg.cc/1zG2yzNJ/pl4140a-18.png",
                         "https://i.postimg.cc/xdvh9db6/pl4140a-19.png",
                         "https://i.postimg.cc/s2Yq32ZH/pl4140a-20.png",
@@ -1770,6 +1815,20 @@
                         "https://i.postimg.cc/B6JybGxd/pl4140b-04.png",
                         "https://i.postimg.cc/RFv8hzck/pl4140b-05.png"
                     ] 
+                },
+                // 新增：4140c 披头散发青筋暴起的狂怒崩溃表情
+                "Explosive Rage": {
+                    type: "loop",
+                    frameDelay: 160,
+                    shake: true,
+                    frames: [
+                        "https://i.postimg.cc/s2tmFgqH/pl4140c-00.png",
+                        "https://i.postimg.cc/8Cq48z9x/pl4140c-01.png",
+                        "https://i.postimg.cc/pdgCNL4w/pl4140c-02.png",
+                        "https://i.postimg.cc/GpZK0mVV/pl4140c-03.png",
+                        "https://i.postimg.cc/0NLngyFL/pl4140c-04.png",
+                        "https://i.postimg.cc/8Cq48zxD/pl4140c-05.png"
+                    ]
                 }
             }
         };
@@ -3261,16 +3320,20 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('思考') || action.includes('琢磨') || action.includes('鉴定')) actionKey = "Thinking";
                 animator.playFromRegistry("茜_正面", actionKey);
             }
-            // 20. 牙琉雾人
+            /// 20. 牙琉雾人
             else if (speaker.includes('雾人')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('推眼镜') || action.includes('眼镜')) actionKey = "Pushing Glasses";
                 else if (action.includes('阴险') || action.includes('冷笑') || action.includes('诡异')) actionKey = "Sinister Smile";
+                else if (action.includes('狂怒') || action.includes('崩溃') || action.includes('披头散发') || action.includes('暴怒')) actionKey = "Explosive Rage";
+                else if (action.includes('青筋') || action.includes('隐忍') || action.includes('强忍')) actionKey = "Suppressed Rage";
+                else if (action.includes('俯视') || action.includes('睥睨') || action.includes('下看')) actionKey = "Looking Down";
+                else if (action.includes('生气') || action.includes('怒') || action.includes('不悦')) actionKey = "Angry";
                 else if (action.includes('自信') || action.includes('微笑') || action.includes('从容')) actionKey = "Confident";
-                else if (action.includes('居高临下') || action.includes('轻蔑') || action.includes('俯视')) actionKey = "Condescending";
+                else if (action.includes('居高临下') || action.includes('轻蔑')) actionKey = "Condescending";
                 else if (action.includes('受创') || action.includes('破防') || action.includes('动摇')) actionKey = "Damage";
-                else if (action.includes('瞪') || action.includes('愤怒') || action.includes('失态') || action.includes('黑化')) actionKey = "Glaring";
+                else if (action.includes('瞪') || action.includes('不善') || action.includes('凝视')) actionKey = "Glaring";
                 else if (action.includes('汗') || action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
                 animator.playFromRegistry("雾人_法庭", actionKey);
             }
@@ -3346,15 +3409,11 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             inp.focus();
         }
 
-        // 核心修复：找回丢失的发言发送函数！回车与点击发送立即恢复！
         function submitPlayerInput() {
             const inp = document.getElementById('player-input-text');
             const val = inp.value.trim();
             if (!val) return;
-            if (isAILoading) {
-                alert("当前正在生成剧情中，请稍候……");
-                return;
-            }
+            if (isAILoading) return;
 
             const s = localStorage.getItem('ace_api_config');
             if (!s) {
@@ -3366,7 +3425,6 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             closeSpeakModal();
             inp.value = '';
 
-            // 玩家输入带有 [拍桌] 或 [指认] 时，随机扎入气泡（异议/看招/等等 三选一）
             if (val.includes('[拍桌]') || val.includes('[指认]')) {
                 const shout = getRandomShoutType();
                 triggerShoutBubble(shout, "mia");
@@ -3375,19 +3433,44 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             triggerAIStep(val);
         }
 
-        // 重新生成上一轮：撤销上一轮台词、回放记录和指令副作用，然后重新请求 AI
-        function retryLastTurn() {
+        function openRetryModal() {
             if (isAILoading) return;
+            const modal = document.getElementById('retry-modal');
+            document.getElementById('retry-user-input').value = lastUserActionText || '';
+            document.getElementById('retry-instruction').value = '';
+            modal.style.display = 'flex';
+            setTimeout(() => document.getElementById('retry-user-input').focus(), 100);
+        }
+
+        function closeRetryModal() {
+            document.getElementById('retry-modal').style.display = 'none';
+        }
+
+        function submitRetryTurn() {
+            if (isAILoading) return;
+            const updatedUserText = document.getElementById('retry-user-input').value.trim();
+            const extraInstruction = document.getElementById('retry-instruction').value.trim();
+            closeRetryModal();
+
             if (lastTurnState === 'ok') {
                 dialogueQueue.splice(lastTurnStart, lastTurnLineCount);
                 const idx = historyLog.findIndex(h => h.id === lastTurnLogId);
                 if (idx >= 0) historyLog.splice(idx, 1);
                 restoreGameState(lastTurnSnapshot);
-                currentQueueIndex = lastTurnStart - 1;   // 新台词会插回原来的位置
-            } else if (lastTurnState !== 'failed') {
-                return;
+                currentQueueIndex = lastTurnStart - 1;
             }
-            triggerAIStep(lastUserActionText);
+
+            let finalPromptText = updatedUserText;
+            if (extraInstruction) {
+                finalPromptText += ` [要求: ${extraInstruction}]`;
+            }
+
+            lastUserActionText = updatedUserText;
+            triggerAIStep(finalPromptText);
+        }
+
+        function retryLastTurn() {
+            openRetryModal();
         }
 
         async function triggerAIStep(userActionText = "") {
@@ -3395,13 +3478,16 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             if (!s) return;
             const config = JSON.parse(s);
 
-            const respondent = gameState.phoneContacts[0] || "御剑 怜侍";
             const playerName = gameState.profile.name;
 
-            lastUserActionText = userActionText;
-            const turnSnapshot = JSON.stringify(gameState);   // 重试时用来回滚好感/证物/场景等副作用
+            // 智能判定回复提示名称，不再无脑写成步堂
+            let matchedChar = Object.keys(gameState.affinities).find(name => userActionText.includes(name.slice(0, 2)));
+            let currentSpeaker = document.getElementById('speaker-name').innerText;
+            const respondent = matchedChar ? matchedChar.split(' ')[0] : (currentSpeaker && currentSpeaker !== '系统提示' && currentSpeaker !== playerName ? currentSpeaker : '角色');
 
-            // 🔒 进入锁定状态：对话框里直接显示玩家刚才说的话
+            lastUserActionText = userActionText;
+            const turnSnapshot = JSON.stringify(gameState);
+
             isAILoading = true;
             lastTurnState = 'none';
             document.getElementById('click-arrow').style.display = 'none';
@@ -3423,29 +3509,23 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 2. 称谓铁律：
    - 默认一律称呼【姓氏】（如：成步堂、御剑、系锯、宝月）。
    - 仅在同姓氏冲突时称呼全名或名字：
-     * 绫里家必须写「真宵」、「千寻」、「春美」（或绫里真宵、绫里千寻等）；
-     * 狩魔家必须写「狩魔冥」（禁止只写狩魔）；
-     * 牙琉家必须写「牙琉响也」、「牙琉雾人」（或响也、雾人）。
-3. 严禁替玩家「${playerName}」说话、做决定，也不要描写他的内心想法；结尾停在需要玩家回应的地方。
-4. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
-5. 自动系统指令（根据剧情发生时，在行尾或独立成行输出，系统将自动识别执行）：
+     * 绫里家必须写「真宵」、「千寻」、「春美」；
+     * 狩魔家必须写「狩魔冥」；
+     * 牙琉家必须写「牙琉响也」、「牙琉雾人」。
+3. 严格遵循在场人物约束（绝不乱入）：
+   - 必须仔细观察玩家的动作和台词！如果玩家表明是与某人独处/单独外出（如“我和真宵在逛街”），其他事务所/局里人员（如成步堂、千寻）绝不允许在现场说话！
+   - 只允许真实在场的人物发言或互动。
+4. 【禁止每轮结尾机械式反问玩家】：
+   - 严禁在最后一句总是反问“你要干嘛？”“我们接下来去哪？”“你觉得呢？”！
+   - 对话自然结在角色的动作、感慨、吐槽或情境收尾上，角色要有自己的行动倾向，不要事事请示玩家。
+5. 严禁替玩家「${playerName}」说话、做决定，也不要描写其内心想法。
+6. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
+7. 自动系统指令：
    - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]
-   - 场景转移：[场景: 地点名]（如 [场景: 拉面店]、[场景: 拘留所·看守所会见室]）
-     * 【场景铁律】：必须且仅当主角一行人【真实动身并到达新地点】时输出！
-     * 严禁情况：口头讨论某个地点、回忆过去、推测凶案发生地、或电话提及某人在某处时，绝对严禁输出场景指令！
+   - 场景转移：[场景: 地点名]（必须且仅当主角一行人真实动身到达新地点时才输出）
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
    - 新人物登记：[人物: 人物姓名 | 身份背景描述]
-6. 动作姿态写在括号内：
-   - 成步堂：思考、汗、震惊、傻笑、自信、拍桌、指认、异议、端咖啡、喝咖啡、点头、摇头、弯腰、泼咖啡
-   - 御剑：生气、思考、困惑、侧头、烦躁（法庭：拍桌、指认、自信、抱胸）
-   - 真宵：开心、点头、抱头、担心、生气、自信、坚定、思考、消沉、伤心、含泪、震惊
-   - 春美：乖巧、哭、坚定、吃惊、思考、陶醉、开心、失落、震惊
-   - 狩魔冥：闭眼、轻蔑、自信、抱胸、挥鞭、准备、流汗、行礼、破防、恢复、思考、指认、居高临下、哭、生气
-   - 牙琉响也：轻蔑、笑、思考、无语、破防、指认、流汗、敲墙、严肃、摆pose
-   - 牙琉雾人：推眼镜、阴险、自信、居高临下、受创、瞪、流汗
-   - 系锯：笑、大笑、思考、抓头、坚定、自信、生气、失落、侧头
-   - 宝月茜：江米棒、生气、侧头、自信、吃惊、开心、墨镜、思考
-7. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
+8. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
 
             const recent = getHistoryContext(5);
 
@@ -3676,20 +3756,22 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 card.className = 'log-item-card';
 
                 if (item.aiText !== undefined) {
-                    // 新格式：一整轮一张卡片
                     let userHtml = '';
                     if (item.userText) {
                         userHtml = `
-                        <div style="background: #17385c; padding: 6px 12px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid #ff9900;">
-                            <span style="color: #ff9900; font-weight: bold; font-size: 12px;">👤 ${escapeHtml(item.playerName || '你')}: </span>
-                            <span style="color: #ffffff; font-size: 13px;">${escapeHtml(item.userText)}</span>
+                        <div style="background: #17385c; padding: 6px 12px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid #ff9900; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="color: #ff9900; font-weight: bold; font-size: 12px;">👤 ${escapeHtml(item.playerName || '你')}: </span>
+                                <span style="color: #ffffff; font-size: 13px;" id="log-user-text-${index}">${escapeHtml(item.userText)}</span>
+                            </div>
+                            <button class="log-btn-tiny" onclick="editLogUser(${index})">✏️ 改我说的话</button>
                         </div>`;
                     }
                     card.innerHTML = `
                         <div class="log-meta-bar">
                             <span class="log-speaker-badge">第 ${index + 1} 幕剧情</span>
                             <div class="log-btn-group">
-                                <button class="log-btn-tiny" onclick="editLogTurn(${index})">✏️ 编辑</button>
+                                <button class="log-btn-tiny" onclick="editLogTurn(${index})">✏️ 改AI台词</button>
                                 <button class="log-btn-tiny log-btn-del" onclick="deleteLogTurn(${index})">🗑️ 删除整轮</button>
                             </div>
                         </div>
@@ -3697,7 +3779,6 @@ ${userActionText || '（玩家静静等待对方说话）'}
                         <div class="log-item-text" id="log-text-${index}" style="line-height: 1.6; white-space: pre-wrap; color: #d1e2f7;">${escapeHtml(item.aiText)}</div>
                     `;
                 } else {
-                    // 旧格式（逐句记录 / 短信记录）：保持原样
                     card.innerHTML = `
                         <div class="log-meta-bar">
                             <span class="log-speaker-badge">${escapeHtml(item.speaker)}</span>
@@ -3711,6 +3792,15 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 }
                 container.appendChild(card);
             });
+        }
+
+        function editLogUser(index) {
+            const item = historyLog[index];
+            const newText = prompt("修改你在此幕所说的发言 / 行动：", item.userText);
+            if (newText !== null && newText.trim() !== "") {
+                item.userText = newText.trim();
+                renderHistoryLog();
+            }
         }
 
         function editLogTurn(index) {
