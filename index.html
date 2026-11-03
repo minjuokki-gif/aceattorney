@@ -2193,70 +2193,10 @@
 
         // ================= 💥 尖刺大字气泡触发器 (扎入中心+全屏震动) =================
         const SHOUT_BUBBLE_URLS = {
-            "objection": "https://i.postimg.cc/xT0gV7W3/etc100a-Objection.png", // 异议あり！(红色尖刺大字)
-            "hold_it": "https://i.postimg.cc/85bN3x2V/etc100b-Hold-it.png",     // 待った！(绿色/蓝色尖刺大字)
+            "objection": "https://i.postimg.cc/kXmGQKz6/etc100a(j)-(Objection-).png", // 异议あり！(红色尖刺大字)
+            "hold_it": "https://i.postimg.cc/02sjYDFC/etc100b(j)-(Hold-it-).png",     // 待った！(绿色/蓝色尖刺大字)
             "take_that": "https://i.postimg.cc/9Fh0dZKb/etc1012(st)-(Take-that-).png"  // くらえ！(看招)
         };
-
-        // 气泡触发器：先扎入气泡与人声，再联动执行拍桌动作
-        function triggerShoutBubble(type, voiceRole = "", onSlamCallback = null) {
-            const overlay = document.getElementById('shout-bubble-overlay');
-            const img = document.getElementById('shout-bubble-img');
-            const url = SHOUT_BUBBLE_URLS[type];
-            if (!overlay || !img) return;
-
-            // 兜底保障：若外部图床偶尔加载失败，自动换为纯矢量逆转尖刺红/绿字，确保绝对不白板
-            img.onerror = function() {
-                const colors = { objection: '#d32f2f', hold_it: '#1b5e20', take_that: '#c2185b' };
-                const texts = { objection: 'OBJECTION!', hold_it: 'HOLD IT!', take_that: 'TAKE THAT!' };
-                const c = colors[type] || '#d32f2f';
-                const t = texts[type] || 'OBJECTION!';
-                this.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180"><polygon points="210,5 245,50 320,20 320,65 395,60 360,100 405,140 340,145 330,175 260,150 210,175 170,145 100,170 95,135 25,130 65,90 30,50 105,55 100,15 170,45" fill="${c}" stroke="%23ffffff" stroke-width="6"/><text x="210" y="112" font-family="sans-serif" font-weight="900" font-size="52" fill="%23ffffff" stroke="%23000000" stroke-width="4" text-anchor="middle" paint-order="stroke fill" font-style="italic">${t}</text></svg>`;
-            };
-
-            img.src = url || "";
-            overlay.classList.remove('active');
-            void overlay.offsetWidth;
-            overlay.classList.add('active');
-
-            // 扎入屏幕的一瞬间播放人声语音
-            let roleKey = '成步堂';
-            if (voiceRole === gameState.profile.name || voiceRole === 'user') {
-                roleKey = 'user';
-            } else if (voiceRole.includes('御剑')) {
-                roleKey = '御剑';
-            } else if (voiceRole.includes('千寻')) {
-                roleKey = '千寻';
-            } else if (voiceRole.includes('冥')) {
-                roleKey = '冥';
-            } else if (voiceRole.includes('王泥喜')) {
-                roleKey = '王泥喜';
-            } else if (voiceRole.includes('响也')) {
-                roleKey = '响也';
-            } else if (voiceRole.includes('雾人')) {
-                roleKey = '雾人';
-            } else if (voiceRole.includes('歌德') || voiceRole.includes('神乃木')) {
-                roleKey = '歌德';
-            } else if (voiceRole.includes('亚内')) {
-                roleKey = '亚内';
-            }
-            const voiceUrl = SHOUT_VOICE_MAP[roleKey] && SHOUT_VOICE_MAP[roleKey][type];
-            if (voiceUrl) {
-                new Audio(voiceUrl).play().catch(() => {});
-            }
-
-            // 扎入屏幕时全屏猛烈震颤
-            const stage = document.getElementById('game-stage');
-            stage.classList.remove('shake-screen');
-            void stage.offsetWidth;
-            stage.classList.add('shake-screen');
-
-            if (onSlamCallback) {
-                setTimeout(() => { onSlamCallback(); }, 240);
-            }
-
-            setTimeout(() => { overlay.classList.remove('active'); }, 850);
-        }
 
         // 角色专属语音插槽 (成步堂 / 御剑 / 千寻与主角)
         const SHOUT_VOICE_MAP = {
@@ -2309,6 +2249,36 @@
             }
         };
 
+        // 🔊 喊话语音播放：自动做 URL 编码，文件加载失败时在屏幕上提示具体路径（方便排查文件名对不对）
+        const _voiceWarned = {};
+        function playVoiceFile(url) {
+            if (!url) return;
+            const a = new Audio();
+            a.onerror = () => {
+                if (_voiceWarned[url]) return;
+                _voiceWarned[url] = true;
+                console.warn('语音文件加载失败:', url);
+                const stage = document.getElementById('game-stage');
+                if (!stage) return;
+                const tip = document.createElement('div');
+                tip.textContent = '🔇 语音文件没找到：' + url;
+                tip.style.cssText = 'position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.8);color:#ffb3b3;border:1px solid #ff7373;padding:6px 12px;border-radius:6px;font-size:12px;max-width:90%;word-break:break-all;pointer-events:none;';
+                stage.appendChild(tip);
+                setTimeout(() => tip.remove(), 4500);
+            };
+            a.src = encodeURI(decodeURI(url));   // 先解码再编码，避免已编码的链接被二次编码
+            a.play().catch(() => {});
+        }
+
+        // 💥 拍桌：音效 + 全屏震动（不依赖是否在法庭，NPC 喊话/拍桌时用）
+        function playDeskSlam() {
+            playVoiceFile("./audio/se01c (Slamming Desk).flac");
+            const stage = document.getElementById('game-stage');
+            stage.classList.remove('shake-screen');
+            void stage.offsetWidth;
+            stage.classList.add('shake-screen');
+        }
+
         // 随机获取 异议 / 等等 / 看招 三选一
         function getRandomShoutType() {
             const list = ["objection", "hold_it", "take_that"];
@@ -2327,9 +2297,11 @@
             overlay.classList.add('active');
 
             // 扎入屏幕的一瞬间播放人声语音
-            let roleKey = '成步堂';
+            let roleKey = '';
             if (voiceRole === gameState.profile.name || voiceRole === 'user') {
                 roleKey = 'user';
+            } else if (voiceRole.includes('成步堂') || voiceRole === '龙一') {
+                roleKey = '成步堂';
             } else if (voiceRole.includes('御剑')) {
                 roleKey = '御剑';
             } else if (voiceRole.includes('千寻')) {
@@ -2347,9 +2319,9 @@
             } else if (voiceRole.includes('亚内')) {
                 roleKey = '亚内';
             }
-            const voiceUrl = SHOUT_VOICE_MAP[roleKey] && SHOUT_VOICE_MAP[roleKey][type];
+            const voiceUrl = roleKey && SHOUT_VOICE_MAP[roleKey] && SHOUT_VOICE_MAP[roleKey][type];
             if (voiceUrl) {
-                new Audio(voiceUrl).play().catch(() => {});
+                playVoiceFile(voiceUrl);
             }
 
             // 扎入屏幕时全屏猛烈震颤
@@ -3273,25 +3245,40 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 updateMoodBGM(content, action === 'Normal' ? '' : action, currentQueueIndex + '|' + rawLine);
             }
 
-            // 💥 尖刺气泡扎入检测（只有真正喊出台词时才扎气泡，纯拍桌绝不乱喊）
+            // 💥 尖刺气泡扎入检测（NPC 也会喊：动作标签 或 台词里带感叹号的关键词都算）
             let willShout = false;
             let shoutType = "objection";
+            const isNarration = (speaker === '旁白' || speaker.includes('系统'));
+            const inFightScene = isCourtScene || gameState.mode === 'case';   // 日常闲聊里的"等等！"不触发大气泡
 
-            if (action.includes('异议') || content.includes('异议あり') || content.includes('反对！') || content.includes('我有异议')) {
+            if (action.includes('异议') || content.includes('异议あり') || content.includes('我有异议') ||
+                (!isNarration && /(异议|反对|異議)\s*[!！]/.test(content))) {
                 willShout = true;
                 shoutType = "objection";
                 playBGM('objection');
-            } else if (action.includes('等等') || content.includes('待った') || content.includes('等一下！')) {
+            } else if (action.includes('等等') || content.includes('待った') ||
+                (!isNarration && inFightScene && /(等等|等一下|等一等|且慢)\s*[!！]/.test(content))) {
                 willShout = true;
                 shoutType = "hold_it";
-            } else if (action.includes('看招') || content.includes('くらえ') || content.includes('看招！')) {
+            } else if (action.includes('看招') || content.includes('くらえ') ||
+                (!isNarration && inFightScene && /(看招|接招|吃我这招)/.test(content))) {
                 willShout = true;
                 shoutType = "take_that";
             }
 
-            // 如果本句台词有喊话：气泡先砸入屏幕！
+            // 喊话时给角色补一个有力的姿态（AI 没写动作的话），并保证拍桌有声音和震动
+            let slamNow = /拍桌/.test(action);
             if (willShout) {
-                triggerShoutBubble(shoutType, speaker);
+                if (!/拍桌|指认|异议|指/.test(action)) {
+                    const pose = (shoutType === 'take_that') ? '指认' : '拍桌';
+                    action = (action === 'Normal' || !action) ? pose : (action + pose);
+                    if (pose === '拍桌') slamNow = true;
+                }
+                // 气泡砸入 240ms 后拍桌；法庭里立绘动画自己会播拍桌音效，这里就不重复了
+                triggerShoutBubble(shoutType, speaker, () => { if (!isCourtScene && slamNow) playDeskSlam(); });
+            } else if (slamNow && !isCourtScene) {
+                // 只有拍桌动作、没喊话：非法庭场景也要有拍桌音效和震屏
+                playDeskSlam();
             }
 
             // ⚖️ 判决超大字检测 (审判长宣布无罪/有罪时，两个大字从天而降砸入正中)
