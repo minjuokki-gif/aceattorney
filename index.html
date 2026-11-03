@@ -2907,29 +2907,86 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             }
         }
 
+        // 4. 登记人物：[人物: 姓名 | 描述]
+                const profMatch = line.match(/\[人物[:：]\s*([^|｜\]]+)[|｜]?\s*([^\]]*)\]/);
+                if (profMatch) {
+                    const pName = profMatch[1].trim();
+                    const pDesc = profMatch[2] ? profMatch[2].trim() : "案情相关人员。";
+                    const existing = gameState.profiles.find(p => p.name === pName);
+                    if (existing) {
+                        // 如果已存在该人，更新其最新案件描述，防止丢失信息
+                        existing.desc = pDesc;
+                    } else {
+                        // 新人物直接稳稳加入法庭档案
+                        const iconUrl = matchProfileIcon(pName);
+                        gameState.profiles.push({
+                            name: pName,
+                            desc: pDesc,// 外部场景智能配乐选择器：根据场景氛围精准挑歌
+        function autoSelectBGMForScene(locName) {
+            // 1. 特殊专属核心地点
+            if (locName.includes('拘留所') || locName.includes('看守所') || locName.includes('牢房')) {
+                return 'detention'; // 哀伤看守所
+            }
+            if (locName.includes('仓院')) {
+                return 'maya'; // 仓院灵媒日常
+            }
+            if (locName.includes('叶樱院')) {
+                return 'bridge'; // 叶樱院与黄昏之桥 (Bridge to the Turnabout)
+            }
+            if (locName.includes('警察署') || locName.includes('刑事课') || locName.includes('检察厅')) {
+                return 'gumshoe'; // 刑警搜查曲
+            }
+
+            // 2. 餐厅、咖啡厅、休闲餐饮场所
+            if (locName.includes('咖啡') || locName.includes('吐丽美庵') || locName.includes('波鲁哈吉')) {
+                return 'godot'; // 咖啡醇香爵士曲 (Godot)
+            }
+            if (locName.includes('餐厅') || locName.includes('拉面') || locName.includes('食堂')) {
+                return 'simple_folk'; // 轻松市井风
+            }
+
+            // 3. 街头、公园、公共娱乐、大马戏团、摄影所
+            if (locName.includes('公园') || locName.includes('沙滩') || locName.includes('湖')) {
+                return 'heart_invest'; // 搜查深入核心
+            }
+            if (locName.includes('摄影所') || locName.includes('马戏团') || locName.includes('商场') || locName.includes('广场') || locName.includes('阳光竞技场')) {
+                return 'maya'; // 欢快探索调
+            }
+
+            // 4. 案发现场与案件进行中搜查
+            if (gameState.mode === 'case') {
+                return 'investigation'; // 案发现场调查
+            }
+
+            // 5. 默认办公室与温馨居家
+            if (locName.includes('家') || locName.includes('卧') || locName.includes('客厅') || locName.includes('事务所')) {
+                return 'simple_folk'; // 平静日常
+            }
+
+            // 其余外部场景默认放搜查核心
+            return 'heart_invest';
+        }
+
         function changeLocation(locName) {
             if (locName === '案发现场·高菱屋展厅') locName = '高菱屋·展厅';
+            const prevLoc = gameState.currentLocation;
             gameState.currentLocation = locName;
+            
             const bgUrl = locationBgMap[locName] || locationBgMap["成步堂法律事务所"];
             document.getElementById('game-stage').style.backgroundImage = `url('${bgUrl}')`;
             updateStatusBar();
             closeModal('settings-modal');
 
-            // 智能配乐联动：进入不同场景自动无缝切配经典 BGM！
-            if (locName.includes('事务所')) {
-                playBGM('simple_folk');
-            } else if (locName.includes('拘留所') || locName.includes('看守所') || locName.includes('牢房')) {
-                playBGM('detention');
-            } else if (locName.includes('法庭')) {
-                playBGM('court_session');
-            } else if (locName.includes('仓院')) {
-                playBGM('maya');
-            } else if (gameState.mode === 'case') {
-                playBGM('investigation'); // 案发现场搜查
-            } else {
-                playBGM('simple_folk');
+            // 外部场景切换逻辑：如果不在法庭内部，且地点发生变化，立刻换对应新BGM！
+            if (!locName.includes('法庭')) {
+                const targetBGM = autoSelectBGMForScene(locName);
+                playBGM(targetBGM);
             }
         }
+                            icon: iconUrl
+                        });
+                    }
+                    renderRecordAll();
 
         // ================= 5. 台词队列与大立绘登场调度 =================
         let dialogueQueue = [];
@@ -3685,7 +3742,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 6. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
 7. 自动系统指令：
    - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]
-   - 场景转移：[场景: 地点名]（必须且仅当主角一行人真实动身到达新地点时才输出）
+   - 场景转移：[场景: 地点名]（必须且仅当主角动身到达新地点时输出，系统会自动切换该场景专属BGM）
+   - 氛围变奏（可选）：若情节突然紧张或揭露真相，可在行尾输出 [BGM: suspense] (危机)、[BGM: truth] (揭示真实)、[BGM: pursuit] (逆转反攻) 或 [BGM: simple_folk] (缓和轻松)
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
    - 新人物登记：[人物: 人物姓名 | 身份背景描述]
 8. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
@@ -3813,12 +3871,24 @@ ${userActionText || '（玩家静静等待对方说话）'}
                     continue;
                 }
 
-                // 2. 场景转移：显式指令 [场景: 地点名]
+                // 2. 场景转移：显式指令 [场景: 地点名] (自动联动换BGM)
                 const sceneMatch = line.match(/\[场景[:：]\s*([^\]]+)\]/);
                 if (sceneMatch) {
                     const scName = sceneMatch[1].trim();
                     const matchedLoc = Object.keys(locationBgMap).find(l => l.includes(scName) || scName.includes(l));
-                    if (matchedLoc) changeLocation(matchedLoc);
+                    if (matchedLoc) {
+                        changeLocation(matchedLoc);
+                    }
+                    continue;
+                }
+
+                // 新增：支持 AI 或剧情根据氛围主动指定切曲 [BGM: 曲目代号]
+                const bgmMatch = line.match(/\[BGM[:：]\s*([^\]]+)\]/);
+                if (bgmMatch) {
+                    const bgmName = bgmMatch[1].trim().toLowerCase();
+                    if (BGM_TRACKS[bgmName]) {
+                        playBGM(bgmName);
+                    }
                     continue;
                 }
 
