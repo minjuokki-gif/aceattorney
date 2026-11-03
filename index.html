@@ -3551,7 +3551,11 @@ ${JSON.stringify(gameState.hiddenCase)}`;
             const prompt = `当前游戏模式：【${isDaily ? '平淡日常篇' : '案件搜查篇'}】
 当前地点：${gameState.currentLocation}
 玩家角色：${playerName} (${gameState.profile.role})
-同场景角色：${gameState.phoneContacts.join('、')}
+【关于出场人物的铁律约束】
+- 手机通讯录：${gameState.phoneContacts.join('、')}（仅为手机联系人，绝不代表全员都在现场）。
+- 现场允许出场角色：严格依据当前地点与前文情节判断！
+  * 如果在事务所/个人办公室：仅限真正同驻该处的伙伴，外部律师（如牙琉雾人）或检察官未经主动来访情节严禁出现在场景中！
+  * 如果是玩家与某人单独外出（如与真宵逛街）：现场仅限玩家与该名同行角色，其他无关人员严禁插嘴！
 ${isDaily ? '' : '持有证物：' + (gameState.evidence.map(e => e.name).join('、') || '无') + '\n'}
 【此前剧情（供你保持连贯）】
 ${recent || '（刚刚开始）'}
@@ -3559,7 +3563,7 @@ ${recent || '（刚刚开始）'}
 【玩家刚刚的动作或发言】
 ${userActionText || '（玩家静静等待对方说话）'}
 
-请接着写下一段剧情：让在场的多位角色都参与互动，且不要替${playerName}说话。`;
+请接着写下一段剧情：仅让真正处于现场的角色进行自然互动，且不要替${playerName}说话。`;
 
             let failed = false;
             try {
@@ -3677,20 +3681,38 @@ ${userActionText || '（玩家静静等待对方说话）'}
                     const pName = profMatch[1].trim();
                     const pDesc = profMatch[2] ? profMatch[2].trim() : "案情相关人员。";
                     if (!gameState.profiles.some(p => p.name === pName)) {
+                        const iconUrl = matchProfileIcon(pName);
                         gameState.profiles.unshift({
                             name: pName,
                             desc: pDesc,
-                            icon: matchProfileIcon(pName)
+                            icon: iconUrl
                         });
                         recPage = 0;
                         recIndex = 0;
-                        // 修复闹鬼：被害人、死者、尸体绝对禁止加进手机联络人！
-                        const isDead = /被害|死者|尸体|遇害|遗体/.test(pName + pDesc);
-                        if (!isDead && !gameState.phoneContacts.includes(pName)) {
-                            gameState.phoneContacts.push(pName);
-                            renderPhoneList();
-                        }
                         renderRecordAll();
+
+                        // 核心角色白名单：主角团、主要检察官与核心配角，结识后可录入手机与开启好感
+                        const MAJOR_ROSTER = [
+                            "成步堂", "龙一", "御剑", "真宵", "千寻", "春美", "系锯", "茜", "冥", 
+                            "牙琉响也", "响也", "牙琉雾人", "雾人", "王泥喜", "美贯", "心音", 
+                            "矢张", "神乃木", "歌德", "信乐", "美云", "狼士龙", "弓彦"
+                        ];
+
+                        const isMajorCharacter = MAJOR_ROSTER.some(k => pName.includes(k));
+                        const isDead = /被害|死者|尸体|遇害|遗体/.test(pName + pDesc);
+
+                        // 只有主要角色且存活才录入通讯录并激活羁绊
+                        if (isMajorCharacter && !isDead) {
+                            if (!gameState.phoneContacts.includes(pName)) {
+                                gameState.phoneContacts.push(pName);
+                                renderPhoneList();
+                            }
+                            const hasAffinity = Object.keys(gameState.affinities).some(k => k.includes(pName) || pName.includes(k));
+                            if (!hasAffinity) {
+                                gameState.affinities[pName] = { score: 10, avatar: iconUrl };
+                                renderAffinityList();
+                            }
+                        }
                     }
                     continue;
                 }
@@ -3741,6 +3763,8 @@ ${userActionText || '（玩家静静等待对方说话）'}
             return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         }
 
+        let editingLogState = null; // 记录当前原地编辑项：{ index, field: 'user' | 'ai' }
+
         function renderHistoryLog() {
             historyLog = migrateHistoryLog(historyLog);
             const container = document.getElementById('log-list-box');
@@ -3756,60 +3780,98 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 card.className = 'log-item-card';
 
                 if (item.aiText !== undefined) {
+                    const isEditingUser = editingLogState && editingLogState.index === index && editingLogState.field === 'user';
+                    const isEditingAI = editingLogState && editingLogState.index === index && editingLogState.field === 'ai';
+
                     let userHtml = '';
-                    if (item.userText) {
-                        userHtml = `
-                        <div style="background: #17385c; padding: 6px 12px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid #ff9900; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="color: #ff9900; font-weight: bold; font-size: 12px;">👤 ${escapeHtml(item.playerName || '你')}: </span>
-                                <span style="color: #ffffff; font-size: 13px;" id="log-user-text-${index}">${escapeHtml(item.userText)}</span>
-                            </div>
-                            <button class="log-btn-tiny" onclick="editLogUser(${index})">✏️ 改我说的话</button>
-                        </div>`;
+                    if (item.userText || isEditingUser) {
+                        if (isEditingUser) {
+                            userHtml = `
+                            <div style="background: #17385c; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #ff9900;">
+                                <div style="color: #ff9900; font-weight: bold; font-size: 12px; margin-bottom: 6px;">👤 修改你的发言 / 行动：</div>
+                                <textarea id="inline-edit-user-text" class="form-textarea" style="width: 100%; height: 80px; font-size: 13px; line-height: 1.5;">${escapeHtml(item.userText)}</textarea>
+                                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
+                                    <button class="btn-sub" style="padding: 2px 10px; font-size: 11px;" onclick="cancelInlineEdit()">取消</button>
+                                    <button class="btn-prime" style="padding: 2px 12px; font-size: 11px;" onclick="saveInlineEdit(${index}, 'user')">保存修改</button>
+                                </div>
+                            </div>`;
+                        } else {
+                            userHtml = `
+                            <div style="background: #17385c; padding: 6px 12px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid #ff9900; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1; padding-right: 8px;">
+                                    <span style="color: #ff9900; font-weight: bold; font-size: 12px;">👤 ${escapeHtml(item.playerName || '你')}: </span>
+                                    <span style="color: #ffffff; font-size: 13px;">${escapeHtml(item.userText)}</span>
+                                </div>
+                                <button class="log-btn-tiny" onclick="startInlineEdit(${index}, 'user')">✏️ 改我说的话</button>
+                            </div>`;
+                        }
                     }
+
+                    let aiContentHtml = '';
+                    if (isEditingAI) {
+                        aiContentHtml = `
+                        <div style="margin-top: 6px;">
+                            <div style="color: #62b5ff; font-weight: bold; font-size: 12px; margin-bottom: 6px;">🤖 修改此轮所有角色台词：</div>
+                            <textarea id="inline-edit-ai-text" class="form-textarea" style="width: 100%; height: 140px; font-size: 13px; line-height: 1.6;">${escapeHtml(item.aiText)}</textarea>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
+                                <button class="btn-sub" style="padding: 2px 10px; font-size: 11px;" onclick="cancelInlineEdit()">取消</button>
+                                <button class="btn-prime" style="padding: 2px 12px; font-size: 11px;" onclick="saveInlineEdit(${index}, 'ai')">保存修改</button>
+                            </div>
+                        </div>`;
+                    } else {
+                        aiContentHtml = `<div class="log-item-text" style="line-height: 1.6; white-space: pre-wrap; color: #d1e2f7;">${escapeHtml(item.aiText)}</div>`;
+                    }
+
                     card.innerHTML = `
                         <div class="log-meta-bar">
                             <span class="log-speaker-badge">第 ${index + 1} 幕剧情</span>
                             <div class="log-btn-group">
-                                <button class="log-btn-tiny" onclick="editLogTurn(${index})">✏️ 改AI台词</button>
+                                ${!isEditingAI ? `<button class="log-btn-tiny" onclick="startInlineEdit(${index}, 'ai')">✏️ 改AI台词</button>` : ''}
                                 <button class="log-btn-tiny log-btn-del" onclick="deleteLogTurn(${index})">🗑️ 删除整轮</button>
                             </div>
                         </div>
                         ${userHtml}
-                        <div class="log-item-text" id="log-text-${index}" style="line-height: 1.6; white-space: pre-wrap; color: #d1e2f7;">${escapeHtml(item.aiText)}</div>
+                        ${aiContentHtml}
                     `;
                 } else {
                     card.innerHTML = `
                         <div class="log-meta-bar">
                             <span class="log-speaker-badge">${escapeHtml(item.speaker)}</span>
                             <div class="log-btn-group">
-                                <button class="log-btn-tiny" onclick="editLogLine(${index})">✏️ 编辑</button>
                                 <button class="log-btn-tiny log-btn-del" onclick="deleteLogLine(${index})">🗑️ 删除</button>
                             </div>
                         </div>
-                        <div class="log-item-text" id="log-text-${index}">${escapeHtml(item.content)}</div>
+                        <div class="log-item-text">${escapeHtml(item.content)}</div>
                     `;
                 }
                 container.appendChild(card);
             });
         }
 
-        function editLogUser(index) {
-            const item = historyLog[index];
-            const newText = prompt("修改你在此幕所说的发言 / 行动：", item.userText);
-            if (newText !== null && newText.trim() !== "") {
-                item.userText = newText.trim();
-                renderHistoryLog();
-            }
+        function startInlineEdit(index, field) {
+            editingLogState = { index, field };
+            renderHistoryLog();
         }
 
-        function editLogTurn(index) {
+        function cancelInlineEdit() {
+            editingLogState = null;
+            renderHistoryLog();
+        }
+
+        function saveInlineEdit(index, field) {
             const item = historyLog[index];
-            const newText = prompt("编辑此整轮剧情台词内容：", item.aiText);
-            if (newText !== null && newText.trim() !== "") {
-                item.aiText = newText.trim();
-                renderHistoryLog();
+            if (!item) return;
+
+            if (field === 'user') {
+                const el = document.getElementById('inline-edit-user-text');
+                if (el) item.userText = el.value.trim();
+            } else if (field === 'ai') {
+                const el = document.getElementById('inline-edit-ai-text');
+                if (el) item.aiText = el.value.trim();
             }
+
+            editingLogState = null;
+            renderHistoryLog();
         }
 
         function deleteLogTurn(index) {
@@ -3867,10 +3929,20 @@ ${userActionText || '（玩家静静等待对方说话）'}
             updateStatusBar();
             closeModal('settings-modal');
 
-            const fallbackLines = [
-                `[发言] 电话铃声(急促): （急促刺耳的电话铃声骤然划破了宁静……！）`,
-                `[发言] 委托人(神色慌张): 救救我！我是被冤枉的，现在被直接关进了看守所！`,
-                `[发言] 系统提示: 案件正式开启！你可以在[设定]大地图中前往【拘留所会见室】或相关现场展开搜查！`
+            const currentLoc = gameState.currentLocation;
+            const isInOffice = currentLoc.includes('事务所') || currentLoc.includes('检事局') || currentLoc.includes('刑事课');
+
+            // 事务所环境触发委托上门；在外部游玩时就地爆发事件
+            const targetCrimeScene = isInOffice ? "高菱屋·展厅" : currentLoc;
+
+            const fallbackLines = isInOffice ? [
+                `[发言] 电话铃声(急促): （急促刺耳的电话铃声骤然打破了事务所的宁静……！）`,
+                `[发言] 委托人(神色慌张): 请问是辩护律师吗？！救救我，我被卷入重大案子成为嫌疑人了！`,
+                `[发言] 系统提示: 突发委托接入！你可以在[设定]大地图中前往调查现场展开搜查！`
+            ] : [
+                `[发言] 旁白: （原本平静的气氛骤然被一声凄厉的尖叫撕裂——！）`,
+                `[发言] 群众(惊恐): 杀……杀人啦！快叫救护车和警察！`,
+                `[发言] 系统提示: 突发命案！你目前身处的【${currentLoc}】已成为案发现场，现场已被全面封锁！`
             ];
 
             const s = localStorage.getItem('ace_api_config');
@@ -3882,24 +3954,24 @@ ${userActionText || '（玩家静静等待对方说话）'}
             document.getElementById('click-arrow').style.display = 'none';
             document.getElementById('main-dialogue-box').classList.add('loading-lock');
             document.getElementById('speaker-name').innerText = "系统提示";
-            document.getElementById('dialogue-content').innerText = "【新委托接入中，正在后台准备案件……】";
+            document.getElementById('dialogue-content').innerText = "【突发事件生成中，正在融合当前情境……】";
 
-            // 核心解决“老在高菱屋”：排除事务所、看守所、法庭、警署等非案发现场后，由代码随机抽取一个真正的案发地点！
-            const candidateScenes = Object.keys(locationBgMap).filter(n => 
-                !n.startsWith('法庭') && !n.includes('事务所') && !n.includes('拘留所') && 
-                !n.includes('看守所') && !n.includes('牢房') && !n.includes('警察署') && !n.includes('检察厅')
-            );
-            const forcedCrimeScene = candidateScenes[Math.floor(Math.random() * candidateScenes.length)];
+            let situationPrompt = "";
+            if (isInOffice) {
+                situationPrompt = `当前主角正在【${currentLoc}】办公日常，突然有紧急电话打入或委托人撞门进来求助，委托调查一起发生在【${targetCrimeScene}】的凶案。`;
+            } else {
+                situationPrompt = `当前主角正巧就在【${currentLoc}】活动，结果该地点【${currentLoc}】突然爆发了突发命案/意外事故，主角亲历现场成为第一目击者，现场瞬间被封锁！`;
+            }
 
-            const genPrompt = `请为《逆转裁判》风格的游戏，在后台设计一个全新的、完整自洽的案件（玩家看不到这份档案）。
-玩家角色：${gameState.profile.name}（${gameState.profile.role}），所属事务所搭档：${gameState.phoneContacts.join('、')}。
-【铁律要求】
-1. 本案案发现场(crimeScene)已指定为：【${forcedCrimeScene}】！案情、被害地点、证物线索必须严格以此地点为核心展开，严禁擅自修改地点！
-2. 案件要有具体的被害人、真凶、动机、手法、完整时间线，以及至少 3 条互相矛盾的证词或线索（供玩家日后推理）。
-3. 被告人（委托人）是被冤枉的，但看起来很可疑。
-4. opening 是开场剧情：只能写来电/委托人求助/被捕经过，约 300 字，每行格式 [发言] 角色名(动作姿态): 内容，旁白用 [发言] 旁白: 内容；不得透露真凶与真相，不得替${gameState.profile.name}说话。
-只输出一个 JSON 对象，不要任何解释和代码块，字段：
-{"title":"","victim":"","culprit":"","motive":"","method":"","timeline":"","truth":"","crimeScene":"${forcedCrimeScene}","defendant":"","keyEvidence":[{"name":"","desc":""}],"contradictions":[""],"opening":["[发言] ..."]}`;
+            const genPrompt = `请为《逆转裁判》风格的游戏，在后台设计一个全新的案件（玩家看不到本案机密档案）。
+玩家角色：${gameState.profile.name}（${gameState.profile.role}）。
+【情境要求】
+1. ${situationPrompt}
+2. 案发现场(crimeScene)确定为：【${targetCrimeScene}】。
+3. 案件要有具体的被害人、真凶、动机、手法、时间线，以及矛盾点。
+4. opening 是开场突发剧情：约 250 字，每行格式 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容；不得透露真凶，不得替${gameState.profile.name}说话。
+只输出一个 JSON 对象，不要任何解释和代码块：
+{"title":"","victim":"","culprit":"","motive":"","method":"","timeline":"","truth":"","crimeScene":"${targetCrimeScene}","defendant":"","keyEvidence":[{"name":"","desc":""}],"contradictions":[""],"opening":["[发言] ..."]}`;
 
             try {
                 const res = await fetch(config.endpoint.replace(/\/+\$/, '') + '/chat/completions', {
@@ -3922,10 +3994,14 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
                 const opening = Array.isArray(obj.opening) ? obj.opening.join('\n') : String(obj.opening || '');
                 delete obj.opening;
-                gameState.hiddenCase = obj;   // 只存后台，不在界面显示
+                gameState.hiddenCase = obj;
 
                 let lines = normalizeAILines(opening, gameState.profile.name);
-                lines.push(`[发言] 系统提示: 案件正式开启！你可以在[设定]大地图中前往【拘留所会见室】和【${obj.crimeScene || '案发地点'}】展开搜查！`);
+                if (!isInOffice) {
+                    lines.push(`[发言] 系统提示: 突发事件！你当前所在的【${currentLoc}】已正式转化为案发现场，搜查开始！`);
+                } else {
+                    lines.push(`[发言] 系统提示: 新委托接入！你可以前往【${obj.crimeScene}】或拘留所会见嫌疑人！`);
+                }
                 loadDialogueQueue(lines);
             } catch (err) {
                 loadDialogueQueue(fallbackLines);
