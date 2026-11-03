@@ -414,28 +414,43 @@
             100% { transform: scale(1.08); opacity: 0; }
         }
 
-        /* ================= ⚖️ 有罪 / 无罪 巨大判决大字从天而降 ================= */
+        /* ================= ⚖️ 有罪 / 无罪 经典分步猛砸动画 ================= */
         .verdict-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(2px);
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px);
             display: none; justify-content: center; align-items: center;
             z-index: 195; pointer-events: none;
         }
         .verdict-overlay.active { display: flex; }
         .verdict-box {
-            display: flex; justify-content: center; align-items: center; gap: 32px;
+            display: flex; justify-content: center; align-items: center; gap: 40px;
             width: 100%; height: 100%;
-            /* 两个大字同步从天顶以千钧之势猛砸至正中央 */
-            animation: verdictDropSlam 2.6s cubic-bezier(0.12, 0.95, 0.25, 1) forwards;
         }
         .verdict-char-img {
             height: 65%; max-height: 380px; width: auto; object-fit: contain;
             filter: drop-shadow(0 15px 35px rgba(0,0,0,0.95));
+            opacity: 0;
+            transform: translateY(-120vh) scale(1.6);
         }
-        @keyframes verdictDropSlam {
-            0% { transform: translateY(-120vh) scale(1.4); opacity: 0; }
-            15% { transform: translateY(0) scale(1.0); opacity: 1; }
-            85% { transform: translateY(0) scale(1.0); opacity: 1; }
+        /* 左边第一个字（无/有）：率先猛砸 */
+        .verdict-slam-left {
+            animation: slamLeftAnim 3.0s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+        @keyframes slamLeftAnim {
+            0% { transform: translateY(-120vh) scale(1.6); opacity: 0; }
+            12% { transform: translateY(0) scale(1.0); opacity: 1; }
+            82% { transform: translateY(0) scale(1.0); opacity: 1; }
+            100% { transform: translateY(0) scale(1.0); opacity: 0; }
+        }
+        /* 右边第二个字（罪）：延后 0.38 秒紧接着猛砸 */
+        .verdict-slam-right {
+            animation: slamRightAnim 3.0s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+            animation-delay: 0.38s;
+        }
+        @keyframes slamRightAnim {
+            0% { transform: translateY(-120vh) scale(1.6); opacity: 0; }
+            12% { transform: translateY(0) scale(1.0); opacity: 1; }
+            82% { transform: translateY(0) scale(1.0); opacity: 1; }
             100% { transform: translateY(0) scale(1.0); opacity: 0; }
         }
         .record-panel {
@@ -655,12 +670,12 @@
                     <span style="cursor: pointer; font-size: 13px; color: #7696be;" onclick="closeSpeakModal()">✕ 取消</span>
                 </div>
                 <div class="speak-actions-tags">
+                    <span class="action-tag" style="background:#8b1a1a; color:#fff;" onclick="insertTag('[异议]')">💥 [异议]</span>
+                    <span class="action-tag" style="background:#1a5276; color:#fff;" onclick="insertTag('[等等]')">✋ [等等]</span>
+                    <span class="action-tag" style="background:#b7791f; color:#fff;" onclick="insertTag('[看招]')">👉 [看招]</span>
+                    <span class="action-tag" style="background:#2d3748; color:#fff;" onclick="insertTag('[拍桌]')">🪵 [拍桌]</span>
                     <span class="action-tag" onclick="insertTag('[思考]')">[思考]</span>
-                    <span class="action-tag" onclick="insertTag('[拍桌]')">[拍桌]</span>
-                    <span class="action-tag" onclick="insertTag('[指认]')">[指认]</span>
-                    <span class="action-tag" onclick="insertTag('[微笑]')">[微笑]</span>
                     <span class="action-tag" onclick="insertTag('[出示证物]')">[出示证物]</span>
-                    <span class="action-tag" onclick="insertTag('[调查现场]')">[调查现场]</span>
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <input type="text" class="form-input" id="player-input-text" placeholder="输入你想说的话、动作意图，按 Enter 发送..." style="flex: 1;" onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); submitPlayerInput(); }">
@@ -968,7 +983,7 @@
                 scale: 0.85, offsetY: 60, // 统一下沉60px完美贴合底栏，彻底告别悬空
                 "Normal": { type: "loop", frameDelay: 340, frames: ["https://i.postimg.cc/85QnXPRt/pl100316-00.png", "https://i.postimg.cc/Y2xy87hk/pl100300-01.png", "https://i.postimg.cc/ZYLDjmCS/pl100300-02.png"] },
                 "Thinking": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/0jZWNYL3/pl100302-00.png", "https://i.postimg.cc/WzSW4GQy/pl100302-01.png", "https://i.postimg.cc/1XMCzGLj/pl100302-02.png", "https://i.postimg.cc/wMFfBXSb/pl100302-03.png", "https://i.postimg.cc/sxK62Yt6/pl100302-04.png", "https://i.postimg.cc/WzSW4GQ9/pl100302-05.png", "https://i.postimg.cc/4ywL36rP/pl100302-06.png"] },
-                "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], shake: true, frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
+                "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 0, 0], shake: true, sfx: "./audio/se01c (Slamming Desk).flac", frames: ["https://i.postimg.cc/Vv4GNq3W/pl100305-00.png", "https://i.postimg.cc/D05jzrtQ/pl100305-01.png", "https://i.postimg.cc/4ywL36r6/pl100305-02.png", "https://i.postimg.cc/9018fdvT/pl100305-03.png", "https://i.postimg.cc/Y08nS6JF/pl100305-04.png"] },
                 "Pointing": { type: "once_reset", frameDelays: [140, 140, 140, 200, 200, 0], voice: "https://files.catbox.moe/hov7xo.flac", shake: true, frames: ["https://i.postimg.cc/d3nH02zy/pl10030a-00.png", "https://i.postimg.cc/L5vCstrZ/pl10030a-01.png", "https://i.postimg.cc/C5JPKGWB/pl10030a-02.png", "https://i.postimg.cc/MHtPG7hX/pl10030a-03.png", "https://i.postimg.cc/QCS4MQRF/pl10030a-04.png", "https://i.postimg.cc/5yp7tBZH/pl10030a-05.png"] },
                 "Document": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/VvzZ1GHb/pl10030b-00.png", "https://i.postimg.cc/4yX2ZLFH/pl10030b-01.png", "https://i.postimg.cc/L5mQRC0q/pl10030b-02.png", "https://i.postimg.cc/j2R3KgkD/pl10030b-03.png", "https://i.postimg.cc/7hqtDsQf/pl10030b-04.png", "https://i.postimg.cc/VvzZ1GHv/pl10030b-05.png", "https://i.postimg.cc/5yfK17k0/pl10030b-06.png", "https://i.postimg.cc/HnTvHZPL/pl10030b-07.png"] },
                 "Nervous Sweat": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/x89pYxF1/pl10030d-00.png", "https://i.postimg.cc/3N3f7Sbr/pl10030d-01.png", "https://i.postimg.cc/mkTpRX6L/pl10030d-02.png", "https://i.postimg.cc/NFQCYJPQ/pl10030d-03.png", "https://i.postimg.cc/VvzZ1GH1/pl10030d-04.png", "https://i.postimg.cc/HnTvHZPm/pl10030d-05.png", "https://i.postimg.cc/Y0tDknyH/pl10030d-06.png"] },
@@ -999,7 +1014,7 @@
                 "Document": { type: "loop", frameDelay: 380, frames: ["https://i.postimg.cc/14xBWWhK/pl105307-00.png", "https://i.postimg.cc/yWqjff4y/pl105307-01.png", "https://i.postimg.cc/23pGHHRd/pl105307-02.png"] },
                 // 指认改为循环说话姿态
                 "Pointing": { type: "loop", frameDelay: 280, voice: "https://files.catbox.moe/04xmpb.flac", shake: true, frames: ["https://i.postimg.cc/MXk5ss2t/pl105305-01.png", "https://i.postimg.cc/fk4CHHnC/pl105305-02.png"] },
-                "Slamming Desk": { type: "once_hold", frameDelays: [150, 160, 90, 0],  shake: true, frames: ["https://i.postimg.cc/Z0kHfftQ/pl105302-00.png", "https://i.postimg.cc/Cdy7vvT6/pl105302-01.png", "https://i.postimg.cc/XXML22SH/pl105302-02.png", "https://i.postimg.cc/s1Fmnndn/pl105302-03.png"] },
+                "Slamming Desk": { type: "once_hold", frameDelays: [150, 160, 90, 0],  shake: true, sfx: "./audio/se01c (Slamming Desk).flac", frames: ["https://i.postimg.cc/Z0kHfftQ/pl105302-00.png", "https://i.postimg.cc/Cdy7vvT6/pl105302-01.png", "https://i.postimg.cc/XXML22SH/pl105302-02.png", "https://i.postimg.cc/s1Fmnndn/pl105302-03.png"] },
                 "Struggling": { type: "once_hold", frameDelays: [160, 160, 160, 0], shake: true, frames: ["https://i.postimg.cc/4yHwbDMp/pl10530b-00.png", "https://i.postimg.cc/Kj3Qr6VL/pl10530b-01.png", "https://i.postimg.cc/MHftbC4T/pl10530b-02.png", "https://i.postimg.cc/3N09Cs6J/pl10530b-03.png"] },
                 // 改为循环播放：自然抱胸、呼吸与眨眼，绝不再闭眼定死
                 "Confident": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/C5nJH3th/pl10530d-00.png", "https://i.postimg.cc/GtTzJWNc/pl10530d-01.png", "https://i.postimg.cc/gjL4qC7f/pl10530d-02.png"] },
@@ -1197,13 +1212,15 @@
                     type: "chain", 
                     nextAnim: "Slam_Loop", 
                     frameDelays: [120, 120, 120, 120], 
+                    shake: true,
+                    sfx: "./audio/se01c (Slamming Desk).flac",
                     frames: [
-                        "https://i.postimg.cc/nhrtGcx7/pl40219-00.png",
-                        "https://i.postimg.cc/htvq1Pn7/pl40219-01.png",
-                        "https://i.postimg.cc/m28s91vN/pl40219-02.png",
-                        "https://i.postimg.cc/xTt2mNwG/pl40219-03.png"
-                    ] 
-                },
+                    "https://i.postimg.cc/nhrtGcx7/pl40219-00.png",
+                    "https://i.postimg.cc/htvq1Pn7/pl40219-01.png",
+                    "https://i.postimg.cc/m28s91vN/pl40219-02.png",
+                    "https://i.postimg.cc/xTt2mNwG/pl40219-03.png"
+                ] 
+            },
                 "Slam_Loop": { 
                     type: "loop", 
                     frameDelay: 280, 
@@ -2010,26 +2027,47 @@
 
         // ================= 🎵 逆转裁判原版全套 BGM 播放核心引擎 =================
         const BGM_TRACKS = {
-            "detention": "https://files.catbox.moe/quc409.flac",      // 看守所·会见室
-            "gumshoe": "https://files.catbox.moe/luei2m.flac",        // 系锯刑警专属曲
-            "pursuit": "https://files.catbox.moe/7wmzja.flac",        // 追求 ～ 想抓住真凶 (高潮逆转)
-            "pursuit_var": "https://files.catbox.moe/3m9qor.flac",    // 追求 ～ 变奏
-            "objection": "https://files.catbox.moe/nkdsg8.flac",      // 成步堂 ～ 异议あり！
-            "maya": "https://files.catbox.moe/82w2y8.flac",           // 真宵 ～ 逆转姐妹日常
-            "ending": "https://files.catbox.moe/nsawa1.flac",         // 庭审胜诉 / 案情落幕尾声
-            "cross_exam": "https://files.catbox.moe/80ep7c.flac",     // 质问 ～ 缓和 (证言质询)
-            "heart_invest": "https://files.catbox.moe/dkdbxx.flac",   // 搜查 ～ 深入核心
-            "court_session": "https://files.catbox.moe/qcq7yq.flac",  // 开庭 ～ 审理开始
-            "suspense": "https://files.catbox.moe/s5faya.flac",       // 悬疑 ～ 紧迫危机
-            "simple_folk": "https://files.catbox.moe/afeo53.flac",    // 事务所 ～ 轻松日常
-            "truth": "https://files.catbox.moe/twaeef.flac",          // 揭示真实 (心理剖析)
-            "investigation": "https://files.catbox.moe/5og36s.flac",  // 搜查 ～ 案发现场序幕
-            "dl6": "https://files.catbox.moe/0p1tdm.flac"             // 回忆 ～ DL-6号事件
+            "detention": "./audio/bgm/bgm000 (Detention Center - The Security Guards' Elegy).mp3",
+            "gumshoe": "./audio/bgm/bgm001 (Dick Gumshoe - That's \"Detective Gumshoe,\" Pal!).mp3",
+            "pursuit": "./audio/bgm/bgm002 (Pursuit - Corner the Culprit).mp3",
+            "pursuit_var": "./audio/bgm/bgm003 (Pursuit - Corner the Culprit) (Variation).mp3",
+            "objection": "./audio/bgm/bgm004 (Phoenix Wright - Objection! 2001).mp3",
+            "maya": "./audio/bgm/bgm006 (Maya Fey - Turnabout Sisters 2001).mp3",
+            "ending": "./audio/bgm/bgm007 (Phoenix Wright Ace Attorney - Ending).mp3",
+            "cross_exam": "./audio/bgm/bgm010 (Cross-Examination - Moderato 2001).mp3",
+            "heart_invest": "./audio/bgm/bgm012 (Heart of the Investigation 2001).mp3",
+            "court_session": "./audio/bgm/bgm013 (Phoenix Wright Ace Attorney - Court is Now in Session).mp3",
+            "suspense": "./audio/bgm/bgm018 (Suspense).mp3",
+            "simple_folk": "./audio/bgm/bgm022 (Simple Folk).mp3",
+            "truth": "./audio/bgm/bgm024 (The Truth Revealed 2001).mp3",
+            "investigation": "./audio/bgm/bgm025 (Initial Investigation 2001).mp3",
+            "dl6": "./audio/bgm/bgm027 (Reminiscences - The DL-6 Incident).mp3",
+            "dahlia": "./audio/bgm/bgm114 (Dahlia Hawthorne - The Visage of What Once Was).mp3",
+            "godot": "./audio/bgm/bgm116 (Godot - The Fragrance of Darkness; That is Coffee).mp3",
+            "bridge": "./audio/bgm/bgm104 (\"Bridge to the Turnabout\").mp3",
+            "hotline": "./audio/bgm/bgm086 (Hotline of Fate).mp3",
+            "court_session_gs2": "./audio/bgm/bgm069 (Justice for All - Court is Now in Session).mp3"
         };
-
         const bgmAudio = new Audio();
         bgmAudio.loop = true;
         let currentBgmKey = "";
+        let audioUnlocked = false;
+
+        // 核心：突破浏览器的自动播放策略（只要玩家在页面上产生任意一次交互，立即解锁声音）
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            audioUnlocked = true;
+            // 尝试恢复可能被挂起的 BGM
+            if (currentBgmKey && bgmAudio.paused) {
+                bgmAudio.play().catch(e => console.log("BGM 解锁重试中...", e));
+            }
+            window.removeEventListener('click', unlockAudio);
+            window.removeEventListener('keydown', unlockAudio);
+            window.removeEventListener('touchstart', unlockAudio);
+        }
+        window.addEventListener('click', unlockAudio, { once: true });
+        window.addEventListener('keydown', unlockAudio, { once: true });
+        window.addEventListener('touchstart', unlockAudio, { once: true });
 
         function playBGM(key) {
             if (!key || key === "stop") {
@@ -2040,10 +2078,17 @@
             if (currentBgmKey === key && !bgmAudio.paused) return; // 正在放相同的就不重播
             const url = BGM_TRACKS[key];
             if (!url) return;
+            
             currentBgmKey = key;
             bgmAudio.src = url;
-            bgmAudio.volume = 0.5;
-            bgmAudio.play().catch(() => {});
+            bgmAudio.volume = 0.45;
+
+            const promise = bgmAudio.play();
+            if (promise !== undefined) {
+                promise.catch(error => {
+                    console.warn("浏览器正在阻止声音播放，需等待玩家点击页面以激活声音:", error);
+                });
+            }
         }
 
         // ================= 📜 飘动横幅调用系统 =================
@@ -2067,13 +2112,52 @@
 
         // 角色专属语音插槽 (成步堂 / 御剑 / 千寻与主角)
         const SHOUT_VOICE_MAP = {
-            "成步堂": { "objection": "https://files.catbox.moe/hov7xo.flac" },
-            "御剑": { "objection": "https://files.catbox.moe/04xmpb.flac" },
-            "mia": {
-                // 千寻与主角专属音频插槽：后续拿到千寻音频直链可在此填入
-                "objection": "", 
-                "hold_it": "",
-                "take_that": ""
+            "成步堂": {
+                "objection": "./audio/成步堂Objection! (Japanese) 異議あり! Igiari!.flac",
+                "hold_it": "./audio/成步堂Hold it! (Jiten) 待った! Matta!.flac",
+                "take_that": "./audio/成步堂Take that! (Japanese) くらえ! Kurae!.flac"
+            },
+            "御剑": {
+                "objection": "./audio/御剑Objection! (Japanese) 異議あり! Igiari!.flac",
+                "hold_it": "./audio/御剑Hold it! (Japanese) 待った! Matta!.flac",
+                "take_that": "./audio/御剑Take that! (Japanese) くらえ! Kurae!.flac",
+                "eureka": "./audio/御剑Eureka! (Japanese) これだ! Kore da!.flac"
+            },
+            "千寻": {
+                "objection": "./audio/千寻Objection! (Japanese) 異議あり! Igiari!.flac",
+                "hold_it": "./audio/千寻Hold it! (Japanese) 待った! Matta!.flac",
+                "take_that": "./audio/千寻Take that! (Japanese) くらえ! Kurae!.flac"
+            },
+            "冥": {
+                "objection": "./audio/冥Objection! (Japanese) 異議あり! Igiari!.flac"
+            },
+            "王泥喜": {
+                "objection": "./audio/王泥喜Objection! (Japanese) 異議あり! Igiari!.flac",
+                "hold_it": "./audio/王泥喜Hold it! (Japanese) 待った! Matta!.flac",
+                "take_that": "./audio/王泥喜Take that! (Japanese) くらえ! Kurae!.flac",
+                "got_it": "./audio/王泥喜Gotcha! (Japanese) そこだ! Soko da!.flac"
+            },
+            "响也": {
+                // 牙琉响也
+                "objection": "./audio/响也Objection! (English).flac"
+            },
+            "雾人": {
+                // 牙琉雾人
+                "objection": "./audio/雾人Objection! (English).flac"
+            },
+            "歌德": {
+                // 神乃木
+                "objection": "./audio/哥德Objection! (Japanese) 異議あり! Igiari!.flac"
+            },
+            "亚内": {
+                "objection": "./audio/亚内Objection! (Japanese) 異議あり! Igiari!.flac"
+            },
+            "user": {
+                // 玩家女主专属语音
+                "objection": "./audio/玩家Objection! (English).flac",
+                "hold_it": "./audio/玩家Hold it! (English).flac",
+                "take_that": "./audio/玩家Take that! (English).flac",
+                "got_it": "./audio/玩家Got it! (English).flac"
             }
         };
 
@@ -2095,7 +2179,26 @@
             overlay.classList.add('active');
 
             // 扎入屏幕的一瞬间播放人声语音
-            const roleKey = (voiceRole === '千寻' || voiceRole === 'mia' || voiceRole === gameState.profile.name) ? 'mia' : (voiceRole.includes('御剑') ? '御剑' : '成步堂');
+            let roleKey = '成步堂';
+            if (voiceRole === gameState.profile.name || voiceRole === 'user') {
+                roleKey = 'user';
+            } else if (voiceRole.includes('御剑')) {
+                roleKey = '御剑';
+            } else if (voiceRole.includes('千寻')) {
+                roleKey = '千寻';
+            } else if (voiceRole.includes('冥')) {
+                roleKey = '冥';
+            } else if (voiceRole.includes('王泥喜')) {
+                roleKey = '王泥喜';
+            } else if (voiceRole.includes('响也')) {
+                roleKey = '响也';
+            } else if (voiceRole.includes('雾人')) {
+                roleKey = '雾人';
+            } else if (voiceRole.includes('歌德')  || voiceRole.includes('神乃木')) {
+                roleKey = '歌德';
+            } else if (voiceRole.includes('亚内')) {
+                roleKey = '亚内';
+            }
             const voiceUrl = SHOUT_VOICE_MAP[roleKey] && SHOUT_VOICE_MAP[roleKey][type];
             if (voiceUrl) {
                 new Audio(voiceUrl).play().catch(() => {});
@@ -2132,26 +2235,63 @@
             const c1 = document.getElementById('verdict-char-1');
             const c2 = document.getElementById('verdict-char-2');
             const pair = VERDICT_CHAR_URLS[type];
+            const stage = document.getElementById('game-stage');
+            const viewport = document.getElementById('actor-viewport');
             if (!overlay || !c1 || !c2 || !pair) return;
 
-            c1.src = pair[0];
-            c2.src = pair[1];
-            overlay.classList.remove('active');
-            void overlay.offsetWidth;
-            overlay.classList.add('active');
+            // 💥 第一步：镜头先切至【法庭·审判长席】，审判长敲槌并肃静
+            stage.style.backgroundImage = `url('${locationBgMap["法庭·审判长席"]}')`;
+            viewport.style.display = 'flex';
+            animator.playFromRegistry("审判长_法庭", "Warning");
+            playBGM('suspense'); // 极度悬疑与屏息
 
-            // 砸下正中的瞬间全屏重度震颤
+            // 💥 第二步：1.2秒后，镜头切到【法庭·全景】，审判长立绘退下，全场静止屏息！
             setTimeout(() => {
-                const stage = document.getElementById('game-stage');
-                stage.classList.remove('shake-screen');
-                void stage.offsetWidth;
-                stage.classList.add('shake-screen');
-            }, 300);
+                viewport.style.display = 'none';
+                stage.style.backgroundImage = `url('${locationBgMap["法庭·全景"]}')`;
 
-            if (type === 'not_guilty') {
-                playBGM('ending'); // 无罪直接进入胜诉曲！
-            }
-            setTimeout(() => { overlay.classList.remove('active'); }, 2600);
+                c1.src = pair[0];
+                c2.src = pair[1];
+
+                // 重置两个字的动画类
+                c1.classList.remove('verdict-slam-left');
+                c2.classList.remove('verdict-slam-right');
+                overlay.classList.remove('active');
+                void overlay.offsetWidth;
+
+                overlay.classList.add('active');
+                c1.classList.add('verdict-slam-left');
+                c2.classList.add('verdict-slam-right');
+
+                // 💥 第三步：左字（无/有）猛砸下来（约140ms处触底），全屏剧烈震颤 + 砸地音效
+                setTimeout(() => {
+                    stage.classList.remove('shake-screen');
+                    void stage.offsetWidth;
+                    stage.classList.add('shake-screen');
+                    new Audio("https://files.catbox.moe/1gcl54.flac").play().catch(() => {});
+                }, 140);
+
+                // 💥 第四步：右字（罪）在 0.38s 后紧跟着猛砸下来（约520ms处触底），第二次剧烈震颤！
+                setTimeout(() => {
+                    stage.classList.remove('shake-screen');
+                    void stage.offsetWidth;
+                    stage.classList.add('shake-screen');
+                    new Audio("https://files.catbox.moe/1gcl54.flac").play().catch(() => {});
+                }, 520);
+
+                // 💥 第五步：双字全部砸定后，如果是无罪，瞬间切入最燃胜诉 BGM【Ending】！
+                setTimeout(() => {
+                    if (type === 'not_guilty') {
+                        playBGM('ending');
+                    }
+                }, 750);
+
+                // 判决大字展示 3 秒后优雅淡出，恢复辩护席/全景
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                }, 3200);
+
+            }, 1200);
         }
 
 // ================= 3. 通用证物高清图标数据库 =================
@@ -3425,9 +3565,28 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             closeSpeakModal();
             inp.value = '';
 
-            if (val.includes('[拍桌]') || val.includes('[指认]')) {
-                const shout = getRandomShoutType();
-                triggerShoutBubble(shout, "mia");
+            // 🎯 女主角发言自动触发专属语音与特效联动
+            const hasSlam = val.includes('[拍桌]');
+
+            if (hasSlam) {
+                // 单独或附带拍桌音效与震屏
+                new Audio("./audio/se01c (Slamming Desk).flac").play().catch(() => {});
+                const stage = document.getElementById('game-stage');
+                stage.classList.remove('shake-screen');
+                void stage.offsetWidth;
+                stage.classList.add('shake-screen');
+            }
+
+            if (val.includes('[异议]') || val.includes('异议あり') || val.includes('我有异议')) {
+                triggerShoutBubble('objection', 'user');
+                playBGM('objection');
+            } else if (val.includes('[等等]') || val.includes('等一下') || val.includes('待った')) {
+                triggerShoutBubble('hold_it', 'user');
+            } else if (val.includes('[看招]') || val.includes('[出示证物]') || val.includes('看招') || val.includes('くらえ')) {
+                triggerShoutBubble('take_that', 'user');
+                playBGM('pursuit');
+            } else if (val.includes('[指认]')) {
+                triggerShoutBubble('take_that', 'user');
             }
 
             triggerAIStep(val);
@@ -4370,8 +4529,8 @@ ${contactHistory}
             const item = list[recIndex];
             if (!item) return;
             toggleRecord();
-            // 1. 出示证物一瞬间从天外扎入【看招！(Take That)】尖刺大字！
-            triggerShoutBubble('take_that');
+            // 出示证物瞬间玩家喊“看招！”
+            triggerShoutBubble('take_that', 'user'); // 指定为 user
             // 2. 引爆最燃逆转神曲【追求 ～ 想抓住真凶】！
             playBGM('pursuit');
             const presentLines = [
