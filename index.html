@@ -2055,19 +2055,15 @@
 
         // 核心：突破浏览器的自动播放策略（只要玩家在页面上产生任意一次交互，立即解锁声音）
         function unlockAudio() {
-            if (audioUnlocked) return;
             audioUnlocked = true;
-            // 尝试恢复可能被挂起的 BGM
             if (currentBgmKey && bgmAudio.paused) {
-                bgmAudio.play().catch(e => console.log("BGM 解锁重试中...", e));
+                bgmAudio.play().catch(() => {});
             }
-            window.removeEventListener('click', unlockAudio);
-            window.removeEventListener('keydown', unlockAudio);
-            window.removeEventListener('touchstart', unlockAudio);
         }
-        window.addEventListener('click', unlockAudio, { once: true });
-        window.addEventListener('keydown', unlockAudio, { once: true });
-        window.addEventListener('touchstart', unlockAudio, { once: true });
+        // 不加 { once: true }，前几次无论点击哪里的按钮，都能随时恢复挂起的 BGM
+        window.addEventListener('click', unlockAudio);
+        window.addEventListener('keydown', unlockAudio);
+        window.addEventListener('touchstart', unlockAudio);
 
         function playBGM(key) {
             if (!key || key === "stop") {
@@ -2075,18 +2071,24 @@
                 currentBgmKey = "";
                 return;
             }
-            if (currentBgmKey === key && !bgmAudio.paused) return; // 正在放相同的就不重播
             const url = BGM_TRACKS[key];
             if (!url) return;
             
+            // 解决重置和相同曲目逻辑
+            if (currentBgmKey === key && !bgmAudio.paused) return;
             currentBgmKey = key;
-            bgmAudio.src = url;
+            
+            // 如果链接变了才换 src，防止循环重新加载
+            if (!bgmAudio.src.endsWith(encodeURI(url)) && !bgmAudio.src.endsWith(url)) {
+                bgmAudio.src = url;
+            }
             bgmAudio.volume = 0.45;
 
             const promise = bgmAudio.play();
             if (promise !== undefined) {
                 promise.catch(error => {
-                    console.warn("浏览器正在阻止声音播放，需等待玩家点击页面以激活声音:", error);
+                    // 如果被浏览器策略拦截，挂起状态，只要玩家下一步点击任意地方（比如推进台词）立刻自动唤醒响起！
+                    console.warn("音频等待交互唤醒:", error);
                 });
             }
         }
