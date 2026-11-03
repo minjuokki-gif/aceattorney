@@ -1028,7 +1028,7 @@
             },
             // 9. 狩魔冥 · 法庭对峙篇
             "冥_法庭": {
-                scale: 0.85,
+                scale: 0.85, offsetY: 60,
                 "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/QMvzWwp7/pl20b000-00.png", "https://i.postimg.cc/q7WFCS83/pl20b000-01.png", "https://i.postimg.cc/k5LHtzxg/pl20b000-02.png", "https://i.postimg.cc/W4xyJCMN/pl20b000-03.png", "https://i.postimg.cc/5tDrFTwx/pl20b000-04.png"] },
                 "Eyes Shut": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/N0ZnrS1v/pl20b002-00.png", "https://i.postimg.cc/fb1P0pY6/pl20b002-01.png", "https://i.postimg.cc/Gp6fsVvN/pl20b002-02.png"] },
                 "Confident": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/W4dKzTJj/pl20b004-00.png", "https://i.postimg.cc/6Q8Sqt4k/pl20b004-01.png", "https://i.postimg.cc/HLrKnd8f/pl20b004-02.png", "https://i.postimg.cc/vm4jTbxk/pl20b004-03.png", "https://i.postimg.cc/FKYqzNkn/pl20b004-04.png"] },
@@ -3738,11 +3738,15 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 playDeskSlam();
             }
 
-            // ⚖️ 判决超大字检测 (审判长宣布无罪/有罪时，两个大字从天而降砸入正中)
-            if (content.includes('无罪') && (speaker.includes('审判长') || speaker.includes('裁判长') || isCourtScene)) {
-                triggerVerdict('not_guilty');
-            } else if (content.includes('有罪') && (speaker.includes('审判长') || speaker.includes('裁判长') || isCourtScene)) {
-                triggerVerdict('guilty');
+            // ⚖️ 判决超大字检测 (严格锁定仅由审判长宣判生效，防止检辩双方随口提及误触发)
+            const isJudgeSpeaking = speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官');
+            const isVerdictDeclaration = content.includes('判决') || content.includes('判处') || content.includes('裁定') || content.includes('宣告');
+            if (isJudgeSpeaking && isVerdictDeclaration) {
+                if (content.includes('无罪')) {
+                    triggerVerdict('not_guilty');
+                } else if (content.includes('有罪')) {
+                    triggerVerdict('guilty');
+                }
             }
 
             // 刷新箭头 / 重新生成按钮
