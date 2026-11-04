@@ -1077,8 +1077,32 @@
                 "Confident": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/W4dKzTJj/pl20b004-00.png", "https://i.postimg.cc/6Q8Sqt4k/pl20b004-01.png", "https://i.postimg.cc/HLrKnd8f/pl20b004-02.png", "https://i.postimg.cc/vm4jTbxk/pl20b004-03.png", "https://i.postimg.cc/FKYqzNkn/pl20b004-04.png"] },
                 "Challenge1": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/jjD92tn8/pl20b006-01.png", "https://i.postimg.cc/N0KVFB2D/pl20b006-02.png"] },
                 "Nervous": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/FKYqzNkg/pl20b008-00.png", "https://i.postimg.cc/LsJ752gz/pl20b008-01.png", "https://i.postimg.cc/DzSD0n41/pl20b008-02.png", "https://i.postimg.cc/mgXJTtkd/pl20b008-03.png", "https://i.postimg.cc/6pjgByq0/pl20b008-04.png", "https://i.postimg.cc/jSgmRL2P/pl20b008-05.png", "https://i.postimg.cc/XYHmnpq5/pl20b008-06.png", "https://i.postimg.cc/HkZRTVn8/pl20b008-07.png"] },
-                "Whip Stance": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/13C2yfXg/pl20b00a-00.png", "https://i.postimg.cc/zGt6qVvf/pl20b00a-01.png", "https://i.postimg.cc/2ScMCVyj/pl20b00a-02.png"] },
-                "Angry": { type: "once_hold", frameDelays: [120, 120, 120, 120, 120, 0], frames: ["https://i.postimg.cc/y8Qt7kxV/pl20b00c-00.png", "https://i.postimg.cc/52NDcw4Y/pl20b00c-01.png", "https://i.postimg.cc/cL4PqQx1/pl20b00c-02.png", "https://i.postimg.cc/MpKgky6q/pl20b00c-03.png", "https://i.postimg.cc/8zPx8hpV/pl20b00c-04.png", "https://i.postimg.cc/x1TBrKfr/pl20b00c-05.png"] },
+                "Whip": { 
+                    type: "chain", 
+                    nextAnim: "Whip Stance", 
+                    frameDelays: [90, 90, 90, 90, 90, 90, 100], 
+                    shake: true, 
+                    sfx: "./audio/se01c (Slamming Desk).flac", 
+                    frames: [
+                        "https://i.postimg.cc/YqGn2qJL/pl20b010-00.png",
+                        "https://i.postimg.cc/J4fTsCL3/pl20b010-01.png",
+                        "https://i.postimg.cc/m2vdPWsC/pl20b010-02.png",
+                        "https://i.postimg.cc/3JsLkQTg/pl20b010-03.png",
+                        "https://i.postimg.cc/7YFB5rk3/pl20b010-04.png",
+                        "https://i.postimg.cc/ncydXfJ0/pl20b010-05.png",
+                        "https://i.postimg.cc/Dy9CS3TC/pl20b010-06.png"
+                    ] 
+                },
+                "Whip Stance": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/13C2yfXg/pl20b00a-00.png", 
+                        "https://i.postimg.cc/zGt6qVvf/pl20b00a-01.png", 
+                        "https://i.postimg.cc/2ScMCVyj/pl20b00a-02.png"
+                    ] 
+                },
+                "Angry": { type: "once_reset", frameDelays: [120, 120, 120, 120, 120, 0], frames: ["https://i.postimg.cc/y8Qt7kxV/pl20b00c-00.png", "https://i.postimg.cc/52NDcw4Y/pl20b00c-01.png", "https://i.postimg.cc/cL4PqQx1/pl20b00c-02.png", "https://i.postimg.cc/MpKgky6q/pl20b00c-03.png", "https://i.postimg.cc/8zPx8hpV/pl20b00c-04.png", "https://i.postimg.cc/x1TBrKfr/pl20b00c-05.png"] },
                 "Challenge2": { type: "once_hold", frameDelays: [120, 120, 120, 0], frames: ["https://i.postimg.cc/3JZzbLHs/pl20b00e-03.png", "https://i.postimg.cc/VLF2H78P/pl20b00e-02.png", "https://i.postimg.cc/nhcN8vHW/pl20b00e-01.png", "https://i.postimg.cc/kgXLrxnL/pl20b00e-00.png"] },
                 "Bowing": { type: "once_hold", frameDelays: [140, 140, 140, 140, 140, 0], frames: ["https://i.postimg.cc/28xgXHfP/pl20b00f-00.png", "https://i.postimg.cc/65hF1HNg/pl20b00f-01.png", "https://i.postimg.cc/L6VG0yMQ/pl20b00f-02.png", "https://i.postimg.cc/15KbYWZJ/pl20b00f-03.png", "https://i.postimg.cc/wTknbWdk/pl20b00f-04.png", "https://i.postimg.cc/vHvCSPdt/pl20b00f-05.png"] },
                 "Damage": { type: "once_hold", frameDelays: [100, 100, 100, 100, 100, 100, 100, 0], shake: true, sfx: "https://files.catbox.moe/1gcl54.flac", frames: ["https://i.postimg.cc/vHvCSPdr/pl20b010-00.png", "https://i.postimg.cc/zXk4Pd1g/pl20b010-01.png", "https://i.postimg.cc/tCbL5K8z/pl20b010-02.png", "https://i.postimg.cc/NftW43Z8/pl20b010-03.png", "https://i.postimg.cc/NftW43ZX/pl20b010-04.png", "https://i.postimg.cc/PrHB4g0p/pl20b010-05.png", "https://i.postimg.cc/Yq7J35Tj/pl20b010-06.png", "https://i.postimg.cc/N0ZnrS1v/pl20b002-00.png"] },
@@ -1416,7 +1440,7 @@
                 "Damage": { type: "loop", frameDelay: 120, frames: ["https://i.postimg.cc/YSZkLZyQ/pl30830c-00.png", "https://i.postimg.cc/LswRgw0g/pl30830c-01.png", "https://i.postimg.cc/8CjN5Nwd/pl30830c-02.png"] },
                 "Hair Flick": { type: "loop", frameDelay: 220, frames: ["https://i.postimg.cc/FK7NRNGf/pl30830d-00.png", "https://i.postimg.cc/W4hT3TS3/pl30830d-01.png", "https://i.postimg.cc/Lsn2X2v6/pl30830d-02.png", "https://i.postimg.cc/6Qyt3tz9/pl30830d-03.png", "https://i.postimg.cc/qvmp4zcR/pl30830d-04.png", "https://i.postimg.cc/NjNQB58f/pl30830d-05.png", "https://i.postimg.cc/zGdq8VwD/pl30830d-06.png", "https://i.postimg.cc/L8ym2nkR/pl30830d-07.png", "https://i.postimg.cc/GmMbdHFZ/pl30830d-08.png"] },
                 "Breaking Point": { type: "loop", frameDelay: 200, frames: ["https://i.postimg.cc/K89mxRPV/pl30830e-00.png", "https://i.postimg.cc/8zyTNjRK/pl30830e-01.png", "https://i.postimg.cc/fRWMGx91/pl30830e-02.png"] },
-                "Smiling": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/t4R9Khxc/pl30830f-00.png", "https://i.postimg.cc/sgf3kph6/pl30830f-01.png", "https://i.postimg.cc/fRWMGx9K/pl30830f-02.png"] }
+                "Smiling": { type: "once_hold", frameDelays: [300, 300, 0], frames: ["https://i.postimg.cc/t4R9Khxc/pl30830f-00.png", "https://i.postimg.cc/sgf3kph6/pl30830f-01.png", "https://i.postimg.cc/fRWMGx9K/pl30830f-02.png"] }
             },
             // 20. 成步堂美贯 · 正面
             "美贯_正面": {
@@ -2343,14 +2367,20 @@
 
                 if (anim.type === 'loop') {
                     const stepLoop = () => {
-                        let delay = anim.frameDelay || 280;
-                        if (curFrame === 0) delay += 200;
+                        let delay;
+                        if (curFrame === 0) {
+                            // 睁眼正常待机：2.2秒 ~ 3.2秒 自然停顿
+                            delay = 2200 + Math.random() * 1000;
+                        } else {
+                            // 眨眼过渡帧：125ms（比原本的360ms干脆利落，又不会像90ms那样太飘太快）
+                            delay = 125;
+                        }
 
                         this.timer = this.later(() => {
                             curFrame = (curFrame + 1) % anim.frames.length;
                             this.imgEl.src = anim.frames[curFrame];
                             stepLoop();
-                        }, delay * LOOP_SPEED, tk);
+                        }, delay, tk);
                     };
                     stepLoop();
                     return;
@@ -2753,11 +2783,11 @@
                 "objection": "./audio/亚内Objection! (Japanese) 異議あり！ Igiari!.flac"
             },
             "user": {
-                // 玩家女主专属语音
-                "objection": "./audio/玩家Objection! (English).flac",
-                "hold_it": "./audio/玩家Hold it! (English).flac",
-                "take_that": "./audio/玩家Take that! (English).flac",
-                "got_it": "./audio/玩家Got it! (English).flac"
+                // 玩家女主专属语音（心音 日语原声 mp3）
+                "objection": "./audio/kokone_v_igiari_jpn.mp3",
+                "hold_it": "./audio/kokone_v_matta_jpn.mp3",
+                "take_that": "./audio/kokone_v_kurae_jpn.mp3",
+                "got_it": "./audio/kokone_v_kokoda_jpn.mp3"
             }
         };
 
@@ -3124,15 +3154,15 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
             // --- 御剑 怜侍 ---
             { keywords: ["御剑(律师)", "御剑(3-5)", "御剑(年轻)", "御剑(20岁)"], url: "https://i.postimg.cc/Y0SGRhHG/it305d-(Miles-Edgeworth).png" },
-            { keywords: ["御剑怜侍", "御剑"], url: "https://i.postimg.cc/fWH0LjcZ/itc101e-(Miles-Edgeworth).png" },
-            { keywords: ["御剑信", "御剑(父)"], url: "https://i.postimg.cc/Wp9J36GZ/itc103c-(Gregory-Edgeworth).png" },
+            { keywords: ["御剑怜侍", "御剑"], url: "https://i.postimg.cc/JngTjGgP/it101e-(Miles-Edgeworth).png" },
+            { keywords: ["御剑信", "御剑(父)"], url: "https://i.postimg.cc/brtmgqcm/it103c-(Gregory-Edgeworth).png" },
 
             // --- 绫里一家 ---
             { keywords: ["绫里真宵", "真宵"], url: "https://i.postimg.cc/vBhx55Cn/it2007-(Maya-Fey).png" },
             { keywords: ["绫里春美", "春美"], url: "https://i.postimg.cc/hjsQVVN1/it201f-(Pearl-Fey).png" },
             { keywords: ["绫里千寻", "千寻"], url: "https://i.postimg.cc/SNZ8TXmL/it1012-(Mia-Fey).png" },
             { keywords: ["绫里纪美子", "纪美子"], url: "https://i.postimg.cc/V6g0XX2R/it2021-(Morgan-Fey).png" },
-            { keywords: ["天流斋艾莉", "绫里舞子", "舞子"], url: "https://i.postimg.cc/Wz4F8hvq/it305f-(Elise-Deauxnim).png" },
+            { keywords: ["天流斋艾莉", "绫里舞子", "舞子"], url: "https://i.postimg.cc/1tTWDfTr/it101c-(Misty-Fey).png" },
             { keywords: ["绫美(兜帽)", "彩芽(兜帽)"], url: "https://i.postimg.cc/2yXqKrk1/it307c-(Dummy)-(Iris-with-Hood).png" },
             { keywords: ["叶樱院绫美", "绫美", "彩芽"], url: "https://i.postimg.cc/zvPLc8zD/it3060-(Iris).png" },
             { keywords: ["美柳千奈美", "千奈美"], url: "https://i.postimg.cc/C5KB7zgT/it300b-(Dahlia-Hawthorne).png" },
@@ -3145,7 +3175,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // --- 系锯 圭介 ---
             { keywords: ["系锯(7年前)", "系锯(灰大衣)"], url: "https://i.postimg.cc/RVNJn6dY/item3025-(Dick-Gumshoe).png" },
             { keywords: ["系锯(4代)"], url: "https://i.postimg.cc/MTqjc93Q/face40028-(Dick-Gumshoe).png" },
-            { keywords: ["系锯圭介", "系锯", "刑警"], url: "https://i.postimg.cc/c4bYDMCj/cast001-00-(Dick-Gumshoe).png" },
+            { keywords: ["系锯圭介", "系锯", "刑警"], url: "https://i.postimg.cc/fLFHYJFJ/it100a-(Dick-Gumshoe).png" },
 
             // --- 成步堂 美贯 ---
             { keywords: ["美贯(幼年)", "美贯(小)", "美贯(7年前)"], url: "https://i.postimg.cc/Jhbk4fxG/face40017-(Trucy-Enigmar).png" },
@@ -3163,7 +3193,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             { keywords: ["一柳万才", "万才"], url: "https://i.postimg.cc/MGkBw6yL/cast21c-00-(Blaise-Debeste).png" },
             { keywords: ["信乐盾之(年轻)", "信乐(年轻)", "信乐(小)"], url: "https://i.postimg.cc/VNytwfjb/cast214-00-(Raymond-Shields).png" },
             { keywords: ["信乐盾之", "信乐"], url: "https://i.postimg.cc/sDNSn91D/cast104-00-(Raymond-Shields).png" },
-            { keywords: ["狩魔豪", "狩魔(父)"], url: "https://i.postimg.cc/YCLFTGL5/cast105-00-(Manfred-von-Karma).png" },
+            { keywords: ["狩魔豪", "狩魔(父)"], url: "https://i.postimg.cc/6qvMcBJc/it103b-(Manfred-von-Karma).png" },
             { keywords: ["歌德", "神乃木庄龙", "神乃木"], url: "https://i.postimg.cc/4y37Pmgs/it3028-(Godot).png" },
             { keywords: ["王泥喜法介", "王泥喜"], url: "https://i.postimg.cc/1tsNgv7f/face40026-(Apollo-Justice).png" },
             { keywords: ["审判长", "法官", "裁判长"], url: "https://i.postimg.cc/zXVHRb79/item3033-(The-Judge).png" },
@@ -3248,20 +3278,20 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             { keywords: ["冈高夫"], url: "https://i.postimg.cc/x8dJ5c28/it304f-(Glen-Elg).png" },
             { keywords: ["尾并田美散", "尾并田"], url: "https://i.postimg.cc/mkrzjtsP/it3058-(Terry-Fawles).png" },
             { keywords: ["神乃木庄龙(年轻)"], url: "https://i.postimg.cc/L5sYDnpq/it305a-(Diego-Armando).png" },
-            { keywords: ["松竹梅世", "梅世"], url: "https://i.postimg.cc/x8Fk4nfz/itc100b-(April-May).png" },
-            { keywords: ["酒店服务生", "侍者"], url: "https://i.postimg.cc/sx0BNsjW/itc100c-(Bellboy).png" },
-            { keywords: ["小中大"], url: "https://i.postimg.cc/C56ZQShD/itc100d-(Redd-White).png" },
+            { keywords: ["松竹梅世", "梅世"], url: "https://i.postimg.cc/50GP86Gq/it100b-(April-May).png" },
+            { keywords: ["酒店服务生", "侍者"], url: "https://i.postimg.cc/Y9VXQhVN/it100c-(Bellboy).png" },
+            { keywords: ["小中大"], url: "https://i.postimg.cc/bJM61sMx/it100d-(Redd-White).png" },
             { keywords: ["高日美佳"], url: "https://i.postimg.cc/HnPJhdYt/itc1014-(Cindy-Stone).png" },
             { keywords: ["山野星雄", "山野"], url: "https://i.postimg.cc/kGhVpqJc/itc1015-(Frank-Sahwit).png" },
-            { keywords: ["大泷九太", "九太"], url: "https://i.postimg.cc/ZYfyRF8b/itc102a-(Cody-Hackins).png" },
-            { keywords: ["荷星三郎", "荷星", "大将军"], url: "https://i.postimg.cc/mZdFDNYZ/itc102b-(Will-Powers).png" },
-            { keywords: ["姬神樱", "姬神"], url: "https://i.postimg.cc/y6fSdXm8/itc102c-(Dee-Vasquez).png" },
-            { keywords: ["宇在拓也", "宇在"], url: "https://i.postimg.cc/L4yZXBtX/itc102d-(Assistant).png" },
-            { keywords: ["衣袋武史", "衣袋"], url: "https://i.postimg.cc/kMjt4FQG/itc102f-(Jack-Hammer).png" },
-            { keywords: ["大场香", "大婶"], url: "https://i.postimg.cc/Pf68xzWN/itc1030-(Security-Lady).png" },
-            { keywords: ["大泽木夏美", "夏美"], url: "https://i.postimg.cc/mZdFDNYt/itc103a-(Lotta-Hart).png" },
-            { keywords: ["生仓雪男", "生仓"], url: "https://i.postimg.cc/c1D8HMRw/itc103d-(Robert-Hammond).png" },
-            { keywords: ["灰根高太郎", "灰根"], url: "https://i.postimg.cc/05tJQdY7/itc103e-(Yanni-Yogi).png" },
+            { keywords: ["大泷九太", "九太"], url: "https://i.postimg.cc/G2NMvHNM/it102a-(Cody-Hackins).png" },
+            { keywords: ["荷星三郎", "荷星", "大将军"], url: "https://i.postimg.cc/Wzk58sLg/it102b-(Will-Powers).png" },
+            { keywords: ["姬神樱", "姬神"], url: "https://i.postimg.cc/GtyXKbwk/it102c-(Dee-Vasquez).png" },
+            { keywords: ["宇在拓也", "宇在"], url: "https://i.postimg.cc/Hny6zTDt/it102d-(Assistant).png" },
+            { keywords: ["衣袋武史", "衣袋"], url: "https://i.postimg.cc/prFsCPbk/it102f-(Jack-Hammer).png" },
+            { keywords: ["大场香", "大婶"], url: "https://i.postimg.cc/sxhTm3dc/it103a-(Lotta-Hart).png" },
+            { keywords: ["大泽木夏美", "夏美"], url: "https://i.postimg.cc/sxhTm3dc/it103a-(Lotta-Hart).png" },
+            { keywords: ["生仓雪男", "生仓"], url: "https://i.postimg.cc/Hny6zTDZ/it103d-(Robert-Hammond).png" },
+            { keywords: ["灰根高太郎", "灰根"], url: "https://i.postimg.cc/ZndwHJtf/it103e-(Yanni-Yogi).png" },
             { keywords: ["罪门恭介", "罪门"], url: "https://i.postimg.cc/HWS7x4w0/itc107a-(Jake-Marshall).png" },
             { keywords: ["罪门直斗"], url: "https://i.postimg.cc/ryhtmC1C/itc107b-(Neil-Marshall).png" },
             { keywords: ["岩徒海慈", "岩徒", "署长"], url: "https://i.postimg.cc/J4GHBDxy/itc107c-(Damon-Gant).png" },
@@ -3313,15 +3343,17 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 ["拘留所·看守所会见室", "https://i.postimg.cc/QMJF72PF/bg101e-(Detention-Center-Visitor-s-Room).png"],
                 ["中央监狱·单人牢房13号", "https://i.postimg.cc/tC8nGtW3/bg0012-(Central-Prison-Solitary-Cell-13)-(Nail-Polish).png"],
             ] },
-            { title: "警察署·检察厅", scenes: [
-                ["地方检察厅·1202室检事局", "https://i.postimg.cc/d0w1JW13/bg1073-(High-Prosecutor-s-Office-Room-1202).png"],
-                ["地方检察厅·12层走廊", "https://i.postimg.cc/q7DWQSrQ/MAP0-000-01-BG00-(Prosecutor-s-Building-12th-Floor-Hallway).png"],
-                ["警察署·入口", "https://i.postimg.cc/Bnxb9Wqv/bg1072(s)-(Police-Department-Entrance).png"],
-                ["警察署·刑事课", "https://i.postimg.cc/FRP1WjhN/bg104f(s)-(Police-Department-Criminal-Affairs).png"],
-                ["警察署·档案室", "https://i.postimg.cc/W1MzLRsY/bg1050-(Police-Department-Records-Room).png"],
-                ["警察署·署长办公室", "https://i.postimg.cc/Dz6z0qJ5/bg1075-(Police-Department-Chief-s-Office).png"],
-                ["警察署·证物室第三区", "https://i.postimg.cc/W341kh0R/bg1076(s)-(Evidence-Room-Sector-Three).png"],
-                ["警察署·证物室警卫站", "https://i.postimg.cc/j5jS7Lyt/bg1077-(Evidence-Room-Entrance-Guard-Station).png"],
+            { title: "演艺·公众·街景", scenes: [
+                ["阳光竞技场", "https://i.postimg.cc/dtgZcmrV/bg0027(us)-(Sunshine-Coliseum).png"],
+                ["舞台侧翼", "https://i.postimg.cc/ZRBCgXQW/bg001b-(In-the-Wings)-(The-Stage).png"],
+                ["幕后走廊", "https://i.postimg.cc/wvy7Pnrh/bg001d(us)-(Backstage-Hallway)-(Headset).png"],
+                ["牙琉波人乐队·化妆休息室", "https://i.postimg.cc/g0FtwF37/bg0031(us)-(Gavinners-s-Dressing-Room).png"],
+                ["商场", "https://i.postimg.cc/rm0Kb7H9/shang-chang.jpg"],
+                ["空港机场·大厅", "https://i.postimg.cc/rmd3HjyN/MAP1-000-04-BG00(us)-(Hope-Springs-Airport-Lobby).png"],
+                ["国际航班I-390·头等舱", "https://i.postimg.cc/76CdR9PV/MAP1-000-01-BG00(us)-(Flight-I-390-Second-Floor-First-Class).png"],
+                ["红枫街道", "https://i.postimg.cc/x8LqjMn0/hong-feng-jie-dao.jpg"],
+                ["车站", "https://i.postimg.cc/Dwq0kV2h/bg1055-(Station).png"],
+                ["维他命广场", "https://i.postimg.cc/ncq9Z9ky/bg3302(s)-(Vitamin-Square).png"],
             ] },
             { title: "日常·居所", scenes: [
                 ["御剑家·卧室", "https://i.postimg.cc/Qt9HPvzJ/yu-jian-jia-wo-shi.jpg"],
@@ -4053,15 +4085,18 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
                     let actionKey = "Normal";
+                    const aLow = action.toLowerCase();
                     if (action.includes('闭眼') || action.includes('轻蔑')) actionKey = "Eyes Shut";
                     else if (action.includes('自信') || action.includes('抱胸')) actionKey = "Confident";
-                    else if (action.includes('挥鞭') || action.includes('鞭击') || action.includes('00c')) actionKey = "Angry";
+                    else if (action.includes('挥鞭') || action.includes('鞭击') || action.includes('甩鞭') || action.includes('抽鞭') || action.includes('鞭子') || action.includes('抽打') || action.includes('抽') || aLow.includes('whip') || action.includes('010')) actionKey = "Whip";
+                    else if (action.includes('拉鞭') || action.includes('抖鞭') || action.includes('持鞭') || aLow.includes('stance')) actionKey = "Whip Stance";
+                    else if (action.includes('生气') || action.includes('怒') || action.includes('00c')) actionKey = "Angry";
                     else if (action.includes('拔鞭') || action.includes('准备') || action.includes('00e')) actionKey = "Challenge2";
                     else if (action.includes('流汗') || action.includes('急')) actionKey = "Nervous";
                     else if (action.includes('鞠躬') || action.includes('行礼') || action.includes('00f')) actionKey = "Bowing";
-                    else if (action.includes('受创') || action.includes('破防') || action.includes('010')) actionKey = "Damage";
+                    else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
                     else if (action.includes('恢复') || action.includes('011')) actionKey = "Recover";
-                    else if (action.includes('思考') || action.includes('抖鞭')) actionKey = "Whip Stance";
+                    else if (action.includes('思考')) actionKey = "Whip Stance";
                     animator.playFromRegistry("冥_法庭", actionKey);
                 } else {
                     let actionKey = "Normal";
