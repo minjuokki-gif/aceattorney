@@ -717,6 +717,7 @@
                     <div class="settings-tabs">
                         <button class="tab-btn active" onclick="switchSettingsTab('tab-log')">📜 剧情回放</button>
                         <button class="tab-btn" onclick="switchSettingsTab('tab-case')">🚨 案件调度</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('tab-bgm')">🎵 音乐控制</button>
                         <button class="tab-btn" onclick="switchSettingsTab('tab-api')">⚙️ API设置</button>
                         <button class="tab-btn" onclick="switchSettingsTab('tab-world')">📖 世界书</button>
                         <button class="tab-btn" onclick="switchSettingsTab('tab-phone')">📱 手机通讯</button>
@@ -733,6 +734,28 @@
                         <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="renderHistoryLog()">🔄 刷新列表</button>
                     </div>
                     <div class="log-list-container" id="log-list-box"></div>
+                </div>
+
+                <!-- 🎵 音乐控制面板 -->
+                <div class="settings-content-pane" id="pane-tab-bgm">
+                    <div style="background: #0f1c30; padding: 12px; border-radius: 6px; border: 1px solid #23436d; display: flex; flex-direction: column; gap: 10px;">
+                        <div style="font-size: 13px; font-weight: bold; color: #ff9900;">当前播放：<span id="bgm-current-title" style="color: #62b5ff;">已停止</span></div>
+                        <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                            <label style="color: #fff; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" id="chk-bgm-enabled" checked onchange="toggleBgmEnabled(this.checked)">
+                                开启背景音乐
+                            </label>
+                            <label style="color: #fff; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" id="chk-bgm-smart" checked onchange="toggleBgmSmart(this.checked)">
+                                开启智能识别切歌
+                            </label>
+                        </div>
+                        <div style="font-size: 11px; color: #7696be; line-height: 1.5;">
+                            ※ 关闭智能识别后：地点、剧情情绪、AI 的 [BGM:xxx] 标记都不再自动换歌，只有原作固定配乐（异议、看招、证言开始、询问、判决）仍会切歌；你可以点击下方曲目随时手动点歌。
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; font-weight: bold; color: #ffffff;">📻 手动曲目点播</div>
+                    <div id="bgm-manual-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;"></div>
                 </div>
 
                 <!-- 0. 案件推进与搜查大地图 -->
@@ -1385,7 +1408,7 @@
             // 19. 美柳千奈美 · 证人席/法庭
             "千奈美_法庭": {
                 scale: 0.85,
-                "Normal": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/Y0fwV921/pl308300-01.png", "https://i.postimg.cc/L5MpNfSx/pl308300-02.png"] },
+                "Normal": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/t4R9Khxc/pl30830f-00.png", "https://i.postimg.cc/Y0fwV921/pl308300-01.png", "https://i.postimg.cc/L5MpNfSx/pl308300-02.png"] },
                 "Nervous Sweat": { type: "loop", frameDelay: 250, frames: ["https://i.postimg.cc/5yMVnvJ3/pl308302-00.png", "https://i.postimg.cc/tJHj2Pbd/pl308302-01.png", "https://i.postimg.cc/fyhNBXsd/pl308302-02.png"] },
                 "Crying": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/rsLkQWTd/pl308304-00.png", "https://i.postimg.cc/C5VgmD01/pl308304-01.png", "https://i.postimg.cc/Xq0bQFWV/pl308304-02.png", "https://i.postimg.cc/d1CF26bk/pl308304-03.png", "https://i.postimg.cc/3RGhX1sN/pl308304-04.png", "https://i.postimg.cc/d1CF26bs/pl308304-05.png", "https://i.postimg.cc/qRKrswPk/pl308304-06.png", "https://i.postimg.cc/k4SCQsk0/pl308304-07.png", "https://i.postimg.cc/bJnPxgK5/pl308304-08.png"] },
                 "Condescending": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/KYwF3wsw/pl308308-01.png", "https://i.postimg.cc/GpVrTVSN/pl308308-02.png"] },
@@ -2434,12 +2457,103 @@
         bgmAudio.loop = true;
         let currentBgmKey = "";
         let audioUnlocked = false;
+        let isBgmEnabled = true;       // 背景音乐总开关
+        let isSmartBgmEnabled = true;  // 智能识别切歌开关（关闭后只响应喊话强指令和手动点歌）
+
+        const BGM_NAME_MAP = {
+            "detention": "拘留所 ~ 警卫的挽歌",
+            "gumshoe": "系锯刑警 ~ 这就是系锯刑警汪！",
+            "pursuit": "追诉 ~ 抓住真正的凶手",
+            "pursuit_var": "追击 ~ 变化版",
+            "objection": "成步堂 ~ 异议あり！2001",
+            "maya": "绫里真宵 ~ 逆转姐妹2001",
+            "ending": "胜诉 ~ 逆转终局",
+            "cross_exam": "法庭寻问 ~ 质问 Moderato",
+            "heart_invest": "搜查核心 ~ 调查深处",
+            "court_session": "法庭开庭 ~ 审判开启",
+            "suspense": "绝境悬疑 ~ 危机暗涌",
+            "simple_folk": "轻松日常 ~ 小人物的漫谈",
+            "truth": "真相揭晓 ~ 破案时刻",
+            "investigation": "初动搜查 ~ 现场勘查",
+            "dl6": "悲伤回忆 ~ DL-6号事件",
+            "dahlia": "美柳千奈美 ~ 预兆之颜",
+            "godot": "歌德 ~ 黑暗之香 即是咖啡",
+            "bridge": "通往逆转之桥 ~ 华丽的逆转",
+            "hotline": "命运热线 ~ 迫近危机",
+            "court_session_gs2": "开庭 ~ 正义之火"
+        };
+
+        function updateBgmStatusDisplay() {
+            const el = document.getElementById('bgm-current-title');
+            if (!el) return;
+            if (!currentBgmKey) el.innerText = '已停止';
+            else el.innerText = (BGM_NAME_MAP[currentBgmKey] || currentBgmKey) + (isBgmEnabled ? '' : '（已静音）');
+        }
+
+        function saveBgmSettings() {
+            try { localStorage.setItem('ace_bgm_settings', JSON.stringify({ enabled: isBgmEnabled, smart: isSmartBgmEnabled })); } catch (e) {}
+        }
+
+        function toggleBgmEnabled(val) {
+            isBgmEnabled = !!val;
+            if (!isBgmEnabled) {
+                bgmAudio.pause();
+            } else if (currentBgmKey) {
+                playBGM(currentBgmKey, 'manual');
+            }
+            updateBgmStatusDisplay();
+            saveBgmSettings();
+        }
+
+        function toggleBgmSmart(val) {
+            isSmartBgmEnabled = !!val;
+            saveBgmSettings();
+        }
+
+        function syncBgmPanel() {
+            const a = document.getElementById('chk-bgm-enabled');
+            const b = document.getElementById('chk-bgm-smart');
+            if (a) a.checked = isBgmEnabled;
+            if (b) b.checked = isSmartBgmEnabled;
+            updateBgmStatusDisplay();
+        }
+
+        function renderBgmList() {
+            const box = document.getElementById('bgm-manual-list');
+            if (!box) return;
+            box.innerHTML = '';
+            for (const key in BGM_TRACKS) {
+                const btn = document.createElement('button');
+                btn.className = 'btn-sub';
+                btn.style.cssText = 'padding:6px 8px;font-size:12px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                btn.textContent = '🎵 ' + (BGM_NAME_MAP[key] || key);
+                btn.onclick = () => {
+                    isBgmEnabled = true;           // 手动点歌自动解除静音
+                    saveBgmSettings();
+                    syncBgmPanel();
+                    playBGM(key, 'manual');
+                };
+                box.appendChild(btn);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('ace_bgm_settings') || 'null');
+                if (saved) {
+                    isBgmEnabled = saved.enabled !== false;
+                    isSmartBgmEnabled = saved.smart !== false;
+                }
+            } catch (e) {}
+            renderBgmList();
+            syncBgmPanel();
+        });
 
         // 核心：突破浏览器的自动播放策略（只要玩家在页面上产生任意一次交互，立即解锁声音）
         function unlockAudio() {
             audioUnlocked = true;
             if (typeof unlockAudioPool === 'function') unlockAudioPool();
-            if (currentBgmKey && bgmAudio.paused) {
+            if (isBgmEnabled && currentBgmKey && bgmAudio.paused) {
                 bgmAudio.play().catch(() => {});
             }
         }
@@ -2449,18 +2563,33 @@
         window.addEventListener('touchstart', unlockAudio);
         window.addEventListener('touchend', unlockAudio);
 
-        function playBGM(key) {
+        // mode: 'auto' = 地点/情绪/AI标记等自动切歌（受智能开关限制）
+        //       'core' = 游戏原版固定配乐：异议/看招、证言开始/询问、判决等（智能关闭时依然生效）
+        //       'manual' = 玩家在音乐控制面板手动点歌
+        function playBGM(key, mode = 'auto') {
             if (!key || key === "stop") {
                 bgmAudio.pause();
                 currentBgmKey = "";
+                updateBgmStatusDisplay();
                 return;
             }
             const url = BGM_TRACKS[key];
             if (!url) return;
-            
+
+            // 智能识别关闭：自动切歌一律忽略
+            if (mode === 'auto' && !isSmartBgmEnabled) return;
+
+            // 背景音乐总开关关闭：只记下"该播哪首"，不出声；重新开启时从这首接着播
+            if (!isBgmEnabled) {
+                currentBgmKey = key;
+                updateBgmStatusDisplay();
+                return;
+            }
+
             // 解决重置和相同曲目逻辑
             if (currentBgmKey === key && !bgmAudio.paused) return;
             currentBgmKey = key;
+            updateBgmStatusDisplay();
             
             // 如果链接变了才换 src，防止循环重新加载
             if (!bgmAudio.src.endsWith(encodeURI(url)) && !bgmAudio.src.endsWith(url)) {
@@ -2848,7 +2977,7 @@
             stage.style.backgroundImage = `url('${locationBgMap["法庭·审判长席"]}')`;
             viewport.style.display = 'flex';
             animator.playFromRegistry("审判长_法庭", "Warning");
-            playBGM('suspense'); // 极度悬疑与屏息
+            playBGM('suspense', 'core'); // 极度悬疑与屏息
 
             // 💥 第二步：1.2秒后，镜头切到【法庭·全景】，审判长立绘退下，全场静止屏息！
             _vTimer(() => {
@@ -2878,7 +3007,7 @@
 
                 // 💥 第五步：两个字都砸定后，如果是无罪，切入胜诉 BGM【Ending】
                 _vTimer(() => {
-                    if (type === 'not_guilty') playBGM('ending');
+                    if (type === 'not_guilty') playBGM('ending', 'core');
                 }, VERDICT_GAP_MS + 450);
 
                 // 第六步：两个字停稳后，才允许点屏幕关闭；一直停留在画面上，不再自动淡出
@@ -3712,10 +3841,10 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 自动侦测台词中的法庭关键指令与大招特效
             if (content.includes('证言开始') || content.includes('证词开始')) {
                 triggerCourtBanner('～ 证 言 开 始 ～');
-                playBGM('cross_exam');
+                playBGM('cross_exam', 'core');
             } else if (content.includes('开始询问') || content.includes('开始质问') || content.includes('质询开始')) {
                 triggerCourtBanner('～ 开 始 询 问 ～');
-                playBGM('cross_exam');
+                playBGM('cross_exam', 'core');
             } else if (content.includes('证言结束') || content.includes('证词结束')) {
                 triggerCourtBanner('～ 证 言 结 束 ～');
             }
@@ -3738,7 +3867,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 (!isNarration && /(异议|反对|異議)\s*[!！]/.test(content))) {
                 willShout = true;
                 shoutType = "objection";
-                playBGM('objection');
+                playBGM('objection', 'core');
             } else if (action.includes('等等') || content.includes('待った') ||
                 (!isNarration && inFightScene && /(等等|等一下|等一等|且慢)\s*[!！]/.test(content))) {
                 willShout = true;
@@ -4484,12 +4613,12 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 🎯 玩家在输入框选择标签时，精确对应触发气泡大字与音效
             if (val.includes('[异议]') || val.includes('异议あり') || val.includes('我有异议')) {
                 triggerShoutBubble('objection', 'user');
-                playBGM('objection');
+                playBGM('objection', 'core');
             } else if (val.includes('[等等]') || val.includes('等一下') || val.includes('待った')) {
                 triggerShoutBubble('hold_it', 'user');
             } else if (val.includes('[看招]') || val.includes('[出示证物]') || val.includes('看招') || val.includes('くらえ') || val.includes('[指认]')) {
                 triggerShoutBubble('take_that', 'user');
-                playBGM('pursuit');
+                playBGM('pursuit', 'core');
             } else if (val.includes('[拍桌]')) {
                 playVoiceFile("./audio/se01c (Slamming Desk).flac");
                 const stage = document.getElementById('game-stage');
@@ -5123,6 +5252,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
             document.querySelectorAll('.settings-content-pane').forEach(p => p.classList.remove('active'));
             document.getElementById(`pane-${tabId}`).classList.add('active');
 
+            if (tabId === 'tab-bgm') syncBgmPanel();
             if (tabId === 'tab-log') renderHistoryLog();
             if (tabId === 'tab-phone') renderPhoneList();
             if (tabId === 'tab-affinity') renderAffinityList();
@@ -5725,7 +5855,7 @@ ${contactHistory}
             toggleRecord();
 
             // 删掉原本提前调用的 triggerShoutBubble，避免和队列首句重复触发
-            playBGM('pursuit');
+            playBGM('pursuit', 'core');
             const presentLines = [
                 `[发言] ${gameState.profile.name}(指认): くらえ！(看招！)`,
                 `[发言] ${gameState.profile.name}(拍桌): 这就是决定性的矛盾！请看我出示的【${item.name}】！`
