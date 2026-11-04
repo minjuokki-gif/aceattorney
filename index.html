@@ -2278,7 +2278,35 @@
         };
 
         // 预加载全部立绘帧，避免网速慢时漏帧
-        Object.values(CHARACTER_ANIMATION_REGISTRY).forEach(c => Object.values(c).forEach(a => (a && a.frames || []).forEach(u => { new Image().src = u; })));
+        (function preloadSpritesGently() {
+            // 之前是一口气同时请求上千张图，图床会限流，导致一部分立绘加载失败（裂图）。
+            // 现在改成：页面加载完后，每次并发 100 张，失败的自动重试一次。
+            const queue = [];
+            const seen = new Set();
+            Object.values(CHARACTER_ANIMATION_REGISTRY).forEach(c => Object.values(c).forEach(a => (a && a.frames || []).forEach(u => {
+                if (typeof u === 'string' && !seen.has(u)) { seen.add(u); queue.push(u); }
+            })));
+            let running = 0;
+            const MAX = 100;
+            function next() {
+                while (running < MAX && queue.length) {
+                    const url = queue.shift();
+                    running++;
+                    const im = new Image();
+                    let retried = false;
+                    const done = () => { running--; next(); };
+                    im.onload = done;
+                    im.onerror = () => {
+                        if (!retried) { retried = true; setTimeout(() => { im.src = url + '?r=1'; }, 800); }
+                        else done();
+                    };
+                    im.src = url;
+                }
+            }
+            const start = () => setTimeout(next, 1500);
+            if (document.readyState === 'complete') start();
+            else window.addEventListener('load', start);
+        })();
 
         class UniversalAnimator {
             constructor(imgElementId) {
@@ -2287,6 +2315,19 @@
                 this.blinkTimeout = null;
                 this.lastKey = null;
                 this.token = 0; // 每次切换角色/动作就自增，旧动画的所有延时回调都会作废
+                // 立绘加载失败（裂图）时自动重试，最多 3 次
+                this._retry = {};
+                this.imgEl.addEventListener('error', () => {
+                    const u = this.imgEl.getAttribute('src');
+                    if (!u) return;
+                    const base = u.split('?r=')[0];
+                    const n = (this._retry[base] || 0) + 1;
+                    if (n > 3) return;
+                    this._retry[base] = n;
+                    setTimeout(() => {
+                        if (this.imgEl.getAttribute('src') === u) this.imgEl.src = base + '?r=' + n + '_' + Date.now();
+                    }, 400 * n);
+                });
             }
             stop() {
                 this.token++;
