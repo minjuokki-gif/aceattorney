@@ -2308,7 +2308,7 @@
                 // 读取角色的统一下沉高度，成步堂的所有动作都会固定在同一水平线
                 const oy = (anim.offsetY !== undefined ? anim.offsetY : charObj.offsetY) || 0;
                 const offsetY = oy ? ` translateY(${oy}px)` : '';
-                this.imgEl.style.transform = `scale(${charObj.scale || 1.0})${offsetY}`;
+                this.imgEl.style.transform = isCourt ? `scale(${charObj.scale || 1.0})${offsetY}` : (offsetY ? offsetY.trim() : 'none');
 
                 // 喝咖啡必须接在端咖啡后面：如果上一个动作不是端咖啡，先端起来，再喝
                 if (characterKey === "成步堂_法庭" && animKey === "Drinking Coffee" &&
@@ -3138,8 +3138,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // --- 宝月 茜 (按年龄与身份分流) ---
             { keywords: ["宝月茜(幼年)", "宝月茜(高中)", "茜(幼年)", "茜(高中)", "茜(学生)"], url: "https://i.postimg.cc/xCnbk6pP/it1077-(Ema-Skye).png" },
             { keywords: ["宝月茜(检)", "茜(检)"], url: "https://i.postimg.cc/J4GHBDx6/item2033-(Ema-Skye).png" },
-            { keywords: ["宝月茜(4代)", "茜(4代)"], url: "https://i.postimg.cc/mrQH2vjT/face40012-(Ema-Skye).png" },
-            { keywords: ["宝月茜", "茜"], url: "https://i.postimg.cc/sDNSn91d/cast003-00-(Ema-Skye).png" },
+            { keywords: ["宝月茜", "茜", "宝月茜(4代)", "茜(4代)"], url: "https://i.postimg.cc/mrQH2vjT/face40012-(Ema-Skye).png" },
 
             // --- 一条 美云 ---
             { keywords: ["美云(幼年)", "美云(7年前)", "美云(小)"], url: "https://i.postimg.cc/15fVNnBj/item3024-(Kay-Faraday).png" },
@@ -4249,14 +4248,14 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
                 animator.playFromRegistry("绫美_正面", actionKey);
             }
-            // 17. 审判长 (法官)
-            else if (speaker.includes('审判长') || speaker.includes('法官')) {
+            // 17. 审判长 (法官 / 裁判长)
+            else if (speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
-                if (action.includes('点头')) actionKey = "Nodding";
-                else if (action.includes('摇头')) actionKey = "Shaking Head";
-                else if (action.includes('警告') || action.includes('敲槌') || action.includes('肃静')) actionKey = "Warning";
-                else if (action.includes('震惊') || action.includes('胡子') || action.includes('慌乱')) actionKey = "Shocked";
+                if (action.includes('点头') || action.includes('赞成') || action.includes('认可')) actionKey = "Nodding";
+                else if (action.includes('摇头') || action.includes('否决') || action.includes('不妥')) actionKey = "Shaking Head";
+                else if (action.includes('警告') || action.includes('敲槌') || action.includes('肃静') || action.includes('威严') || action.includes('木槌')) actionKey = "Warning";
+                else if (action.includes('震惊') || action.includes('胡子') || action.includes('慌乱') || action.includes('吃惊') || action.includes('什么')) actionKey = "Shocked";
                 animator.playFromRegistry("审判长_法庭", actionKey);
             }
             // 18. 系锯圭介 (把“系锯”、“糸锯”、“圭介”全部加上，怎么生成都能识别！)
@@ -4767,7 +4766,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
    - 只允许真实在场的人物发言或互动。
 4. 【法庭高手过招·绝不作宝宝权谋（极其重要）】：
    - 严禁检方一击即溃！检事（御剑/冥/歌德/响也/雾人/亚内）必须手握警方解剖报告、目击时间差、现场凶器指纹等严密控诉逻辑，步步紧逼。
-   - 辩方出示证物时，检方绝不能束手无策，必须立刻抓出破绽反打一耙或亮出控方新证据：
+   - 辩方在【法庭】出示证物时，检方绝不能束手无策，必须立刻抓出破绽反打一耙或亮出控方新证据。
+   - 【非开庭/搜查日常出示证物铁律】：当场景不在法庭时，玩家出示证物仅为“拿给对方看/询问线索”或“刑警使用取证工具”，严禁对方莫名其妙回复“这里不是法庭/有什么矛盾”，应自然针对该物品本身进行评价、回忆或提供调查线索！
      例如：[发言] 御剑(异议): 异议あり！别以为这样就能蒙混过关，你出示的手套并不能排除被告作案的可能！
      例如：[发言] 歌德(喝咖啡): 哼……咖啡再苦，也没有你这毫无根据的推论让人难以下咽。[看招] 看看这份门禁刷卡记录吧！
    - 辩护方（成步堂/千寻/主角）必须是在绝境中通过连环质问、逆向思考（把思维颠倒过来）才能撕开缺口！
@@ -5884,19 +5884,28 @@ ${contactHistory}
         }
 
         function presentCurrentEvidence() {
-            const list = (recordTab === 'profiles' ? gameState.profiles : gameState.evidence) || [];
-            const item = list[recIndex];
+            if (recordCurrentTab !== 'evidence') {
+                alert("只能出示【证物资料】！");
+                return;
+            }
+            const item = gameState.evidence[recordCurrentIndex];
             if (!item) return;
+
             toggleRecord();
 
-            // 删掉原本提前调用的 triggerShoutBubble，避免和队列首句重复触发
-            playBGM('pursuit', 'core');
-            const presentLines = [
-                `[发言] ${gameState.profile.name}(指认): くらえ！(看招！)`,
-                `[发言] ${gameState.profile.name}(拍桌): 这就是决定性的矛盾！请看我出示的【${item.name}】！`
-            ];
-            loadDialogueQueue(presentLines);
-            triggerAIStep(`我向对方出示了证物【${item.name}】并指出矛盾！`);
+            const isCourt = gameState.currentLocation.includes('法庭');
+            const isPoliceTool = item.name.includes('试剂') || item.name.includes('粉') || item.name.includes('套组') || item.name.includes('探测器');
+
+            let promptText = "";
+            if (isCourt) {
+                promptText = `[出示证物] 我出示了【${item.name}】，并指出了证词与事实的矛盾！`;
+            } else if (isPoliceTool) {
+                promptText = `[出示证物] 我拿出了【${item.name}】，准备在当前场景进行现场搜查与勘验。`;
+            } else {
+                promptText = `[出示证物] 我向对方出示了【${item.name}】，询问与其相关的线索或看法。`;
+            }
+
+            triggerAIStep(promptText);
         }
 
         // ================= 10. 存读档与数据导出 =================
