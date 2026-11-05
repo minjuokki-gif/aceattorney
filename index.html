@@ -4055,15 +4055,36 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             updateTurnControls();
 
             // 核心功能：法庭内镜头根据当前发言角色自动秒切背景（辩护席/检察席/证人席/审判长席/助手席）
+            if (!isCourtScene) gameState.witnessName = '';   // 离开法庭：清掉证人席记忆
+            let atWitnessStand = false;   // 站在证人席时用“正面”立绘，而不是辩护席/检察席侧身立绘
             if (isCourtScene) {
                 let targetCourtBg = null;
-                const spk = speaker.toLowerCase();
-                if ((speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker === '龙一' || speaker === gameState.profile.name) {
+                const isPhoenix = (speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker.includes('龙一');
+                const isPlayerSpk = speaker === gameState.profile.name;
+                const isJudge = speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官');
+                const leavingStand = action.includes('离开证人席') || action.includes('退下证人席');
+                // 证人席记忆：动作里带“证人席”就站上去，直到“离开证人席”（成步堂龙一与法官除外）
+                if (leavingStand) {
+                    if (gameState.witnessName === speaker) gameState.witnessName = '';
+                } else if (action.includes('证人席') && !isPhoenix && !isJudge) {
+                    gameState.witnessName = speaker;
+                }
+                const atWitness = !leavingStand && !isPhoenix && !isJudge &&
+                    (action.includes('证人席') || (speaker && gameState.witnessName === speaker));
+                // 玩家席位按职业：辩护律师→辩护席，检事→检察席，刑警→证人席
+                const roleSeat = gameState.profile.role === '检事' ? "法庭·检察席"
+                               : gameState.profile.role === '刑警' ? "法庭·证人席" : "法庭·辩护席";
+                atWitnessStand = atWitness;
+                if (isJudge) {
+                    targetCourtBg = locationBgMap["法庭·审判长席"];
+                } else if (atWitness) {
+                    targetCourtBg = locationBgMap["法庭·证人席"];
+                } else if (isPhoenix) {
                     targetCourtBg = locationBgMap["法庭·辩护席"];
+                } else if (isPlayerSpk) {
+                    targetCourtBg = locationBgMap[roleSeat];
                 } else if (speaker.includes('御剑') || speaker.includes('冥') || speaker.includes('响也') || speaker.includes('亚内') || speaker.includes('检事')) {
                     targetCourtBg = locationBgMap["法庭·检察席"];
-                } else if (speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官')) {
-                    targetCourtBg = locationBgMap["法庭·审判长席"];
                 } else if (speaker.includes('真宵') || speaker.includes('千寻') || speaker.includes('春美')) {
                     targetCourtBg = locationBgMap["法庭·助手席"];
                 } else if (speaker !== '旁白' && !speaker.includes('系统')) {
@@ -4073,6 +4094,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                     document.getElementById('game-stage').style.backgroundImage = `url('${targetCourtBg}')`;
                 }
             }
+
+            const courtSprite = isCourtScene && !atWitnessStand;
 
             // ================= 智能名字识别与立绘分发 (姓氏 / 全名 / 名字 均完美支持) =================
             // 1. 成步堂（成步堂、龙一、成步堂龙一 通吃）
@@ -4099,7 +4122,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 2. 御剑（御剑、怜侍、御剑怜侍 通吃）
             else if (speaker.includes('御剑') || speaker.includes('怜侍')) {
                 viewport.style.display = 'flex';
-                if (isCourtScene) {
+                if (courtSprite) {
                     let actionKey = "Normal";
                     if (action.includes('思考')) actionKey = "Thinking";
                     else if (action.includes('拍桌')) actionKey = "Slamming Desk";
@@ -4125,7 +4148,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 3. 绫里千寻（千寻）
             else if (speaker.includes('千寻')) {
                 viewport.style.display = 'flex';
-                if (isCourtScene) {
+                if (courtSprite) {
                     let actionKey = "Strict";
                     if (action.includes('震惊') || action.includes('受创')) actionKey = "Shocked";
                     else if (action.includes('失落') || action.includes('沮丧')) actionKey = "Disheartened";
@@ -4142,7 +4165,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 4. 绫里真宵（真宵）
             else if (speaker.includes('真宵')) {
                 viewport.style.display = 'flex';
-                if (isCourtScene) {
+                if (courtSprite) {
                     let actionKey = "Normal";
                     if (action.includes('严肃') || action.includes('认真')) actionKey = "Strict";
                     else if (action.includes('瞪') || action.includes('生气')) actionKey = "Glaring";
@@ -4184,7 +4207,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 6. 狩魔冥（冥、狩魔冥 通吃，排斥狩魔豪）
             else if (speaker.includes('冥') || (speaker.includes('狩魔') && !speaker.includes('豪'))) {
                 viewport.style.display = 'flex';
-                if (isCourtScene) {
+                if (courtSprite) {
                     let actionKey = "Normal";
                     const aLow = action.toLowerCase();
                     if (action.includes('闭眼') || action.includes('轻蔑')) actionKey = "Eyes Shut";
@@ -4211,7 +4234,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 7. 牙琉响也（响也、牙琉响也）
             else if (speaker.includes('响也')) {
                 viewport.style.display = 'flex';
-                if (isCourtScene) {
+                if (courtSprite) {
                     let actionKey = "Normal";
                     if (action.includes('轻蔑') || action.includes('嘲笑')) actionKey = "Scornful Laugh";
                     else if (action.includes('笑') || action.includes('微笑')) actionKey = "Smiling";
@@ -4647,7 +4670,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 41. 歌德 / 神乃木庄龙 (歌德、神乃木 通吃)
             else if (speaker.includes('歌德') || speaker.includes('神乃木')) {
                 viewport.style.display = 'flex';
-                if (isCourtScene) {
+                if (courtSprite) {
                     let actionKey = "Normal";
                     if (action.includes('拍桌') || action.includes('砸桌')) actionKey = "Slamming Desk";
                     else if (action.includes('扔咖啡') || action.includes('泼咖啡')) actionKey = "Coffee Throw";
@@ -4909,7 +4932,12 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
    - 场景转移：[场景: 地点名]
    - 氛围变奏：[BGM: 曲目代号]
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
+   - 证物更新：[证物更新: 已有证物名 | 新的完整介绍]（搜查/调查中发现某件已持有的证物与原本认知不同、或有了新发现时，单独输出这一行，改写它的介绍；名称必须与「持有证物」里的完全一致。若证物本身要改名，写成 [证物更新: 旧名 -> 新名 | 新的完整介绍]）
    - 新人物登记：[人物: 人物姓名 | 身份背景描述]
+9.5 【法庭席位与职业规则】（仅在法庭场景生效）：
+   - 玩家职业为「检事」时：开庭后玩家站在检察席，是公诉方，主导询问证人、论告、反驳辩方异议；辩护席由成步堂/王泥喜等NPC担任，严禁把玩家写成辩护人。
+   - 玩家职业为「刑警」时：开庭后玩家通常以证人身份站上证人席作证，由审判长、检察官、辩护律师轮流询问玩家；玩家可[出示证物]说明搜查成果；严禁把玩家写成辩护人或检察官。
+   - 除成步堂龙一外，任何角色（真宵、千寻、春美、御剑、冥等）被传唤作证时，该角色发言的动作括号里必须带“证人席”三个字，例如：[发言] 绫里 春美(证人席·紧张): ……；作证结束离席时，动作写“离开证人席”。
 10. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
             const recent = getHistoryContext(5);
 
@@ -5157,6 +5185,29 @@ ${userActionText || '（玩家静静等待对方说话）'}
                     if (BGM_TRACKS[bgmName]) {
                         pendingBgmCue = bgmName;   // 不立即播放，挂到下一句台词上，读到时再切
                     }
+                    continue;
+                }
+
+                // 2.9 证物更新：[证物更新: 旧名 -> 新名 | 新介绍]（或不改名：[证物更新: 名 | 新介绍]）
+                const eviUpd = line.match(/\[证物更新[:：]\s*([^|｜\]]+)[|｜]\s*([^\]]*)\]/);
+                if (eviUpd) {
+                    const parts = eviUpd[1].split(/->|=>|→|＞|>/).map(t => t.trim()).filter(Boolean);
+                    const oldName = parts[0] || '';
+                    const newName = parts[1] || oldName;
+                    const newDesc = (eviUpd[2] || '').trim();
+                    let target = gameState.evidence.find(e => e.name === oldName)
+                        || gameState.evidence.find(e => oldName && (e.name.includes(oldName) || oldName.includes(e.name)));
+                    if (target) {
+                        if (newDesc) target.desc = newDesc;
+                        if (newName !== target.name) {
+                            target.name = newName;
+                            target.icon = matchEvidenceIcon(newName, target.desc);
+                        }
+                    } else if (newName) {
+                        // 没找到旧证物：当作新证物收下，避免信息丢失
+                        gameState.evidence.push({ name: newName, desc: newDesc || "在调查过程中获取的关键线索。", icon: matchEvidenceIcon(newName, newDesc) });
+                    }
+                    renderRecordAll();
                     continue;
                 }
 
