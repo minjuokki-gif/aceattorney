@@ -203,6 +203,7 @@
             background-color: #0b111c;
             padding: 18px 6% 12px 6%;
             cursor: pointer;
+            overflow: hidden;
         }
         .dialogue-box.loading-lock {
             cursor: wait !important;
@@ -230,6 +231,8 @@
         }
 
         .bottom-bar {
+            position: relative;
+            z-index: 20;
             width: 100%;
             height: 32px;
             background-color: #eef1f5;
@@ -238,6 +241,7 @@
             align-items: center;
             padding: 0 3%;
             border-top: 1px solid #c8ced8;
+            pointer-events: auto;
         }
         .bottom-bar-left { display: flex; align-items: center; gap: 8px; }
         .bottom-bar-right { display: flex; align-items: center; gap: 14px; }
