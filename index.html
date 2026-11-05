@@ -1981,7 +1981,15 @@
             // 28. 市之谷响华 · 正面 (pl11d)
             "响华_正面": {
                 scale: 1.0,
-                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/6pRP3Wm2/pl11d100-01.png", "https://i.postimg.cc/0ym4QkBQ/pl11d100-02.png"] },
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 300, 
+                    frames: [
+                        "https://i.postimg.cc/jjCRfW6m/pl11d110-00.png",
+                        "https://i.postimg.cc/6pRP3Wm2/pl11d100-01.png", 
+                        "https://i.postimg.cc/0ym4QkBQ/pl11d100-02.png"
+                    ] 
+                },
                 "Confident": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/t4PcTqM4/pl11d102-00.png", "https://i.postimg.cc/htxYjD3k/pl11d102-01.png", "https://i.postimg.cc/9QTkMmNv/pl11d102-02.png"] },
                 "Serious": { type: "loop", frameDelay: 280, frames: ["https://i.postimg.cc/HsFKdc3z/pl11d106-00.png", "https://i.postimg.cc/3Jz6Y49F/pl11d106-01.png", "https://i.postimg.cc/281JsFdh/pl11d106-02.png"] },
                 "Angry": { type: "loop", frameDelay: 260, frames: ["https://i.postimg.cc/TYKSzqjb/pl11d108-00.png", "https://i.postimg.cc/L6J7cBkn/pl11d108-01.png", "https://i.postimg.cc/RVW8kQ1F/pl11d108-02.png"] },
@@ -4066,9 +4074,9 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 }
             }
 
-            // ================= 智能名字识别与立绘分发 =================
+            // ================= 智能名字识别与立绘分发 (姓氏 / 全名 / 名字 均完美支持) =================
             // 1. 成步堂（成步堂、龙一、成步堂龙一 通吃）
-            if ((speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker === '龙一') {
+            if ((speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker.includes('龙一')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('思考')) actionKey = "Thinking";
@@ -4088,8 +4096,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('异议')) actionKey = "Objection!";
                 animator.playFromRegistry("成步堂_法庭", actionKey);
             }
-            // 2. 御剑（御剑、御剑怜侍 通吃）
-            else if (speaker.includes('御剑')) {
+            // 2. 御剑（御剑、怜侍、御剑怜侍 通吃）
+            else if (speaker.includes('御剑') || speaker.includes('怜侍')) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
                     let actionKey = "Normal";
@@ -4143,33 +4151,19 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                     animator.playFromRegistry("真宵_法庭", actionKey);
                 } else {
                     let actionKey = "Normal";
-                    if (action.includes('抱头') || action.includes('狂晃') || action.includes('116')) {
-                        actionKey = "Shocked_Hold";
-                    } else if (action.includes('点头') || action.includes('117')) {
-                        actionKey = "Nodding";
-                    } else if (action.includes('开心') || action.includes('拉面') || action.includes('高兴')) {
-                        actionKey = "Happy";
-                    } else if (action.includes('自信') || action.includes('叉腰')) {
-                        actionKey = "Confident";
-                    } else if (action.includes('生气') || action.includes('气呼呼')) {
-                        actionKey = "Angry";
-                    } else if (action.includes('坚定') || action.includes('决心')) {
-                        actionKey = "Determined";
-                    } else if (action.includes('担心') || action.includes('担忧')) {
-                        actionKey = "Worried";
-                    } else if (action.includes('思考')) {
-                        actionKey = "Thinking";
-                    } else if (action.includes('消沉') || action.includes('沮丧')) {
-                        actionKey = "Depressed";
-                    } else if (action.includes('伤心') || action.includes('难过')) {
-                        actionKey = "Sad";
-                    } else if (action.includes('失落')) {
-                        actionKey = "Disheartened";
-                    } else if (action.includes('含泪') || action.includes('哭')) {
-                        actionKey = "Teary";
-                    } else if (action.includes('震惊') || action.includes('吃惊')) {
-                        actionKey = "Shocked_Loop";
-                    }
+                    if (action.includes('抱头') || action.includes('狂晃') || action.includes('116')) actionKey = "Shocked_Hold";
+                    else if (action.includes('点头') || action.includes('117')) actionKey = "Nodding";
+                    else if (action.includes('开心') || action.includes('拉面') || action.includes('高兴')) actionKey = "Happy";
+                    else if (action.includes('自信') || action.includes('叉腰')) actionKey = "Confident";
+                    else if (action.includes('生气') || action.includes('气呼呼')) actionKey = "Angry";
+                    else if (action.includes('坚定') || action.includes('决心')) actionKey = "Determined";
+                    else if (action.includes('担心') || action.includes('担忧')) actionKey = "Worried";
+                    else if (action.includes('思考')) actionKey = "Thinking";
+                    else if (action.includes('消沉') || action.includes('沮丧')) actionKey = "Depressed";
+                    else if (action.includes('伤心') || action.includes('难过')) actionKey = "Sad";
+                    else if (action.includes('失落')) actionKey = "Disheartened";
+                    else if (action.includes('含泪') || action.includes('哭')) actionKey = "Teary";
+                    else if (action.includes('震惊') || action.includes('吃惊')) actionKey = "Shocked_Loop";
                     animator.playFromRegistry("真宵_正面", actionKey);
                 }
             }
@@ -4187,8 +4181,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('失落') || action.includes('沮丧')) actionKey = "Disappointed";
                 animator.playFromRegistry("春美_正面", actionKey);
             }
-            // 6. 狩魔冥（只要带“冥”字就抓，避免误伤狩魔豪）
-            else if (speaker.includes('冥')) {
+            // 6. 狩魔冥（冥、狩魔冥 通吃，排斥狩魔豪）
+            else if (speaker.includes('冥') || (speaker.includes('狩魔') && !speaker.includes('豪'))) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
                     let actionKey = "Normal";
@@ -4236,8 +4230,25 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                     animator.playFromRegistry("响也_正面", actionKey);
                 }
             }
-            // 8. 矢张政志
-            else if (speaker.includes('矢张')) {
+            // 8. 牙琉雾人（雾人、牙琉雾人）
+            else if (speaker.includes('雾人')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('推眼镜') || action.includes('眼镜')) actionKey = "Pushing Glasses";
+                else if (action.includes('阴险') || action.includes('冷笑') || action.includes('诡异')) actionKey = "Sinister Smile";
+                else if (action.includes('狂怒') || action.includes('崩溃') || action.includes('披头散发') || action.includes('暴怒')) actionKey = "Explosive Rage";
+                else if (action.includes('青筋') || action.includes('隐忍') || action.includes('强忍')) actionKey = "Suppressed Rage";
+                else if (action.includes('俯视') || action.includes('睥睨') || action.includes('下看')) actionKey = "Looking Down";
+                else if (action.includes('生气') || action.includes('怒') || action.includes('不悦')) actionKey = "Angry";
+                else if (action.includes('自信') || action.includes('微笑') || action.includes('从容')) actionKey = "Confident";
+                else if (action.includes('居高临下') || action.includes('轻蔑')) actionKey = "Condescending";
+                else if (action.includes('受创') || action.includes('破防') || action.includes('动摇')) actionKey = "Damage";
+                else if (action.includes('瞪') || action.includes('不善') || action.includes('凝视')) actionKey = "Glaring";
+                else if (action.includes('汗') || action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
+                animator.playFromRegistry("雾人_法庭", actionKey);
+            }
+            // 9. 矢张政志（矢张、政志 通吃）
+            else if (speaker.includes('矢张') || speaker.includes('政志')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('逞强') || action.includes('自信') || action.includes('大笑')) actionKey = "Bravado";
@@ -4252,7 +4263,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('思考')) actionKey = "Thinking";
                 animator.playFromRegistry("矢张_正面", actionKey);
             }
-            // 9. 大场香 (大婶)
+            // 10. 大场香 (大场、大婶、香 通吃)
             else if (speaker.includes('大场') || speaker.includes('大婶')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -4263,8 +4274,22 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('陶醉') || action.includes('御剑') || action.includes('花痴')) actionKey = "Enchanted";
                 animator.playFromRegistry("大场香_正面", actionKey);
             }
-            // 10. 宝月巴
-            else if (speaker.includes('宝月巴') || (speaker.includes('巴') && !speaker.includes('宝月巴'))) {
+            // 11. 宝月茜 (宝月茜、茜、宝月刑警 通吃)
+            else if (speaker.includes('茜') || (speaker.includes('宝月') && !speaker.includes('巴'))) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('江米棒') || action.includes('嚼') || action.includes('不爽') || action.includes('不高兴')) actionKey = "Grumpy";
+                else if (action.includes('生气') || action.includes('怒') || action.includes('暴躁')) actionKey = "Angry";
+                else if (action.includes('侧头') || action.includes('看旁边')) actionKey = "Looking to the Side";
+                else if (action.includes('自信') || action.includes('叉腰') || action.includes('科学')) actionKey = "Confident";
+                else if (action.includes('吃惊') || action.includes('震惊') || action.includes('吓')) actionKey = "Shocked";
+                else if (action.includes('开心') || action.includes('笑') || action.includes('高兴')) actionKey = "Happy";
+                else if (action.includes('墨镜') || action.includes('太阳镜') || action.includes('眼镜')) actionKey = "Sunglasses";
+                else if (action.includes('思考') || action.includes('琢磨') || action.includes('鉴定')) actionKey = "Thinking";
+                animator.playFromRegistry("茜_正面", actionKey);
+            }
+            // 12. 宝月巴 (巴、宝月巴、检事正 通吃)
+            else if (speaker.includes('巴')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('侧头') || action.includes('避开')) actionKey = "Averting Eyes";
@@ -4277,8 +4302,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('前倾') || action.includes('逼近')) actionKey = "Leaning Forward";
                 animator.playFromRegistry("宝月巴_正面", actionKey);
             }
-            // 11. 立见里香
-            else if (speaker.includes('里香') || speaker.includes('立见')) {
+            // 13. 立见里香（立见、里香 通吃）
+            else if (speaker.includes('立见') || speaker.includes('里香')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('自信') || action.includes('抱胸')) actionKey = "Confident";
@@ -4290,14 +4315,14 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('特殊') || action.includes('猴')) actionKey = "Special";
                 animator.playFromRegistry("里香_正面", actionKey);
             }
-            // 12. 绫里舞子
-            else if (speaker.includes('舞子')) {
+            // 14. 绫里舞子（舞子、艾莉 通吃）
+            else if (speaker.includes('舞子') || speaker.includes('艾莉')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('微笑') || action.includes('笑')) actionKey = "Smiling";
                 animator.playFromRegistry("舞子_正面", actionKey);
             }
-            // 13. 绫里纪美子
+            // 15. 绫里纪美子（纪美子）
             else if (speaker.includes('纪美子')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -4306,7 +4331,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('伤心') || action.includes('抹泪') || action.includes('叹气')) actionKey = "Sad";
                 animator.playFromRegistry("纪美子_正面", actionKey);
             }
-            // 14. 美柳千奈美
+            // 16. 美柳千奈美（千奈美）
             else if (speaker.includes('千奈美')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -4320,16 +4345,13 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('微笑') || action.includes('天使') || action.includes('笑')) actionKey = "Smiling";
                 animator.playFromRegistry("千奈美_法庭", actionKey);
             }
-            // 15. 美贯（通吃：成步堂美贯 / 或真敷美贯 / 幼年美贯 / 8岁美贯 / 小美贯）
+            // 17. 美贯（美贯、或真敷美贯 通吃）
             else if (speaker.includes('美贯')) {
                 viewport.style.display = 'flex';
-                // 只要名字、动作里带 幼年/8岁/小/或真敷，或者台词/玩家上一轮提到了小时候/8岁，全部判定为幼年！
                 const CHILD_RE = /(幼年|8岁|八岁|8歲|八歲|小时候|小時候|年幼|小女孩|童年|或真敷|7年前|七年前)/;
                 const ADULT_RE = /(十五岁|十五歲|15岁|15歲|十八岁|18岁|成年|长大|長大|现在的美贯|如今的美贯)/;
-                // 谁最后出现谁说了算：玩家说“现在是幼年”/“现在是十五岁”就以最后那个为准
                 const lastPos = (re, t) => { const g = new RegExp(re.source, 'g'); let m, p = -1; while ((m = g.exec(t))) p = m.index; return p; };
                 const decide = (t, fallback) => { const c = lastPos(CHILD_RE, t), a = lastPos(ADULT_RE, t); return (c < 0 && a < 0) ? fallback : (c > a); };
-                // 只看玩家的话 + 发言人名字 + 动作标签，不看台词内容（避免台词里随口提到“八岁”就误切）
                 const hereText = speaker + ' ' + action + ' ' + (typeof lastUserActionText === 'string' ? lastUserActionText : '');
                 if (gameState.trucyChild === undefined) {
                     const recent = (historyLog || []).slice(-40).map(h => (h.userText || '')).join(' ') + ' ' + ((gameState.profile && gameState.profile.setting) || '');
@@ -4360,7 +4382,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                     animator.playFromRegistry("美贯_正面", actionKey);
                 }
             }
-            // 16. 叶樱院绫美 (彩芽)
+            // 18. 叶樱院绫美 (绫美、彩芽 通吃)
             else if (speaker.includes('绫美') || speaker.includes('彩芽')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -4379,7 +4401,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
                 animator.playFromRegistry("绫美_正面", actionKey);
             }
-            // 17. 审判长 (法官 / 裁判长)
+            // 19. 审判长 (审判长、裁判长、法官 通吃)
             else if (speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -4389,8 +4411,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('震惊') || action.includes('胡子') || action.includes('慌乱') || action.includes('吃惊') || action.includes('什么')) actionKey = "Shocked";
                 animator.playFromRegistry("审判长_法庭", actionKey);
             }
-            // 18. 系锯圭介 (把“系锯”、“糸锯”、“圭介”全部加上，怎么生成都能识别！)
-            else if (speaker.includes('系锯') || speaker.includes('糸锯') || speaker.includes('圭介') ) {
+            // 20. 系锯圭介 (系锯、糸锯、圭介 通吃)
+            else if (speaker.includes('系锯') || speaker.includes('糸锯') || speaker.includes('圭介')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('笑') || action.includes('大笑') || action.includes('叉腰大笑')) actionKey = "Laughing";
@@ -4402,39 +4424,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('侧头') || action.includes('看旁边')) actionKey = "Looking to the Side";
                 animator.playFromRegistry("系锯_正面", actionKey);
             }
-            // 19. 宝月茜 (科学搜查官) - 单独写“宝月”、“茜”、“宝月茜”全部通吃！
-            else if (speaker === '宝月' || speaker.includes('宝月茜') || speaker.includes('茜') || (speaker.includes('宝月') && !speaker.includes('巴'))) {
-                viewport.style.display = 'flex';
-                let actionKey = "Normal";
-                if (action.includes('江米棒') || action.includes('嚼') || action.includes('不爽') || action.includes('不高兴')) actionKey = "Grumpy";
-                else if (action.includes('生气') || action.includes('怒') || action.includes('暴躁')) actionKey = "Angry";
-                else if (action.includes('侧头') || action.includes('看旁边')) actionKey = "Looking to the Side";
-                else if (action.includes('自信') || action.includes('叉腰') || action.includes('科学')) actionKey = "Confident";
-                else if (action.includes('吃惊') || action.includes('震惊') || action.includes('吓')) actionKey = "Shocked";
-                else if (action.includes('开心') || action.includes('笑') || action.includes('高兴')) actionKey = "Happy";
-                else if (action.includes('墨镜') || action.includes('太阳镜') || action.includes('眼镜')) actionKey = "Sunglasses";
-                else if (action.includes('思考') || action.includes('琢磨') || action.includes('鉴定')) actionKey = "Thinking";
-                animator.playFromRegistry("茜_正面", actionKey);
-            }
-            /// 20. 牙琉雾人
-            else if (speaker.includes('雾人')) {
-                viewport.style.display = 'flex';
-                let actionKey = "Normal";
-                if (action.includes('推眼镜') || action.includes('眼镜')) actionKey = "Pushing Glasses";
-                else if (action.includes('阴险') || action.includes('冷笑') || action.includes('诡异')) actionKey = "Sinister Smile";
-                else if (action.includes('狂怒') || action.includes('崩溃') || action.includes('披头散发') || action.includes('暴怒')) actionKey = "Explosive Rage";
-                else if (action.includes('青筋') || action.includes('隐忍') || action.includes('强忍')) actionKey = "Suppressed Rage";
-                else if (action.includes('俯视') || action.includes('睥睨') || action.includes('下看')) actionKey = "Looking Down";
-                else if (action.includes('生气') || action.includes('怒') || action.includes('不悦')) actionKey = "Angry";
-                else if (action.includes('自信') || action.includes('微笑') || action.includes('从容')) actionKey = "Confident";
-                else if (action.includes('居高临下') || action.includes('轻蔑')) actionKey = "Condescending";
-                else if (action.includes('受创') || action.includes('破防') || action.includes('动摇')) actionKey = "Damage";
-                else if (action.includes('瞪') || action.includes('不善') || action.includes('凝视')) actionKey = "Glaring";
-                else if (action.includes('汗') || action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
-                animator.playFromRegistry("雾人_法庭", actionKey);
-            }
-            // 21. 岩徒海慈
-            else if (speaker.includes('岩徒')) {
+            // 21. 岩徒海慈 (岩徒、海慈、署长 通吃)
+            else if (speaker.includes('岩徒') || speaker.includes('海慈')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('思考')) actionKey = "Thinking";
@@ -4447,15 +4438,15 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('崩溃') || action.includes('倒')) actionKey = "Collapse";
                 animator.playFromRegistry("岩徒_正面", actionKey);
             }
-            // 22. 星影宇宙之介
-            else if (speaker.includes('星影') || speaker.includes('星野')) {
+            // 22. 星影宇宙之介 (星影、宇宙之介 通吃)
+            else if (speaker.includes('星影') || speaker.includes('宇宙之介')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('思考') || action.includes('想')) actionKey = "Thinking";
                 animator.playFromRegistry("星影_正面", actionKey);
             }
-            // 23. 市之谷响华
-            else if (speaker.includes('响华')) {
+            // 23. 市之谷响华 (市之谷、响华、便当大姐 通吃)
+            else if (speaker.includes('市之谷') || speaker.includes('响华')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('自信') || action.includes('叉腰')) actionKey = "Confident";
@@ -4467,8 +4458,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('扔') || action.includes('砸')) actionKey = "Throw";
                 animator.playFromRegistry("响华_正面", actionKey);
             }
-            // 24. 罪门恭介
-            else if (speaker.includes('罪门')) {
+            // 24. 罪门恭介 (罪门、恭介 通吃)
+            else if (speaker.includes('罪门') || speaker.includes('恭介')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('喝') || action.includes('水壶')) actionKey = "Drink";
@@ -4482,8 +4473,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('流汗') || action.includes('紧张')) actionKey = "Nervous";
                 animator.playFromRegistry("罪门_正面", actionKey);
             }
-            // 25. 华宫雾绪
-            else if (speaker.includes('雾绪')) {
+            // 25. 华宫雾绪 (华宫、雾绪 通吃)
+            else if (speaker.includes('华宫') || speaker.includes('雾绪')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('笑') || action.includes('微笑')) actionKey = "Smile";
@@ -4496,8 +4487,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('消沉') || action.includes('低落')) actionKey = "Depressed";
                 animator.playFromRegistry("雾绪_正面", actionKey);
             }
-            // 26. 荷星三郎
-            else if (speaker.includes('荷星')) {
+            // 26. 荷星三郎 (荷星、三郎、大将军 通吃)
+            else if (speaker.includes('荷星') || speaker.includes('三郎')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('害羞') || action.includes('不好意思')) actionKey = "Embarrassed";
@@ -4506,8 +4497,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('哭') || action.includes('泪')) actionKey = "Cry";
                 animator.playFromRegistry("荷星_正面", actionKey);
             }
-            // 27. 亚内武文
-            else if (speaker.includes('亚内')) {
+            // 27. 亚内武文 (亚内、武文 通吃)
+            else if (speaker.includes('亚内') || speaker.includes('武文')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('自信') || action.includes('得意')) actionKey = "Confident";
@@ -4517,8 +4508,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('秃') || action.includes('慌') || action.includes('流汗')) actionKey = "Bald Nervous";
                 animator.playFromRegistry("亚内_法庭", actionKey);
             }
-            // 28. 天杉优作
-            else if (speaker.includes('优作')) {
+            // 28. 天杉优作 (天杉、优作 通吃，排除希华)
+            else if (speaker.includes('优作') || (speaker.includes('天杉') && !speaker.includes('希华'))) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('思考')) actionKey = "Thinking";
@@ -4529,8 +4520,18 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('哭') || action.includes('大哭')) actionKey = "Cry";
                 animator.playFromRegistry("优作_正面", actionKey);
             }
-            // 29. 鹿羽里美
-            else if (speaker.includes('里美') || speaker.includes('鹿羽')) {
+            // 29. 天杉希华 (希华 通吃)
+            else if (speaker.includes('希华')) {
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('思考')) actionKey = "Thinking";
+                else if (action.includes('吃惊') || action.includes('震惊')) actionKey = "Shocked";
+                else if (action.includes('大笑') || action.includes('爽朗')) actionKey = "Laugh";
+                else if (action.includes('生气') || action.includes('怒')) actionKey = "Angry";
+                animator.playFromRegistry("希华_正面", actionKey);
+            }
+            // 30. 鹿羽里美 (鹿羽、里美 通吃)
+            else if (speaker.includes('鹿羽') || speaker.includes('里美')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('微笑') || action.includes('笑')) actionKey = "Smile";
@@ -4538,16 +4539,16 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('哭') || action.includes('大哭') || action.includes('眼泪')) actionKey = "Crying";
                 animator.playFromRegistry("里美_正面", actionKey);
             }
-            // 30. 小池惠子
-            else if (speaker.includes('小池')) {
+            // 31. 小池惠子 (小池、惠子 通吃)
+            else if (speaker.includes('小池') || speaker.includes('惠子')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('得意') || action.includes('笑')) actionKey = "Smug";
                 else if (action.includes('打字') || action.includes('狂敲') || action.includes('键盘')) actionKey = "Typing Frenzy";
                 animator.playFromRegistry("小池_正面", actionKey);
             }
-            // 31. 叶中未实
-            else if (speaker.includes('未实')) {
+            // 32. 叶中未实 (叶中、未实 通吃)
+            else if (speaker.includes('叶中') || speaker.includes('未实')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('思考')) actionKey = "Thinking";
@@ -4559,7 +4560,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('瞪') || action.includes('冷淡')) actionKey = "Glaring";
                 animator.playFromRegistry("未实_正面", actionKey);
             }
-            // 32. 堀田院长
+            // 33. 堀田院长 (堀田、引田 通吃)
             else if (speaker.includes('堀田') || speaker.includes('引田')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -4567,8 +4568,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('笑') || action.includes('大笑') || action.includes('猥琐')) actionKey = "Laugh";
                 animator.playFromRegistry("堀田_正面", actionKey);
             }
-            // 33. 王都楼真悟
-            else if (speaker.includes('王都楼')) {
+            // 34. 王都楼真悟 (王都楼、真悟 通吃)
+            else if (speaker.includes('王都楼') || speaker.includes('真悟')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('思考')) actionKey = "Thinking";
@@ -4578,25 +4579,15 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('受创') || action.includes('破防') || action.includes('抓狂')) actionKey = "Damage";
                 animator.playFromRegistry("王都楼_正面", actionKey);
             }
-            // 34. 天杉希华
-            else if (speaker.includes('希华')) {
-                viewport.style.display = 'flex';
-                let actionKey = "Normal";
-                if (action.includes('思考')) actionKey = "Thinking";
-                else if (action.includes('吃惊') || action.includes('震惊')) actionKey = "Shocked";
-                else if (action.includes('大笑') || action.includes('爽朗')) actionKey = "Laugh";
-                else if (action.includes('生气') || action.includes('怒')) actionKey = "Angry";
-                animator.playFromRegistry("希华_正面", actionKey);
-            }
-            // 35. 板东饭店服务生
+            // 35. 板东饭店服务生 (服务生、侍者 通吃)
             else if (speaker.includes('服务生') || speaker.includes('侍者')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('端茶') || action.includes('红茶') || action.includes('上茶')) actionKey = "Tea";
                 animator.playFromRegistry("服务生_正面", actionKey);
             }
-            // 36. 小中大
-            else if (speaker.includes('小中大') || speaker === '小中') {
+            // 36. 小中大 (小中大、小中 通吃)
+            else if (speaker.includes('小中')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('戒指') || action.includes('闪光')) actionKey = "Shining Ring";
@@ -4610,8 +4601,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('瘫倒') || action.includes('跪')) actionKey = "Collapse";
                 animator.playFromRegistry("小中大_正面", actionKey);
             }
-            // 37. 松竹梅世
-            else if (speaker.includes('梅世')) {
+            // 37. 松竹梅世 (松竹、梅世 通吃)
+            else if (speaker.includes('梅世') || speaker.includes('松竹')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('眨眼') || action.includes('放电')) actionKey = "Cute Wink";
@@ -4624,8 +4615,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('哭') || action.includes('抹泪')) actionKey = "Sobbing";
                 animator.playFromRegistry("梅世_正面", actionKey);
             }
-            // 38. 零木真子
-            else if (speaker.includes('真子')) {
+            // 38. 零木真子 (零木、真子 通吃)
+            else if (speaker.includes('零木') || speaker.includes('真子')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('敬礼')) actionKey = "Salute";
@@ -4635,16 +4626,16 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
                 animator.playFromRegistry("真子_正面", actionKey);
             }
-            // 39. 雾崎哲郎
-            else if (speaker.includes('雾崎')) {
+            // 39. 雾崎哲郎 (雾崎、哲郎 通吃)
+            else if (speaker.includes('雾崎') || speaker.includes('哲郎')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('推眼镜') || action.includes('眼镜')) actionKey = "Push Glasses";
                 else if (action.includes('生气') || action.includes('怒') || action.includes('烦躁')) actionKey = "Angry";
                 animator.playFromRegistry("雾崎_正面", actionKey);
             }
-            // 40. 绘濑真琴
-            else if (speaker.includes('真琴') || speaker.includes('绘濑')) {
+            // 40. 绘濑真琴 (绘濑、真琴 通吃)
+            else if (speaker.includes('绘濑') || speaker.includes('真琴')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('害羞') || action.includes('低头')) actionKey = "Shy";
@@ -4653,7 +4644,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('笑') || action.includes('微笑')) actionKey = "Smile";
                 animator.playFromRegistry("真琴_正面", actionKey);
             }
-            // 歌德 / 神乃木庄龙
+            // 41. 歌德 / 神乃木庄龙 (歌德、神乃木 通吃)
             else if (speaker.includes('歌德') || speaker.includes('神乃木')) {
                 viewport.style.display = 'flex';
                 if (isCourtScene) {
