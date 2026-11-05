@@ -4221,7 +4221,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('汗') || action.includes('流汗')) actionKey = "Nervous Sweat";
                 else if (action.includes('受创') || action.includes('破防')) actionKey = "Damage";
                 else if (action.includes('前倾') || action.includes('逼近')) actionKey = "Leaning Forward";
-                animator.playFromRegistry("宝月巴_法庭", actionKey);
+                animator.playFromRegistry("宝月巴_正面", actionKey);
             }
             // 11. 立见里香
             else if (speaker.includes('里香') || speaker.includes('立见')) {
@@ -5938,25 +5938,34 @@ ${contactHistory}
         }
 
         function presentCurrentEvidence() {
-            if (recordCurrentTab !== 'evidence') {
+            if (typeof recordCurrentTab !== 'undefined' && recordCurrentTab !== 'evidence') {
                 alert("只能出示【证物资料】！");
                 return;
             }
+            if (!gameState || !gameState.evidence || !gameState.evidence[recordCurrentIndex]) return;
             const item = gameState.evidence[recordCurrentIndex];
-            if (!item) return;
+            const eName = String(item.name || "证物");
 
             toggleRecord();
 
-            const isCourt = gameState.currentLocation.includes('法庭');
-            const isPoliceTool = item.name.includes('试剂') || item.name.includes('粉') || item.name.includes('套组') || item.name.includes('探测器');
-
+            const isCourt = Boolean(gameState.currentLocation && gameState.currentLocation.includes('法庭'));
             let promptText = "";
+
             if (isCourt) {
-                promptText = `[出示证物] 我出示了【${item.name}】，并指出了证词与事实的矛盾！`;
-            } else if (isPoliceTool) {
-                promptText = `[出示证物] 我拿出了【${item.name}】，准备在当前场景进行现场搜查与勘验。`;
+                // 法庭场景：击溃证言、指出矛盾
+                promptText = `[出示证物] 我出示了【${eName}】，并指出了证词与事实的矛盾！`;
+            } else if (eName.includes('勾玉')) {
+                // 仓院流勾玉专属机制：照探对方心灵，具象化精神枷锁（Psychic Lock）
+                promptText = `[出示证物] 我握紧并出示了【${eName}】，暗中催动灵力感知对方内心，察看对方身上是否浮现出隐瞒秘密的「心灵之锁（Psychic Lock）」并准备追问！`;
+            } else if (eName.includes('手镯') || eName.includes('手环')) {
+                // 看破手镯专属机制：看破小动作
+                promptText = `[出示证物] 我注视着手上的【${eName}】，进入「看破」状态，紧盯对方说话时的微表情、肌肉紧绷或眨眼等小动作破绽！`;
+            } else if (eName.includes('鲁米诺') || eName.includes('铝粉') || eName.includes('试剂') || eName.includes('探测器') || eName.includes('套组') || eName.includes('石膏')) {
+                // 科学搜查/刑警勘验道具：现场提取痕迹
+                promptText = `[出示证物] 我拿出了科学搜查道具【${eName}】，在当前现场对可疑痕迹展开详细勘验与检测提取。`;
             } else {
-                promptText = `[出示证物] 我向对方出示了【${item.name}】，询问与其相关的线索或看法。`;
+                // 普通随身证物/卷宗：日常出示向对方打听线索
+                promptText = `[出示证物] 我向对方出示了【${eName}】，询问其是否见过此物或知晓相关线索。`;
             }
 
             triggerAIStep(promptText);
