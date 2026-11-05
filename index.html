@@ -6015,7 +6015,14 @@ ${contactHistory}
             const item = gameState.evidence[recIndex];
             const eName = String(item.name || "证物");
 
-            toggleRecord();
+            // 防连点：AI 还在回复时不能再出示（避免多发几条白花钱）
+            if (isAILoading) {
+                alert("AI 正在回复中，请稍等回复完再出示！");
+                return;
+            }
+
+            // 先把法庭纪录簿关掉（明确关闭，不用 toggle，避免状态反了）
+            document.getElementById('record-modal').classList.remove('active');
 
             const isCourt = Boolean(gameState.currentLocation && gameState.currentLocation.includes('法庭'));
             let promptText = "";
@@ -6036,6 +6043,10 @@ ${contactHistory}
                 // 普通随身证物/卷宗：日常出示向对方打听线索
                 promptText = `[出示证物] 我向对方出示了【${eName}】，询问其是否见过此物或知晓相关线索。`;
             }
+
+            // 和普通发言一致：先扎出「看招」气泡 + 音效 + 追及BGM，再发给 AI
+            triggerShoutBubble('take_that', 'user');
+            playBGM('pursuit', 'core');
 
             triggerAIStep(promptText);
         }
