@@ -4316,7 +4316,10 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 15. 美贯（通吃：成步堂美贯 / 或真敷美贯 / 幼年美贯 / 8岁美贯 / 小美贯）
             else if (speaker.includes('美贯')) {
                 viewport.style.display = 'flex';
-                const isChild = speaker.includes('幼年') || speaker.includes('小') || speaker.includes('8岁') || speaker.includes('或真敷') || action.includes('幼年') || action.includes('8岁');
+                // 只要名字、动作里带 幼年/8岁/小/或真敷，或者台词/玩家上一轮提到了小时候/8岁，全部判定为幼年！
+                const isChild = speaker.includes('幼年') || speaker.includes('小') || speaker.includes('8岁') || speaker.includes('或真敷') || 
+                                action.includes('幼年') || action.includes('8岁') || action.includes('小时候') ||
+                                (typeof lastUserActionText !== 'undefined' && (lastUserActionText.includes('8岁') || lastUserActionText.includes('幼年') || lastUserActionText.includes('小时候')));
 
                 if (isChild) {
                     let actionKey = "Normal";
