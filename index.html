@@ -980,6 +980,18 @@
                 "Disheartened": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/BnztPtDC/pl103304-00.png", "https://i.postimg.cc/4x0nHntc/pl103304-01.png", "https://i.postimg.cc/W1ytqtrr/pl103304-02.png"] },
                 "Sad": { type: "loop", frameDelay: 320, frames: ["https://i.postimg.cc/qvFg6gn8/pl103306-00.png", "https://i.postimg.cc/SxPjYj8C/pl103306-01.png", "https://i.postimg.cc/L85nsjqq/pl103306-02.png"] }
             },
+            // 3.5 绫里千寻 · 律师席（辩护席，下沉60px；430a/430d/307/310 为 once_hold，其余 loop）
+            "千寻_律师": {
+                scale: 1.0, offsetY: 60,
+                "Normal": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/bNKdHfNQ/pl304300-00.png", "https://i.postimg.cc/bNKdHfN1/pl304300-01.png", "https://i.postimg.cc/4NrnbRxZ/pl304300-02.png"] },
+                "Thinking": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/fRmy8qJF/pl304302-00.png", "https://i.postimg.cc/SNwj7bxk/pl304302-01.png", "https://i.postimg.cc/Z5pnwsCX/pl304302-02.png"] },
+                "Confident": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/mgCkmpP2/pl304305-00.png", "https://i.postimg.cc/kgKGTY2J/pl304305-01.png", "https://i.postimg.cc/cLwCFkvr/pl304305-02.png"] },
+                "Hair Flick": { type: "once_hold", frameDelays: [120, 120, 120, 120, 120, 120, 0], frames: ["https://i.postimg.cc/zGKvx2y3/pl304307-00.png", "https://i.postimg.cc/d0F1pRC7/pl304307-03.png", "https://i.postimg.cc/tgbTwd6Z/pl304307-04.png", "https://i.postimg.cc/W4V3CmZr/pl304307-05.png", "https://i.postimg.cc/9f2MKP9N/pl304307-06.png", "https://i.postimg.cc/xdPC2kG4/pl304307-07.png", "https://i.postimg.cc/YSx9H4NV/pl304307-08.png"] },
+                "Nervous Sweat": { type: "loop", frameDelay: 300, frames: ["https://i.postimg.cc/XvgJbZKt/pl304308-00.png", "https://i.postimg.cc/1zKtQgcQ/pl304308-01.png", "https://i.postimg.cc/TwYPYRCM/pl304308-02.png"] },
+                "Slamming Desk": { type: "once_hold", frameDelays: [130, 140, 80, 100, 100, 0], shake: true, sfx: "./audio/se01c (Slamming Desk).flac", frames: ["https://i.postimg.cc/6qPqmDVn/pl30430a-00.png", "https://i.postimg.cc/y6pDxZqC/pl30430a-01.png", "https://i.postimg.cc/XN1rqCMW/pl30430a-02.png", "https://i.postimg.cc/2j91yZpf/pl30430a-03.png", "https://i.postimg.cc/RCpWhHrB/pl30430a-04.png", "https://i.postimg.cc/Nfy5HjY0/pl30430a-05.png"] },
+                "Pointing": { type: "once_hold", frameDelays: [140, 140, 140, 200, 0], shake: true, frames: ["https://i.postimg.cc/SNXJMxqy/pl30430d-00.png", "https://i.postimg.cc/J4yGkzms/pl30430d-01.png", "https://i.postimg.cc/9F4r7QV4/pl30430d-02.png", "https://i.postimg.cc/MKhXbJK7/pl30430d-03.png", "https://i.postimg.cc/NfWL7vf7/pl30430d-04.png"] },
+                "Damage": { type: "once_hold", frameDelays: [150, 150, 0], frames: ["https://i.postimg.cc/0Q2N28cs/pl304310-00.png", "https://i.postimg.cc/hjPGPSpP/pl304310-01.png", "https://i.postimg.cc/C1LKLFm5/pl304310-02.png"] }
+            },
             // 4. 绫里真宵 · 日常/侦查正面篇 (14组动作)
             "真宵_正面": {
                 scale: 1.0, // 少女娇小体格
@@ -1790,8 +1802,15 @@
                     ] 
                 }
             },
-            // 25. 牙琉雾人 · 法庭对峙篇
+            // 25a. 牙琉雾人 · 助手席（早期以前辈/老师身份站在助手席；全部 once_hold）
             "雾人_法庭": {
+                scale: 1.0,
+                "Normal": { type: "once_hold", frameDelays: [120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 0], frames: ["https://i.postimg.cc/5y8v89dk/pl40408-00.png", "https://i.postimg.cc/tJFPFRGC/pl40408-01.png", "https://i.postimg.cc/0j7m751N/pl40408-02.png", "https://i.postimg.cc/D01s1f3w/pl40408-03.png", "https://i.postimg.cc/7hS7SPr5/pl40408-04.png", "https://i.postimg.cc/wMDJDxYy/pl40408-05.png", "https://i.postimg.cc/G3DvWK8F/pl40408-06.png", "https://i.postimg.cc/1XD6DR1g/pl40408-07.png", "https://i.postimg.cc/66ZCkc2h/pl40408-08.png", "https://i.postimg.cc/FFS0MpdB/pl40408-09.png", "https://i.postimg.cc/ry45BjR2/pl40408-10.png", "https://i.postimg.cc/KcTt6f3X/pl40408-11.png", "https://i.postimg.cc/xjmLw5N0/pl40408-12.png"] },
+                "Smiling": { type: "once_hold", frameDelays: [120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 0], frames: ["https://i.postimg.cc/5y8v89dk/pl40408-00.png", "https://i.postimg.cc/tJFPFRGC/pl40408-01.png", "https://i.postimg.cc/0j7m751N/pl40408-02.png", "https://i.postimg.cc/D01s1f3w/pl40408-03.png", "https://i.postimg.cc/7hS7SPr5/pl40408-04.png", "https://i.postimg.cc/wMDJDxYy/pl40408-05.png", "https://i.postimg.cc/G3DvWK8F/pl40408-06.png", "https://i.postimg.cc/1XD6DR1g/pl40408-07.png", "https://i.postimg.cc/66ZCkc2h/pl40408-08.png", "https://i.postimg.cc/FFS0MpdB/pl40408-09.png", "https://i.postimg.cc/ry45BjR2/pl40408-10.png", "https://i.postimg.cc/KcTt6f3X/pl40408-11.png", "https://i.postimg.cc/xjmLw5N0/pl40408-12.png"] },
+                "Gazing": { type: "once_hold", frameDelays: [120, 120, 120, 120, 120, 120, 120, 120, 0], frames: ["https://i.postimg.cc/sDR5sW5y/pl40409-00.png", "https://i.postimg.cc/KvytxTt2/pl40409-01.png", "https://i.postimg.cc/MK81qB1w/pl40409-02.png", "https://i.postimg.cc/BQG24F2q/pl40409-03.png", "https://i.postimg.cc/fThYDdYb/pl40409-04.png", "https://i.postimg.cc/SNpck9cn/pl40409-05.png", "https://i.postimg.cc/MK81qB1v/pl40409-06.png", "https://i.postimg.cc/HsCbdMbc/pl40409-07.png", "https://i.postimg.cc/MK81qB1y/pl40409-08.png"] }
+            },
+            // 25. 牙琉雾人 · 证人席/正面篇（原“法庭对峙篇”，现作为正面立绘）
+            "雾人_正面": {
                 scale: 1.0,
                 "Normal": { 
                     type: "loop", 
@@ -4055,34 +4074,37 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             updateTurnControls();
 
             // 核心功能：法庭内镜头根据当前发言角色自动秒切背景（辩护席/检察席/证人席/审判长席/助手席）
-            if (!isCourtScene) gameState.witnessName = '';   // 离开法庭：清掉证人席记忆
-            let atWitnessStand = false;   // 站在证人席时用“正面”立绘，而不是辩护席/检察席侧身立绘
+            if (!isCourtScene) gameState.seatMap = {};   // 离开法庭：清掉席位记忆
+            let courtSeat = '';          // 当前发言者在法庭里被标记的席位：证人席 / 辩护席 / 助手席
+            let atWitnessStand = false;  // 站在证人席时用“正面”立绘
             if (isCourtScene) {
                 let targetCourtBg = null;
+                if (!gameState.seatMap) gameState.seatMap = {};
                 const isPhoenix = (speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker.includes('龙一');
                 const isPlayerSpk = speaker === gameState.profile.name;
                 const isJudge = speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官');
-                const leavingStand = action.includes('离开证人席') || action.includes('退下证人席');
-                // 证人席记忆：动作里带“证人席”就站上去，直到“离开证人席”（成步堂龙一与法官除外）
-                if (leavingStand) {
-                    if (gameState.witnessName === speaker) gameState.witnessName = '';
-                } else if (action.includes('证人席') && !isPhoenix && !isJudge) {
-                    gameState.witnessName = speaker;
+                const leaving = /(离开|退下)(证人席|辩护席|助手席)/.test(action);
+                const markSeat = ['证人席', '辩护席', '助手席'].find(k => action.includes(k)) || '';
+                if (leaving) {
+                    delete gameState.seatMap[speaker];
+                } else if (markSeat && !isJudge && !(isPhoenix && markSeat === '证人席')) {
+                    gameState.seatMap[speaker] = markSeat;   // 动作里写了席位就记住，直到“离开某某席”
                 }
-                const atWitness = !leavingStand && !isPhoenix && !isJudge &&
-                    (action.includes('证人席') || (speaker && gameState.witnessName === speaker));
+                courtSeat = leaving ? '' : (gameState.seatMap[speaker] || '');
+                atWitnessStand = courtSeat === '证人席' && !isPhoenix && !isJudge;
                 // 玩家席位按职业：辩护律师→辩护席，检事→检察席，刑警→证人席
                 const roleSeat = gameState.profile.role === '检事' ? "法庭·检察席"
                                : gameState.profile.role === '刑警' ? "法庭·证人席" : "法庭·辩护席";
-                atWitnessStand = atWitness;
                 if (isJudge) {
                     targetCourtBg = locationBgMap["法庭·审判长席"];
-                } else if (atWitness) {
+                } else if (atWitnessStand) {
                     targetCourtBg = locationBgMap["法庭·证人席"];
-                } else if (isPhoenix) {
+                } else if (isPhoenix || courtSeat === '辩护席') {
                     targetCourtBg = locationBgMap["法庭·辩护席"];
                 } else if (isPlayerSpk) {
                     targetCourtBg = locationBgMap[roleSeat];
+                } else if (courtSeat === '助手席') {
+                    targetCourtBg = locationBgMap["法庭·助手席"];
                 } else if (speaker.includes('御剑') || speaker.includes('冥') || speaker.includes('响也') || speaker.includes('亚内') || speaker.includes('检事')) {
                     targetCourtBg = locationBgMap["法庭·检察席"];
                 } else if (speaker.includes('真宵') || speaker.includes('千寻') || speaker.includes('春美')) {
@@ -4148,7 +4170,18 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // 3. 绫里千寻（千寻）
             else if (speaker.includes('千寻')) {
                 viewport.style.display = 'flex';
-                if (courtSprite) {
+                if (courtSprite && courtSeat === '辩护席') {
+                    // 千寻 · 律师席（辩护席）
+                    let actionKey = "Normal";
+                    if (action.includes('拍桌')) actionKey = "Slamming Desk";
+                    else if (action.includes('指认') || action.includes('异议') || action.includes('等等') || action.includes('指')) actionKey = "Pointing";
+                    else if (action.includes('思考')) actionKey = "Thinking";
+                    else if (action.includes('自信') || action.includes('微笑') || action.includes('笑')) actionKey = "Confident";
+                    else if (action.includes('撩发') || action.includes('甩发')) actionKey = "Hair Flick";
+                    else if (action.includes('汗') || action.includes('动摇') || action.includes('吃惊')) actionKey = "Nervous Sweat";
+                    else if (action.includes('受创') || action.includes('破防') || action.includes('震惊')) actionKey = "Damage";
+                    animator.playFromRegistry("千寻_律师", actionKey);
+                } else if (courtSprite) {
                     let actionKey = "Strict";
                     if (action.includes('震惊') || action.includes('受创')) actionKey = "Shocked";
                     else if (action.includes('失落') || action.includes('沮丧')) actionKey = "Disheartened";
@@ -4254,6 +4287,14 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 }
             }
             // 8. 牙琉雾人（雾人、牙琉雾人）
+            else if (speaker.includes('雾人') && courtSprite && courtSeat === '助手席') {
+                // 雾人 · 助手席（早期前辈/老师状态）
+                viewport.style.display = 'flex';
+                let actionKey = "Normal";
+                if (action.includes('凝视') || action.includes('注视') || action.includes('瞪')) actionKey = "Gazing";
+                else if (action.includes('微笑') || action.includes('笑')) actionKey = "Smiling";
+                animator.playFromRegistry("雾人_法庭", actionKey);
+            }
             else if (speaker.includes('雾人')) {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
@@ -4268,7 +4309,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('受创') || action.includes('破防') || action.includes('动摇')) actionKey = "Damage";
                 else if (action.includes('瞪') || action.includes('不善') || action.includes('凝视')) actionKey = "Glaring";
                 else if (action.includes('汗') || action.includes('流汗') || action.includes('心虚')) actionKey = "Nervous Sweat";
-                animator.playFromRegistry("雾人_法庭", actionKey);
+                animator.playFromRegistry("雾人_正面", actionKey);
             }
             // 9. 矢张政志（矢张、政志 通吃）
             else if (speaker.includes('矢张') || speaker.includes('政志')) {
@@ -4937,7 +4978,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 9.5 【法庭席位与职业规则】（仅在法庭场景生效）：
    - 玩家职业为「检事」时：开庭后玩家站在检察席，是公诉方，主导询问证人、论告、反驳辩方异议；辩护席由成步堂/王泥喜等NPC担任，严禁把玩家写成辩护人。
    - 玩家职业为「刑警」时：开庭后玩家通常以证人身份站上证人席作证，由审判长、检察官、辩护律师轮流询问玩家；玩家可[出示证物]说明搜查成果；严禁把玩家写成辩护人或检察官。
-   - 除成步堂龙一外，任何角色（真宵、千寻、春美、御剑、冥等）被传唤作证时，该角色发言的动作括号里必须带“证人席”三个字，例如：[发言] 绫里 春美(证人席·紧张): ……；作证结束离席时，动作写“离开证人席”。
+   - 席位标记：角色站在非默认席位时，发言的动作括号里要写席位名，并一直沿用到“离开某某席”：①证人席——任何角色（除成步堂龙一）被传唤作证，如 [发言] 绫里 春美(证人席·紧张): ……；②辩护席——绫里千寻亲自担任辩护律师站在辩护席时，如 [发言] 绫里 千寻(辩护席·自信): ……；③助手席——牙琉雾人早期以前辈/老师身份站在助手席时，如 [发言] 牙琉 雾人(助手席·微笑): ……。结束时动作写“离开证人席/辩护席/助手席”。
 10. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
             const recent = getHistoryContext(5);
 
