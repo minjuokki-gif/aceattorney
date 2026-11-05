@@ -945,6 +945,13 @@
         // 循环动画速度总开关：1 = 原速；数字越大越慢（觉得表情切得太快就调大，比如 2）
         const LOOP_SPEED = 1.2;
 
+        // 所有角色统一的循环节奏（毫秒）：
+        // 第一帧停留 = BASE + 随机(0~JITTER)；后面每一帧的间隔 = FRAME_MS
+        // 觉得后面太急促就把 LOOP_FRAME_MS 调大（比如 200），太慢就调小（比如 140）
+        const LOOP_FIRST_FRAME_BASE = 2200;
+        const LOOP_FIRST_FRAME_JITTER = 1000;
+        const LOOP_FRAME_MS = 160;
+
         const CHARACTER_ANIMATION_REGISTRY = {
             // 1. 御剑怜侍 · 日常/侦查正面篇
             "御剑_正面": {
@@ -2458,11 +2465,11 @@
                     const stepLoop = () => {
                         let delay;
                         if (curFrame === 0) {
-                            // 睁眼正常待机：2.2秒 ~ 3.2秒 自然停顿
-                            delay = 2200 + Math.random() * 1000;
+                            // 第一帧（睁眼待机）停久一点
+                            delay = LOOP_FIRST_FRAME_BASE + Math.random() * LOOP_FIRST_FRAME_JITTER;
                         } else {
-                            // 眨眼过渡帧：125ms（比原本的360ms干脆利落，又不会像90ms那样太飘太快）
-                            delay = 125;
+                            // 后面的帧（眨眼/嘴动）统一用这个间隔，不再急促
+                            delay = LOOP_FRAME_MS;
                         }
 
                         this.timer = this.later(() => {
