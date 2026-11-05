@@ -1458,6 +1458,53 @@
                 "Determined": { type: "loop", frameDelay: 240, frames: ["https://i.postimg.cc/CKQMHzds/pl4010e-00.png", "https://i.postimg.cc/cJb1Mr6M/pl4010e-01.png", "https://i.postimg.cc/43S4bmnv/pl4010e-02.png", "https://i.postimg.cc/xd4jycqm/pl4010e-03.png", "https://i.postimg.cc/jjFqQLC7/pl4010e-04.png", "https://i.postimg.cc/mr5ZNthc/pl4010e-05.png", "https://i.postimg.cc/yNb6XkWg/pl4010e-06.png", "https://i.postimg.cc/g0JkZvc3/pl4010e-07.png", "https://i.postimg.cc/k5pMFBD4/pl4010e-08.png"] },
                 "Crying": { type: "loop", frameDelay: 160, frames: ["https://i.postimg.cc/5t0NCw9t/pl4010f-00.png", "https://i.postimg.cc/YS9qW122/pl4010f-01.png", "https://i.postimg.cc/Jhn4kb7n/pl4010f-02.png", "https://i.postimg.cc/zfBXgnDX/pl4010f-03.png", "https://i.postimg.cc/Hk3knSmT/pl4010f-04.png", "https://i.postimg.cc/FHGHzPv9/pl4010f-05.png", "https://i.postimg.cc/Dw5w0Chh/pl4010f-06.png", "https://i.postimg.cc/y8n8xfKB/pl4010f-07.png", "https://i.postimg.cc/0yZyjtsX/pl4010f-08.png", "https://i.postimg.cc/K8Q8j92N/pl4010f-09.png", "https://i.postimg.cc/cLTLCDSc/pl4010f-10.png", "https://i.postimg.cc/W1S1z9vG/pl4010f-11.png", "https://i.postimg.cc/MpzGzChd/pl4010f-12.png", "https://i.postimg.cc/VkzNzx3M/pl4010f-13.png", "https://i.postimg.cc/vZGmGJp6/pl4010f-14.png", "https://i.postimg.cc/JzRhRf9k/pl4010f-15.png", "https://i.postimg.cc/NjQ0Q3WK/pl4010f-16.png", "https://i.postimg.cc/g2G0GCf2/pl4010f-17.png", "https://i.postimg.cc/3JXR58bJ/pl4010f-18.png"] }
             },
+            // 20-B. 成步堂美贯 (8岁幼年 / 或真敷美贯) · 正面
+            "美贯_幼年": {
+                scale: 0.9, // 8岁小女孩体型
+                "Normal": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/tRDbT4yP/pl417100-00.png",
+                        "https://i.postimg.cc/WpSV31jM/pl417100-01.png",
+                        "https://i.postimg.cc/L4vSX8RL/pl417100-02.png",
+                        "https://i.postimg.cc/dQnF1Vv2/pl417100-03.png",
+                        "https://i.postimg.cc/2jTY6Smn/pl417100-04.png"
+                    ] 
+                },
+                "Disappointed": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/J7K8nzmc/pl417100-05.png",
+                        "https://i.postimg.cc/Vs4w6k1R/pl417100-06.png",
+                        "https://i.postimg.cc/bYLPJw8g/pl417100-07.png"
+                    ] 
+                },
+                "Thinking": { 
+                    type: "loop", 
+                    frameDelay: 280, 
+                    frames: [
+                        "https://i.postimg.cc/05ZvQyxZ/pl417101-00.png",
+                        "https://i.postimg.cc/Df5hZwFC/pl417101-01.png",
+                        "https://i.postimg.cc/T2Qxw3G7/pl417101-02.png",
+                        "https://i.postimg.cc/rygTmwcZ/pl417101-03.png",
+                        "https://i.postimg.cc/2jTY6SmX/pl417101-04.png"
+                    ] 
+                },
+                "Energetic": { 
+                    type: "loop", 
+                    frameDelay: 260, 
+                    frames: [
+                        "https://i.postimg.cc/bYLPJw8B/pl417101-05.png",
+                        "https://i.postimg.cc/286DBN87/pl417101-06.png",
+                        "https://i.postimg.cc/05ZvQyx3/pl417101-07.png",
+                        "https://i.postimg.cc/BQ601fQg/pl417101-08.png",
+                        "https://i.postimg.cc/c4HS8G4h/pl417101-09.png",
+                        "https://i.postimg.cc/7Y6kTrYm/pl417101-10.png"
+                    ] 
+                }
+            },
             // 21. 叶樱院绫美 · 正面
             "绫美_正面": {
                 scale: 1.0,
@@ -4266,22 +4313,32 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 else if (action.includes('微笑') || action.includes('天使') || action.includes('笑')) actionKey = "Smiling";
                 animator.playFromRegistry("千奈美_法庭", actionKey);
             }
-            // 15. 成步堂美贯
+            // 15. 美贯（通吃：成步堂美贯 / 或真敷美贯 / 幼年美贯 / 8岁美贯 / 小美贯）
             else if (speaker.includes('美贯')) {
                 viewport.style.display = 'flex';
-                let actionKey = "Normal";
-                if (action.includes('开心') || action.includes('笑')) actionKey = "Happy";
-                else if (action.includes('自信') || action.includes('叉腰')) actionKey = "Confident";
-                else if (action.includes('思考')) actionKey = "Thinking";
-                else if (action.includes('震惊') || action.includes('吃惊')) actionKey = "Shocked";
-                else if (action.includes('担心') || action.includes('咬唇')) actionKey = "Worried";
-                else if (action.includes('魔术') || action.includes('神秘') || action.includes('扑克')) actionKey = "Mysterious";
-                else if (action.includes('生气') || action.includes('鼓腮')) actionKey = "Angry";
-                else if (action.includes('消沉') || action.includes('失落')) actionKey = "Depressed";
-                else if (action.includes('害羞') || action.includes('尴尬')) actionKey = "Embarrassed";
-                else if (action.includes('坚定') || action.includes('决心')) actionKey = "Determined";
-                else if (action.includes('哭') || action.includes('大哭')) actionKey = "Crying";
-                animator.playFromRegistry("美贯_正面", actionKey);
+                const isChild = speaker.includes('幼年') || speaker.includes('小') || speaker.includes('8岁') || speaker.includes('或真敷') || action.includes('幼年') || action.includes('8岁');
+
+                if (isChild) {
+                    let actionKey = "Normal";
+                    if (action.includes('失落') || action.includes('低头') || action.includes('难过') || action.includes('沮丧')) actionKey = "Disappointed";
+                    else if (action.includes('思考') || action.includes('琢磨') || action.includes('想')) actionKey = "Thinking";
+                    else if (action.includes('活力') || action.includes('高兴') || action.includes('开心') || action.includes('笑') || action.includes('精神')) actionKey = "Energetic";
+                    animator.playFromRegistry("美贯_幼年", actionKey);
+                } else {
+                    let actionKey = "Normal";
+                    if (action.includes('失落') || action.includes('消沉')) actionKey = "Depressed";
+                    else if (action.includes('思考')) actionKey = "Thinking";
+                    else if (action.includes('活力') || action.includes('开心') || action.includes('笑')) actionKey = "Happy";
+                    else if (action.includes('自信') || action.includes('叉腰')) actionKey = "Confident";
+                    else if (action.includes('震惊') || action.includes('吃惊')) actionKey = "Shocked";
+                    else if (action.includes('担心') || action.includes('咬唇')) actionKey = "Worried";
+                    else if (action.includes('魔术') || action.includes('神秘') || action.includes('扑克')) actionKey = "Mysterious";
+                    else if (action.includes('生气') || action.includes('鼓腮')) actionKey = "Angry";
+                    else if (action.includes('害羞') || action.includes('尴尬')) actionKey = "Embarrassed";
+                    else if (action.includes('坚定') || action.includes('决心')) actionKey = "Determined";
+                    else if (action.includes('哭') || action.includes('大哭')) actionKey = "Crying";
+                    animator.playFromRegistry("美贯_正面", actionKey);
+                }
             }
             // 16. 叶樱院绫美 (彩芽)
             else if (speaker.includes('绫美') || speaker.includes('彩芽')) {
