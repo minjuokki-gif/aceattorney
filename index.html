@@ -3955,7 +3955,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
             // 统一在对话框上方展示标准官方称呼（如果是成步堂/龙一，对话框统一只显示原作姓氏“成步堂”）
             let displaySpeaker = speaker;
-            if (speaker.includes('成步堂') || speaker === '龙一') displaySpeaker = '成步堂';
+            if ((speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker === '龙一') displaySpeaker = '成步堂';
             else if (speaker.includes('御剑')) displaySpeaker = '御剑';
             else if (speaker.includes('真宵')) displaySpeaker = '真宵';
             else if (speaker.includes('春美')) displaySpeaker = '春美';
@@ -4043,7 +4043,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             if (isCourtScene) {
                 let targetCourtBg = null;
                 const spk = speaker.toLowerCase();
-                if (speaker.includes('成步堂') || speaker === '龙一' || speaker === gameState.profile.name) {
+                if ((speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker === '龙一' || speaker === gameState.profile.name) {
                     targetCourtBg = locationBgMap["法庭·辩护席"];
                 } else if (speaker.includes('御剑') || speaker.includes('冥') || speaker.includes('响也') || speaker.includes('亚内') || speaker.includes('检事')) {
                     targetCourtBg = locationBgMap["法庭·检察席"];
@@ -4061,7 +4061,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 
             // ================= 智能名字识别与立绘分发 =================
             // 1. 成步堂（成步堂、龙一、成步堂龙一 通吃）
-            if (speaker.includes('成步堂') || speaker === '龙一') {
+            if ((speaker.includes('成步堂') && !speaker.includes('美贯')) || speaker === '龙一') {
                 viewport.style.display = 'flex';
                 let actionKey = "Normal";
                 if (action.includes('思考')) actionKey = "Thinking";
@@ -4317,9 +4317,19 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             else if (speaker.includes('美贯')) {
                 viewport.style.display = 'flex';
                 // 只要名字、动作里带 幼年/8岁/小/或真敷，或者台词/玩家上一轮提到了小时候/8岁，全部判定为幼年！
-                const isChild = speaker.includes('幼年') || speaker.includes('小') || speaker.includes('8岁') || speaker.includes('或真敷') || 
-                                action.includes('幼年') || action.includes('8岁') || action.includes('小时候') ||
-                                (typeof lastUserActionText !== 'undefined' && (lastUserActionText.includes('8岁') || lastUserActionText.includes('幼年') || lastUserActionText.includes('小时候')));
+                const CHILD_RE = /(幼年|8岁|八岁|8歲|八歲|小时候|小時候|年幼|小女孩|童年|或真敷|7年前|七年前)/;
+                const ADULT_RE = /(十五岁|十五歲|15岁|15歲|十八岁|18岁|成年|长大|長大|现在的美贯|如今的美贯)/;
+                // 谁最后出现谁说了算：玩家说“现在是幼年”/“现在是十五岁”就以最后那个为准
+                const lastPos = (re, t) => { const g = new RegExp(re.source, 'g'); let m, p = -1; while ((m = g.exec(t))) p = m.index; return p; };
+                const decide = (t, fallback) => { const c = lastPos(CHILD_RE, t), a = lastPos(ADULT_RE, t); return (c < 0 && a < 0) ? fallback : (c > a); };
+                // 只看玩家的话 + 发言人名字 + 动作标签，不看台词内容（避免台词里随口提到“八岁”就误切）
+                const hereText = speaker + ' ' + action + ' ' + (typeof lastUserActionText === 'string' ? lastUserActionText : '');
+                if (gameState.trucyChild === undefined) {
+                    const recent = (historyLog || []).slice(-40).map(h => (h.userText || '')).join(' ') + ' ' + ((gameState.profile && gameState.profile.setting) || '');
+                    gameState.trucyChild = decide(recent, false);
+                }
+                gameState.trucyChild = decide(hereText, gameState.trucyChild === true);
+                const isChild = gameState.trucyChild === true;
 
                 if (isChild) {
                     let actionKey = "Normal";
@@ -4878,6 +4888,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 3. 严格遵循在场人物约束（绝不乱入）：
    - 必须仔细观察玩家的动作和台词！如果玩家表明是与某人独处/单独外出，不在场人员严禁插嘴！
    - 只允许真实在场的人物发言或互动。
+3.5 【幼年美贯标注】：当剧情里的成步堂美贯/或真敷美贯处于幼年（如8岁、小时候），发言人必须写成「美贯(幼年)」或在动作括号里带上“幼年”二字，例如：[发言] 美贯(幼年·开心): ……
 4. 【法庭高手过招·绝不作宝宝权谋（极其重要）】：
    - 严禁检方一击即溃！检事（御剑/冥/歌德/响也/雾人/亚内）必须手握警方解剖报告、目击时间差、现场凶器指纹等严密控诉逻辑，步步紧逼。
    - 辩方在【法庭】出示证物时，检方绝不能束手无策，必须立刻抓出破绽反打一耙或亮出控方新证据。
@@ -5998,12 +6009,12 @@ ${contactHistory}
         }
 
         function presentCurrentEvidence() {
-            if (typeof recordCurrentTab !== 'undefined' && recordCurrentTab !== 'evidence') {
+            if (recordTab !== 'evidence') {
                 alert("只能出示【证物资料】！");
                 return;
             }
-            if (!gameState || !gameState.evidence || !gameState.evidence[recordCurrentIndex]) return;
-            const item = gameState.evidence[recordCurrentIndex];
+            if (!gameState || !gameState.evidence || !gameState.evidence[recIndex]) return;
+            const item = gameState.evidence[recIndex];
             const eName = String(item.name || "证物");
 
             toggleRecord();
