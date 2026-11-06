@@ -735,7 +735,7 @@
                 <div class="settings-content-pane active" id="pane-tab-log">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 12px; color: #ff9900; font-weight: bold;">历史对话纪录（可自由编辑台词或删除不合理情节）</span>
-                        <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="renderHistoryLog()">🔄 刷新列表</button>
+                        <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="renderHistoryLog(true)">🔄 刷新列表</button>
                     </div>
                     <div class="log-list-container" id="log-list-box"></div>
                 </div>
@@ -825,7 +825,8 @@
 你现在是《逆转裁判》的探案模拟器主持人(GM)。
 铁律规则：
 1. 剧情严格按每句独立的格式输出，每行一句：
-[发言] 角色名(动作姿态): 对话内容
+[发言] 角色名[立绘动作]: （剧情动作描写）对话内容
+（冒号前的方括号只能写动作注册表里有的立绘动作；具体剧情动作写在冒号后的括号里）
 2. 当处于【日常模式】时：严格描写日常闲聊、职场琐事与角色羁绊，严禁自动虚构命案发生！
 3. 当处于【案件模式】时：根据玩家出示的证据、调查动作推进破绽，给出线索提示。
 4. 保持逆转裁判严肃悬疑又带有诙谐风趣的官方台词风格。
@@ -863,38 +864,7 @@
 
                 <!-- 5. 存读档 -->
                 <div class="settings-content-pane" id="pane-tab-save">
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <div class="affinity-row">
-                            <div>
-                                <div style="color: #fff; font-weight: bold;">存档位 1</div>
-                                <div id="slot-info-1" style="font-size: 11px; color: #7696be;">空记录</div>
-                            </div>
-                            <div style="display: flex; gap: 6px;">
-                                <button class="btn-sub" onclick="saveToSlot(1)">覆盖保存</button>
-                                <button class="btn-prime" style="padding: 6px 14px;" onclick="loadFromSlot(1)">载入</button>
-                            </div>
-                        </div>
-                        <div class="affinity-row">
-                            <div>
-                                <div style="color: #fff; font-weight: bold;">存档位 2</div>
-                                <div id="slot-info-2" style="font-size: 11px; color: #7696be;">空记录</div>
-                            </div>
-                            <div style="display: flex; gap: 6px;">
-                                <button class="btn-sub" onclick="saveToSlot(2)">覆盖保存</button>
-                                <button class="btn-prime" style="padding: 6px 14px;" onclick="loadFromSlot(2)">载入</button>
-                            </div>
-                        </div>
-                        <div class="affinity-row">
-                            <div>
-                                <div style="color: #fff; font-weight: bold;">存档位 3</div>
-                                <div id="slot-info-3" style="font-size: 11px; color: #7696be;">空记录</div>
-                            </div>
-                            <div style="display: flex; gap: 6px;">
-                                <button class="btn-sub" onclick="saveToSlot(3)">覆盖保存</button>
-                                <button class="btn-prime" style="padding: 6px 14px;" onclick="loadFromSlot(3)">载入</button>
-                            </div>
-                        </div>
-                    </div>
+                    <div id="save-slot-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
                     <div style="border-top: 1px solid #1f395b; padding-top: 8px; display: flex; justify-content: space-between;">
                         <button class="btn-sub" onclick="exportSaveFile()">⬇ 导出 .json</button>
                         <button class="btn-sub" onclick="document.getElementById('import-file-input').click()">⬆ 导入 .json</button>
@@ -3655,9 +3625,9 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 },
                 phoneContacts: ["成步堂 龙一", "绫里 真宵", "绫里 千寻"],
                 initialDailyScript: [
-                    "[发言] 成步堂 龙一(微笑): 事务所的实习合同已经替你办好了。别紧张，作为新来的律师助手，平时多熟悉一下卷宗就好。咖啡机里刚煮了蓝山，随意点吧。",
-                    "[发言] 绫里 千寻(微笑): 欢迎你以助手的身份加入事务所！哪怕现在只是见习，不论遇到多么棘手的证词，只要从反方向思考，就一定能找到逆转的契机。",
-                    "[发言] 绫里 真宵(开心): 太好啦！终于有人来帮我分担杂务了！今天还没接到委托，午餐我们可以点大份味噌拉面吗？",
+                    "[发言] 成步堂 龙一[微笑]: 事务所的实习合同已经替你办好了。别紧张，作为新来的律师助手，平时多熟悉一下卷宗就好。咖啡机里刚煮了蓝山，随意点吧。",
+                    "[发言] 绫里 千寻[微笑]: 欢迎你以助手的身份加入事务所！哪怕现在只是见习，不论遇到多么棘手的证词，只要从反方向思考，就一定能找到逆转的契机。",
+                    "[发言] 绫里 真宵[开心]: 太好啦！终于有人来帮我分担杂务了！今天还没接到委托，午餐我们可以点大份味噌拉面吗？",
                     "[发言] 系统提示: 当前处于【平淡日常篇】。你目前以助理身份在事务所见习！可点击[💬 发言]与成步堂、千寻、真宵闲聊，或在[设定]中接案！"
                 ]
             },
@@ -3672,8 +3642,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 },
                 phoneContacts: ["御剑 怜侍"],
                 initialDailyScript: [
-                    "[发言] 御剑 怜侍(待机): 你就是今天刚分配到1202室的见习事务官吗？托系锯刑警那份错漏百出的报告的福，桌上的卷宗先替我整理校对一遍。",
-                    "[发言] 御剑 怜侍(思考): 检方的职责是追求无懈可击的真实。即使你才刚来见习，在没有凶案开庭的午后，仔细审阅法典与证据法也是基本功。",
+                    "[发言] 御剑 怜侍[待机]: 你就是今天刚分配到1202室的见习事务官吗？托系锯刑警那份错漏百出的报告的福，桌上的卷宗先替我整理校对一遍。",
+                    "[发言] 御剑 怜侍[思考]: 检方的职责是追求无懈可击的真实。即使你才刚来见习，在没有凶案开庭的午后，仔细审阅法典与证据法也是基本功。",
                     "[发言] 系统提示: 当前处于【平淡日常篇】。这里是检察厅1202室办公室！你作为见习事务官，可点击[💬 发言]与御剑交流判例，或在[设定]中接手重案！"
                 ]
             },
@@ -3689,8 +3659,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 },
                 phoneContacts: ["系锯 圭介", "宝月 茜"],
                 initialDailyScript: [
-                    "[发言] 系锯 圭介(叉腰大笑): 哟！新来的辅警搭档，今天刑事课难得没有命案初动警报，真是太和平了汪！",
-                    "[发言] 宝月 茜(嚼江米棒): 趁着没有凶杀案，先把试剂箱里的鲁米诺试剂和指纹铝粉盘点一遍吧，这可是搜查新人的必修课。",
+                    "[发言] 系锯 圭介[叉腰大笑]: 哟！新来的辅警搭档，今天刑事课难得没有命案初动警报，真是太和平了汪！",
+                    "[发言] 宝月 茜[嚼江米棒]: 趁着没有凶杀案，先把试剂箱里的鲁米诺试剂和指纹铝粉盘点一遍吧，这可是搜查新人的必修课。",
                     "[发言] 系统提示: 当前处于【平淡日常篇】。你目前是警察署刑事课的见习辅警。点击[💬 发言]可与搭档闲聊巡查日常，或在[设定]中接收紧急报案！"
                 ]
             },
@@ -3705,8 +3675,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
                 },
                 phoneContacts: ["绫里 真宵", "绫里 春美"],
                 initialDailyScript: [
-                    "[发言] 绫里 真宵(微笑): 今天的山间灵气真不错！擦拭完修行堂的灵玉后，我们去烤红薯怎么样？",
-                    "[发言] 绫里 春美(可爱拍手): 姐姐，今天大家一起把仓院流的修行古籍整理好了！",
+                    "[发言] 绫里 真宵[微笑]: 今天的山间灵气真不错！擦拭完修行堂的灵玉后，我们去烤红薯怎么样？",
+                    "[发言] 绫里 春美[可爱拍手]: 姐姐，今天大家一起把仓院流的修行古籍整理好了！",
                     "[发言] 系统提示: 当前处于【平淡日常篇】。这里是仓院之里本堂！作为修行中的同门新人，平时可以静心修行，遇到事件时再大显身手！"
                 ]
             }
@@ -3888,6 +3858,1036 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
         let lastTurnLogId = null;      // 上一轮在剧情回放里的记录 id
         let lastTurnSnapshot = null;   // 上一轮开始前的游戏状态（好感/证物/场景等），重试时回滚
 
+
+        // ================= 动作注册表（立绘动作词） =================
+        // 冒号前的 [方括号] 只允许写这里登记过的动作词；其余剧情动作写到冒号后面的（括号）里
+        const STAGE_ACTION_TABLE = [
+{
+"keys": [
+"成步堂",
+"龙一"
+],
+"words": [
+"思考",
+"拍桌",
+"指认",
+"文件",
+"卷宗",
+"汗",
+"心虚",
+"震惊",
+"受创",
+"傻笑",
+"摸头",
+"自信",
+"叉腰",
+"微笑",
+"喝咖啡",
+"端咖啡",
+"点头",
+"摇头",
+"弯腰",
+"泼咖啡",
+"咖啡泼",
+"异议"
+]
+},
+{
+"keys": [
+"成步堂",
+"美贯",
+"龙一"
+],
+"words": [
+"思考",
+"拍桌",
+"指认",
+"文件",
+"卷宗",
+"汗",
+"心虚",
+"震惊",
+"受创",
+"傻笑",
+"摸头",
+"自信",
+"叉腰",
+"微笑",
+"喝咖啡",
+"端咖啡",
+"点头",
+"摇头",
+"弯腰",
+"泼咖啡",
+"咖啡泼",
+"异议"
+]
+},
+{
+"keys": [
+"御剑",
+"怜侍"
+],
+"words": [
+"思考",
+"拍桌",
+"指认",
+"异议",
+"文件",
+"卷宗",
+"汗",
+"咬牙",
+"自信",
+"抱胸",
+"摇手指",
+"得意",
+"破防",
+"受创",
+"抱头",
+"躬身",
+"摊手",
+"耸肩",
+"无奈",
+"生气",
+"怒",
+"困惑",
+"动摇",
+"侧头",
+"看旁边",
+"烦躁",
+"擦汗",
+"头疼"
+]
+},
+{
+"keys": [
+"千寻"
+],
+"words": [
+"拍桌",
+"指认",
+"异议",
+"等等",
+"指",
+"思考",
+"自信",
+"微笑",
+"笑",
+"撩发",
+"甩发",
+"汗",
+"动摇",
+"吃惊",
+"受创",
+"破防",
+"震惊",
+"失落",
+"沮丧",
+"悲伤",
+"难过",
+"浅笑"
+]
+},
+{
+"keys": [
+"真宵"
+],
+"words": [
+"严肃",
+"认真",
+"瞪",
+"生气",
+"疑惑",
+"困惑",
+"期待",
+"向前",
+"抱头",
+"狂晃",
+"点头",
+"开心",
+"拉面",
+"高兴",
+"自信",
+"叉腰",
+"气呼呼",
+"坚定",
+"决心",
+"担心",
+"担忧",
+"思考",
+"消沉",
+"沮丧",
+"伤心",
+"难过",
+"失落",
+"含泪",
+"哭",
+"震惊",
+"吃惊"
+]
+},
+{
+"keys": [
+"春美"
+],
+"words": [
+"乖巧",
+"平静",
+"哭",
+"泪",
+"坚定",
+"决心",
+"吃惊",
+"呆住",
+"震惊",
+"吓",
+"思考",
+"想",
+"陶醉",
+"期待",
+"开心",
+"笑",
+"高兴",
+"失落",
+"沮丧"
+]
+},
+{
+"keys": [
+"冥",
+"狩魔",
+"豪"
+],
+"words": [
+"闭眼",
+"轻蔑",
+"自信",
+"抱胸",
+"挥鞭",
+"鞭击",
+"甩鞭",
+"抽鞭",
+"鞭子",
+"抽打",
+"抽",
+"拉鞭",
+"抖鞭",
+"持鞭",
+"生气",
+"怒",
+"拔鞭",
+"准备",
+"流汗",
+"急",
+"鞠躬",
+"行礼",
+"受创",
+"破防",
+"恢复",
+"思考",
+"指认",
+"指",
+"居高临下",
+"俯视",
+"哭",
+"泪"
+]
+},
+{
+"keys": [
+"响也"
+],
+"words": [
+"轻蔑",
+"嘲笑",
+"笑",
+"微笑",
+"思考",
+"无语",
+"无奈",
+"受创",
+"破防",
+"指认",
+"指",
+"流汗",
+"心虚",
+"敲墙",
+"拍墙",
+"严肃",
+"认真",
+"摆pose",
+"姿势"
+]
+},
+{
+"keys": [
+"雾人"
+],
+"words": [
+"凝视",
+"注视",
+"瞪",
+"微笑",
+"笑",
+"推眼镜",
+"眼镜",
+"阴险",
+"冷笑",
+"诡异",
+"狂怒",
+"崩溃",
+"披头散发",
+"暴怒",
+"青筋",
+"隐忍",
+"强忍",
+"俯视",
+"睥睨",
+"下看",
+"生气",
+"怒",
+"不悦",
+"自信",
+"从容",
+"居高临下",
+"轻蔑",
+"受创",
+"破防",
+"动摇",
+"不善",
+"汗",
+"流汗",
+"心虚"
+]
+},
+{
+"keys": [
+"矢张",
+"政志"
+],
+"words": [
+"逞强",
+"自信",
+"大笑",
+"感动",
+"哭",
+"泪",
+"赞同",
+"点头",
+"双手",
+"认真",
+"严肃",
+"糟了",
+"慌",
+"汗",
+"圣诞",
+"耍帅",
+"自命不凡",
+"生气",
+"怒",
+"败露",
+"抓包",
+"震惊",
+"思考"
+]
+},
+{
+"keys": [
+"大场",
+"大婶"
+],
+"words": [
+"生气",
+"怒",
+"机关枪",
+"坏心眼",
+"得意",
+"大笑",
+"笑",
+"受创",
+"震惊",
+"陶醉",
+"御剑",
+"花痴"
+]
+},
+{
+"keys": [
+"茜",
+"宝月",
+"巴"
+],
+"words": [
+"江米棒",
+"嚼",
+"不爽",
+"不高兴",
+"生气",
+"怒",
+"暴躁",
+"侧头",
+"看旁边",
+"自信",
+"叉腰",
+"科学",
+"吃惊",
+"震惊",
+"吓",
+"开心",
+"笑",
+"高兴",
+"墨镜",
+"太阳镜",
+"眼镜",
+"思考",
+"琢磨",
+"鉴定"
+]
+},
+{
+"keys": [
+"巴"
+],
+"words": [
+"侧头",
+"避开",
+"吃惊",
+"动摇",
+"严肃",
+"生气",
+"难以置信",
+"震惊",
+"微笑",
+"笑",
+"汗",
+"流汗",
+"受创",
+"破防",
+"前倾",
+"逼近"
+]
+},
+{
+"keys": [
+"立见",
+"里香"
+],
+"words": [
+"自信",
+"抱胸",
+"思考",
+"开心",
+"狂喜",
+"陶醉",
+"飞吻",
+"伤心",
+"失落",
+"哭",
+"大哭",
+"特殊",
+"猴"
+]
+},
+{
+"keys": [
+"舞子",
+"艾莉"
+],
+"words": [
+"微笑",
+"笑"
+]
+},
+{
+"keys": [
+"纪美子"
+],
+"words": [
+"瞪",
+"冷笑",
+"皱眉",
+"不悦",
+"伤心",
+"抹泪",
+"叹气"
+]
+},
+{
+"keys": [
+"千奈美"
+],
+"words": [
+"汗",
+"流汗",
+"哭",
+"柔弱",
+"抹泪",
+"居高临下",
+"轻蔑",
+"冷淡",
+"思考",
+"受创",
+"破防",
+"撩发",
+"蝴蝶",
+"崩溃",
+"动摇",
+"微笑",
+"天使",
+"笑"
+]
+},
+{
+"keys": [
+"美贯"
+],
+"words": [
+"失落",
+"低头",
+"难过",
+"沮丧",
+"思考",
+"琢磨",
+"想",
+"活力",
+"高兴",
+"开心",
+"笑",
+"精神",
+"消沉",
+"自信",
+"叉腰",
+"震惊",
+"吃惊",
+"担心",
+"咬唇",
+"魔术",
+"神秘",
+"扑克",
+"生气",
+"鼓腮",
+"害羞",
+"尴尬",
+"坚定",
+"决心",
+"哭",
+"大哭"
+]
+},
+{
+"keys": [
+"绫美",
+"彩芽"
+],
+"words": [
+"吃惊",
+"震惊",
+"害羞",
+"脸红",
+"严肃",
+"认真",
+"思考",
+"哭",
+"泪",
+"居高临下",
+"冷淡",
+"头巾待机",
+"兜帽",
+"头巾吃惊",
+"兜帽吃惊",
+"汗",
+"流汗",
+"得意",
+"坏笑",
+"生气",
+"怒",
+"撩发",
+"受创",
+"破防"
+]
+},
+{
+"keys": [
+"审判长",
+"裁判长",
+"法官"
+],
+"words": [
+"点头",
+"赞成",
+"认可",
+"摇头",
+"否决",
+"不妥",
+"警告",
+"敲槌",
+"肃静",
+"威严",
+"木槌",
+"震惊",
+"胡子",
+"慌乱",
+"吃惊",
+"什么"
+]
+},
+{
+"keys": [
+"系锯",
+"糸锯",
+"圭介"
+],
+"words": [
+"笑",
+"大笑",
+"叉腰大笑",
+"思考",
+"抓头",
+"挠头",
+"坚定",
+"认真",
+"决心",
+"自信",
+"叉腰",
+"生气",
+"怒",
+"火大",
+"失落",
+"沮丧",
+"扣薪",
+"工资",
+"侧头",
+"看旁边"
+]
+},
+{
+"keys": [
+"岩徒",
+"海慈"
+],
+"words": [
+"思考",
+"凝视",
+"严肃",
+"笑",
+"大笑",
+"鼓掌",
+"拍手",
+"瞪",
+"怒",
+"闪电",
+"雷",
+"气势",
+"受创",
+"破防",
+"崩溃",
+"倒"
+]
+},
+{
+"keys": [
+"星影",
+"宇宙之介"
+],
+"words": [
+"思考",
+"想"
+]
+},
+{
+"keys": [
+"市之谷",
+"响华"
+],
+"words": [
+"自信",
+"叉腰",
+"认真",
+"严肃",
+"生气",
+"怒",
+"震惊",
+"吃惊",
+"受创",
+"破防",
+"吃",
+"便当",
+"扔",
+"砸"
+]
+},
+{
+"keys": [
+"罪门",
+"恭介"
+],
+"words": [
+"喝",
+"水壶",
+"削",
+"小刀",
+"紧绷",
+"严肃",
+"思考",
+"生气",
+"怒",
+"受创",
+"破防",
+"低头",
+"沮丧",
+"脱帽",
+"摘帽",
+"流汗",
+"紧张"
+]
+},
+{
+"keys": [
+"华宫",
+"雾绪"
+],
+"words": [
+"笑",
+"微笑",
+"思考",
+"推眼镜",
+"眼镜",
+"不安",
+"紧张",
+"流汗",
+"悲伤",
+"难过",
+"受创",
+"破防",
+"崩溃",
+"狂躁",
+"消沉",
+"低落"
+]
+},
+{
+"keys": [
+"荷星",
+"三郎"
+],
+"words": [
+"害羞",
+"不好意思",
+"思考",
+"担心",
+"不安",
+"哭",
+"泪"
+]
+},
+{
+"keys": [
+"亚内",
+"武文"
+],
+"words": [
+"自信",
+"得意",
+"思考",
+"受创",
+"破防",
+"掉发",
+"落发",
+"飞走",
+"秃",
+"慌",
+"流汗"
+]
+},
+{
+"keys": [
+"优作",
+"天杉",
+"希华"
+],
+"words": [
+"思考",
+"担心",
+"不安",
+"震惊",
+"吃惊",
+"尖叫",
+"抱头",
+"狂叫",
+"受创",
+"破防",
+"哭",
+"大哭"
+]
+},
+{
+"keys": [
+"希华"
+],
+"words": [
+"思考",
+"吃惊",
+"震惊",
+"大笑",
+"爽朗",
+"生气",
+"怒"
+]
+},
+{
+"keys": [
+"鹿羽",
+"里美"
+],
+"words": [
+"微笑",
+"笑",
+"抽泣",
+"呜咽",
+"哭",
+"大哭",
+"眼泪"
+]
+},
+{
+"keys": [
+"小池",
+"惠子"
+],
+"words": [
+"得意",
+"笑",
+"打字",
+"狂敲",
+"键盘"
+]
+},
+{
+"keys": [
+"叶中",
+"未实"
+],
+"words": [
+"思考",
+"随性",
+"悠闲",
+"跳舞",
+"晃动",
+"生气",
+"怒",
+"害怕",
+"慌",
+"受创",
+"破防",
+"瞪",
+"冷淡"
+]
+},
+{
+"keys": [
+"堀田",
+"引田"
+],
+"words": [
+"思考",
+"笑",
+"大笑",
+"猥琐"
+]
+},
+{
+"keys": [
+"王都楼",
+"真悟"
+],
+"words": [
+"思考",
+"轻浮",
+"随性",
+"电话",
+"手机",
+"真面目",
+"露脸",
+"撩发",
+"冷笑",
+"受创",
+"破防",
+"抓狂"
+]
+},
+{
+"keys": [
+"小中"
+],
+"words": [
+"戒指",
+"闪光",
+"思考",
+"笑",
+"大笑",
+"姿势",
+"摆pose",
+"汗",
+"流汗",
+"受创",
+"破防",
+"吃惊",
+"震惊",
+"发狂",
+"抓狂",
+"撕衣",
+"瘫倒",
+"跪"
+]
+},
+{
+"keys": [
+"梅世",
+"松竹"
+],
+"words": [
+"眨眼",
+"放电",
+"撒娇",
+"装可爱",
+"思考",
+"捂嘴笑",
+"笑",
+"暴怒",
+"原形毕露",
+"气死",
+"嘟嘴",
+"不高兴",
+"受创",
+"破防",
+"哭",
+"抹泪"
+]
+},
+{
+"keys": [
+"零木",
+"真子"
+],
+"words": [
+"敬礼",
+"思考",
+"慌张",
+"倒霉",
+"流汗",
+"哭",
+"眼泪",
+"受创",
+"破防"
+]
+},
+{
+"keys": [
+"雾崎",
+"哲郎"
+],
+"words": [
+"推眼镜",
+"眼镜",
+"生气",
+"怒",
+"烦躁"
+]
+},
+{
+"keys": [
+"绘濑",
+"真琴"
+],
+"words": [
+"害羞",
+"低头",
+"咬指甲",
+"不安",
+"咬手指",
+"思考",
+"笑",
+"微笑"
+]
+},
+{
+"keys": [
+"歌德",
+"神乃木"
+],
+"words": [
+"拍桌",
+"砸桌",
+"扔咖啡",
+"泼咖啡",
+"看招",
+"异议",
+"指认",
+"指",
+"喝咖啡",
+"饮咖啡",
+"闻咖啡",
+"品咖啡",
+"狂饮",
+"干杯",
+"大口喝",
+"倒咖啡",
+"端咖啡",
+"新咖啡",
+"肘托咖啡",
+"托腮咖啡",
+"肘托",
+"托腮",
+"思考咖啡",
+"想咖啡",
+"思考",
+"琢磨",
+"流汗咖啡",
+"汗咖啡",
+"流汗",
+"汗",
+"爆裂受创",
+"受创",
+"破防",
+"崩溃",
+"面具动摇",
+"看旁边",
+"侧头",
+"嘲弄",
+"冷笑",
+"嘲笑"
+]
+}
+];
+        const STAGE_ACTION_COMMON = ['异议', '等等', '看招', '拍桌', '思考', '出示证物', '指认', '证人席', '辩护席', '助手席', '离开证人席', '离开辩护席', '离开助手席', '幼年'];
+
+        function getStageActionWords(speaker) {
+            const sp = String(speaker || '');
+            let words = STAGE_ACTION_COMMON.slice();
+            STAGE_ACTION_TABLE.forEach(r => {
+                if (!r.keys.some(k => sp.includes(k))) return;
+                if (r.keys[0] === '成步堂' && sp.includes('美贯')) return;
+                words = words.concat(r.words);
+            });
+            return words;
+        }
+
+        // 把 AI 写在冒号前的内容拆成：合法立绘动作 / 应该挪到台词里的剧情动作
+        function sanitizeStageAction(speaker, rawAction) {
+            if (!rawAction) return { action: '', moved: '' };
+            const allowed = getStageActionWords(speaker);
+            const tokens = String(rawAction).split(/[·・,，、;；\/\s]+/).filter(Boolean);
+            const keep = [], move = [];
+            tokens.forEach(t => ((allowed.some(w => t === w) || (t.length <= 4 && allowed.some(w => t.includes(w)))) ? keep : move).push(t));
+            return { action: keep.join('·'), moved: move.join('，') };
+        }
+
+        function buildActionRegistryText() {
+            const rows = STAGE_ACTION_TABLE.map(r => `${r.keys.join('/')}：${r.words.join('、')}`);
+            rows.push(`所有角色通用：${STAGE_ACTION_COMMON.join('、')}`);
+            return rows.join('\n');
+        }
+
         // 剧情回放里统一去掉 "[发言] " 前缀
         function stripSpeakTag(l) { return String(l).replace(/^\[发言\]\s*/, ''); }
 
@@ -3996,7 +4996,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             // AI 的 [BGM:xxx] 标记被绑在了某一句台词上：读到这一句时才真正切曲，保证和剧情同步
             let cueFromAI = '';
             rawLine = rawLine.replace(/\u27E6BGM:([a-z_0-9]+)\u27E7/i, (_, k) => { cueFromAI = k.toLowerCase(); return ''; });
-            const match = rawLine.match(/\[发言\]\s*([^(（:：]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*(.*)/);
+            const match = rawLine.match(/\[发言\]\s*([^(（\[【:：]+)(?:[(（\[【]([^)）\]】]+)[)）\]】])?\s*[:：]\s*(.*)/);
 
             let speaker = "旁白";
             let content = rawLine;
@@ -4971,15 +5971,15 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 3. 严格遵循在场人物约束（绝不乱入）：
    - 必须仔细观察玩家的动作和台词！如果玩家表明是与某人独处/单独外出，不在场人员严禁插嘴！
    - 只允许真实在场的人物发言或互动。
-3.5 【幼年美贯标注】：当剧情里的成步堂美贯/或真敷美贯处于幼年（如8岁、小时候），发言人必须写成「美贯(幼年)」或在动作括号里带上“幼年”二字，例如：[发言] 美贯(幼年·开心): ……
+3.5 【幼年美贯标注】：当剧情里的成步堂美贯/或真敷美贯处于幼年（如8岁、小时候），发言人必须写成「美贯[幼年]」或在冒号前的方括号里带上“幼年”二字，例如：[发言] 美贯[幼年·开心]: ……
 4. 【法庭高手过招·绝不作宝宝权谋（极其重要）】：
    - 严禁检方一击即溃！检事（御剑/冥/歌德/响也/雾人/亚内）必须手握警方解剖报告、目击时间差、现场凶器指纹等严密控诉逻辑，步步紧逼。
    - 辩方在【法庭】出示证物时，检方绝不能束手无策，必须立刻抓出破绽反打一耙或亮出控方新证据。
    - 【非开庭/搜查日常出示证物铁律】：当场景不在法庭时，玩家出示证物仅为“拿给对方看/询问线索”或“刑警使用取证工具”，严禁对方莫名其妙回复“这里不是法庭/有什么矛盾”，应自然针对该物品本身进行评价、回忆或提供调查线索！
-     例如：[发言] 御剑(异议): 异议あり！别以为这样就能蒙混过关，你出示的手套并不能排除被告作案的可能！
-     例如：[发言] 歌德(喝咖啡): 哼……咖啡再苦，也没有你这毫无根据的推论让人难以下咽。[看招] 看看这份门禁刷卡记录吧！
+     例如：[发言] 御剑[异议]: 异议あり！别以为这样就能蒙混过关，你出示的手套并不能排除被告作案的可能！
+     例如：[发言] 歌德[喝咖啡]: （放下咖啡杯）哼……咖啡再苦，也没有你这毫无根据的推论让人难以下咽。[看招] 看看这份门禁刷卡记录吧！
    - 辩护方（成步堂/千寻/主角）必须是在绝境中通过连环质问、逆向思考（把思维颠倒过来）才能撕开缺口！
-   - 审判长适时维持法庭秩序：[发言] 审判长(警告): 肃静！请辩护人注意你的发言！
+   - 审判长适时维持法庭秩序：[发言] 审判长[警告]: 肃静！请辩护人注意你的发言！
 5. 【证人与嫌疑人证词铁律（移花接木与视听错觉）】：
    - 拒绝“开局一眼真凶”的弱智设定！必须有 2~3 名互相牵扯的嫌疑人/证人，嫌疑人和证人证词中可出现“看错了时间”、“认错了人影”、“隐瞒了自己偷溜去现场的小秘密”等误会（移花接木、张冠李戴）。
    - 证人绝不作无脑恶意的伪证，他们所说的在他们认知里是真实的，但背后被某种物理错觉、凶手布置的障眼法或时间差所误导。
@@ -4987,7 +5987,12 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
    - 严禁在最后一句总是反问“你要干嘛？”“我们接下来去哪？”“你觉得呢？”！
    - 对话自然结在角色的动作、感慨、吐槽、法庭抗辩交锋或情境收尾上，角色要有自己的主见和行动。
 7. 严禁替玩家「${playerName}」说话、做决定，也不要描写其内心想法。
-8. 格式：严格每行一句，格式为 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容。
+8. 格式：严格每行一句，格式为 [发言] 角色名[立绘动作]: （剧情动作描写）对话内容。
+   - 冒号【前】的方括号只放“立绘动作词”：必须从下面【动作注册表】里该角色拥有的词中选，1~2 个，用·连接；没有合适的词就整个省略方括号。严禁在冒号前写剧情动作（如“抱住我”“走过来”“递出文件”），那会被当成立绘指令而不显示。
+   - 所有具体的剧情动作、神态、肢体接触、环境描写，一律写在冒号【后】，用全角括号（）括起来，可放在台词前、台词后，或单独成一句，这部分会完整显示给玩家。例如：[发言] 御剑[得意]: （把卷宗重重合上）哼，这点证据还不够。
+   - 旁白用 [发言] 旁白: 内容。
+   【动作注册表】
+${buildActionRegistryText()}
 9. 自动系统指令：
    - 好感度变动：[好感 角色名 +5] 或 [好感 角色名 -5]（必须单独占一行；任何在场的主要角色都可以加减好感，角色名写常用名即可，如 御剑）
    - 获得联系方式：[通讯录: 角色名 | 简短身份]（当某角色与玩家互留/交换联系方式，或玩家提出想要联系方式而对方答应时，必须在台词之后单独输出这一行；对方拒绝则不输出）
@@ -4999,7 +6004,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 9.5 【法庭席位与职业规则】（仅在法庭场景生效）：
    - 玩家职业为「检事」时：开庭后玩家站在检察席，是公诉方，主导询问证人、论告、反驳辩方异议；辩护席由成步堂/王泥喜等NPC担任，严禁把玩家写成辩护人。
    - 玩家职业为「刑警」时：开庭后玩家通常以证人身份站上证人席作证，由审判长、检察官、辩护律师轮流询问玩家；玩家可[出示证物]说明搜查成果；严禁把玩家写成辩护人或检察官。
-   - 席位标记：角色站在非默认席位时，发言的动作括号里要写席位名，并一直沿用到“离开某某席”：①证人席——任何角色（除成步堂龙一）被传唤作证，如 [发言] 绫里 春美(证人席·紧张): ……；②辩护席——绫里千寻亲自担任辩护律师站在辩护席时，如 [发言] 绫里 千寻(辩护席·自信): ……；③助手席——牙琉雾人早期以前辈/老师身份站在助手席时，如 [发言] 牙琉 雾人(助手席·微笑): ……。结束时动作写“离开证人席/辩护席/助手席”。
+   - 席位标记：角色站在非默认席位时，冒号前的方括号里要写席位名，并一直沿用到“离开某某席”：①证人席——任何角色（除成步堂龙一）被传唤作证，如 [发言] 绫里 春美[证人席·紧张]: ……；②辩护席——绫里千寻亲自担任辩护律师站在辩护席时，如 [发言] 绫里 千寻[辩护席·自信]: ……；③助手席——牙琉雾人早期以前辈/老师身份站在助手席时，如 [发言] 牙琉 雾人[助手席·微笑]: ……。结束时方括号写“离开证人席/辩护席/助手席”。
 10. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
             const recent = getHistoryContext(5);
 
@@ -5320,7 +6325,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 }
 
                 // 普通台词处理
-                let m = line.match(/(?:\[发言\]|\(发言\))?\s*([^(（:：\s]+)(?:[(（]([^)）]+)[)）])?\s*[:：]\s*([\s\S]*)/);
+                let m = line.match(/(?:\[发言\]|\(发言\))?\s*([^(（\[【:：\s]+)(?:[(（\[【]([^)）\]】]+)[)）\]】])?\s*[:：]\s*([\s\S]*)/);
                 let speaker = "旁白";
                 let action = "";
                 let content = line;
@@ -5329,6 +6334,10 @@ ${userActionText || '（玩家静静等待对方说话）'}
                     speaker = m[1].trim();
                     action = m[2] ? m[2].trim() : '';
                     content = m[3].trim();
+                    // 冒号前只留注册表里的立绘动作；其余剧情动作挪到台词里，用（）括起来显示
+                    const sane = sanitizeStageAction(speaker, action);
+                    action = sane.action;
+                    if (sane.moved) content = `（${sane.moved}）${content}`;
                 } else {
                     speaker = "旁白";
                     content = line.replace(/^\[发言\]\s*/, '');
@@ -5348,7 +6357,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 if (buf) chunks.push(buf);
 
                 chunks.forEach((c, i) => {
-                    const act = (i === 0 && action) ? `(${action})` : '';
+                    const act = (i === 0 && action) ? `[${action}]` : '';
                     const cue = (i === 0 && pendingBgmCue) ? `\u27E6BGM:${pendingBgmCue}\u27E7` : '';
                     if (i === 0) pendingBgmCue = '';
                     out.push(`[发言] ${speaker}${act}: ${cue}${c}`);
@@ -5370,7 +6379,20 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
         let editingLogState = null; // 记录当前原地编辑项：{ index, field: 'user' | 'ai' }
 
-        function renderHistoryLog() {
+        // toBottom === true：打开/切到回放页或点刷新时滚到最底部（看最新剧情）；
+        // 其余情况（编辑、删除后重绘）保持原来的滚动位置
+        function renderHistoryLog(toBottom) {
+            const box = document.getElementById('log-list-box');
+            const prevTop = box ? box.scrollTop : 0;
+            _renderHistoryLogCore();
+            if (!box) return;
+            const apply = () => { box.scrollTop = (toBottom === true) ? box.scrollHeight : prevTop; };
+            apply();
+            requestAnimationFrame(apply);
+            setTimeout(apply, 60);
+        }
+
+        function _renderHistoryLogCore() {
             historyLog = migrateHistoryLog(historyLog);
             const container = document.getElementById('log-list-box');
             container.innerHTML = '';
@@ -5502,6 +6524,8 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
         function deleteLogLine(index) {
             if (confirm("确定要删除这条剧情台词记录吗？")) {
+                const removed = historyLog[index];
+                if (isSmsLogItem(removed)) removePhoneMsgForLog(removed);
                 historyLog.splice(index, 1);
                 renderHistoryLog();
             }
@@ -5510,7 +6534,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
         // ================= 8. 设定综合菜单控制 =================
         function openSettingsModal() { 
             openModal('settings-modal'); 
-            renderHistoryLog();
+            renderHistoryLog(true);
         }
         function openSettingsWithTab(tabId) {
             openModal('settings-modal');
@@ -5524,7 +6548,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
             document.getElementById(`pane-${tabId}`).classList.add('active');
 
             if (tabId === 'tab-bgm') syncBgmPanel();
-            if (tabId === 'tab-log') renderHistoryLog();
+            if (tabId === 'tab-log') renderHistoryLog(true);
             if (tabId === 'tab-phone') renderPhoneList();
             if (tabId === 'tab-affinity') renderAffinityList();
         }
@@ -5542,12 +6566,12 @@ ${userActionText || '（玩家静静等待对方说话）'}
             const targetCrimeScene = isInOffice ? "高菱屋·展厅" : currentLoc;
 
             const fallbackLines = isInOffice ? [
-                `[发言] 电话铃声(急促): （急促刺耳的电话铃声骤然打破了事务所的宁静……！）`,
-                `[发言] 委托人(神色慌张): 请问是辩护律师吗？！救救我，我被卷入重大案子成为嫌疑人了！`,
+                `[发言] 电话铃声[急促]: （急促刺耳的电话铃声骤然打破了事务所的宁静……！）`,
+                `[发言] 委托人[神色慌张]: 请问是辩护律师吗？！救救我，我被卷入重大案子成为嫌疑人了！`,
                 `[发言] 系统提示: 突发委托接入！你可以在[设定]大地图中前往调查现场展开搜查！`
             ] : [
                 `[发言] 旁白: （原本平静的气氛骤然被一声凄厉的尖叫撕裂——！）`,
-                `[发言] 群众(惊恐): 杀……杀人啦！快叫救护车和警察！`,
+                `[发言] 群众[惊恐]: 杀……杀人啦！快叫救护车和警察！`,
                 `[发言] 系统提示: 突发命案！你目前身处的【${currentLoc}】已成为案发现场，现场已被全面封锁！`
             ];
 
@@ -5584,7 +6608,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
    - 案情必须包含“认知错觉”或“时间差诡计”（例如：看错钟表倒影、利用录像机延时、衣服穿错造成的认错人影、现场气味或声响错觉），证人不作恶劣伪证，但其认知被移花接木，从而给出看似无懈可击但存在物理矛盾的证词。
 5. 【丰富证物链】：
    - 至少设计 3~4 件关键物证（包括尸检/解剖记录、现场痕迹、时间凭证、带有隐藏矛盾的生活物品）。
-6. opening 是开场突发剧情：约 260 字，每行格式 [发言] 角色名(动作姿态): 内容。旁白用 [发言] 旁白: 内容；不得透露真凶，不得替${gameState.profile.name}说话。
+6. opening 是开场突发剧情：约 260 字，每行格式 [发言] 角色名[立绘动作]: （剧情动作）内容，冒号前的方括号只能写动作注册表里的动作词，具体剧情动作写在冒号后的括号里。旁白用 [发言] 旁白: 内容；不得透露真凶，不得替${gameState.profile.name}说话。
 只输出一个 JSON 对象，不要任何解释和代码块：
 {"title":"","victim":"","culprit":"","suspects":[""],"guestWitnesses":[""],"motive":"","method":"","timeline":"","truth":"","crimeScene":"${targetCrimeScene}","defendant":"","keyEvidence":[{"name":"","desc":""}],"contradictions":[""],"opening":["[发言] ..."]}`;
 
@@ -5846,6 +6870,70 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
         let phoneTyping = {};   // 各联系人“正在回复中”状态
 
+
+        // ================= 手机短信 ↔ 剧情回放 同步工具 =================
+        function isSmsLogItem(it) { return !!it && typeof it.raw === 'string' && it.raw.startsWith('[短信]'); }
+        function smsLogContact(it) {
+            if (!isSmsLogItem(it)) return null;
+            if (it.contact) return it.contact;
+            const c = String(it.content || '');
+            let m = c.match(/^\[发送给(.+?)的短信\]/);
+            if (m) return m[1];
+            m = c.match(/^\[(.+?)的短信回复\]/);
+            return m ? m[1] : null;
+        }
+        function smsLogText(it) { return String(it.raw || '').replace(/^\[短信\][^:：]*[:：]\s*/, ''); }
+        let _smsIdSeq = 0;
+        function newSmsId() { return 'sms_' + Date.now() + '_' + (++_smsIdSeq) + '_' + Math.floor(Math.random() * 1000); }
+
+        // 手机里删了一条 → 同步删掉剧情回放里对应的那条
+        function removeLogForPhoneMsg(contact, msg) {
+            const me = gameState.profile.name;
+            let idx = msg.id ? historyLog.findIndex(it => it.smsId === msg.id) : -1;
+            if (idx < 0) {
+                const speaker = msg.sender === 'me' ? me : contact;
+                const raw = `[短信] ${speaker}: ${msg.text}`;
+                idx = historyLog.findIndex(it => it.raw === raw && smsLogContact(it) === contact);
+            }
+            if (idx >= 0) historyLog.splice(idx, 1);
+        }
+        // 剧情回放里删了一条短信 → 同步删掉手机里对应的那条
+        function removePhoneMsgForLog(item) {
+            const contact = smsLogContact(item);
+            if (!contact) return;
+            const arr = phoneChatHistories[contact];
+            if (!arr) return;
+            let idx = item.smsId ? arr.findIndex(m => m.id === item.smsId) : -1;
+            if (idx < 0) {
+                const text = smsLogText(item);
+                const fromMe = String(item.raw).startsWith(`[短信] ${gameState.profile.name}`);
+                idx = arr.findIndex(m => m.text === text && (m.sender === 'me') === fromMe);
+            }
+            if (idx >= 0) arr.splice(idx, 1);
+            if (typeof renderPhoneMessages === 'function') renderPhoneMessages();
+        }
+
+        // 给手机 AI 的上下文：按真实发生的先后顺序，把外面最新剧情和这个人的短信放在同一条时间线上
+        function getPhoneContext(contact, n) {
+            historyLog = migrateHistoryLog(historyLog);
+            const me = gameState.profile.name;
+            const items = historyLog.filter(it => !isSmsLogItem(it) || smsLogContact(it) === contact).slice(-n);
+            return items.map(item => {
+                if (item.aiText !== undefined) {
+                    let block = '';
+                    if (item.userText) block += `${item.playerName || me}: ${item.userText}\n`;
+                    let ai = String(item.aiText || '');
+                    if (ai.length > 700) ai = '…' + ai.slice(-700);
+                    return '【现场剧情】\n' + block + ai;
+                }
+                if (isSmsLogItem(item)) {
+                    const fromMe = String(item.raw).startsWith(`[短信] ${me}`);
+                    return fromMe ? `【短信】${me} → ${contact}: ${smsLogText(item)}` : `【短信】${contact} → ${me}: ${smsLogText(item)}`;
+                }
+                return `${item.speaker}: ${item.content}`;
+            }).join('\n\n');
+        }
+
         function confirmDeleteSms(contact, msg) {
             const now = Date.now();
             if (confirmDeleteSms._t && now - confirmDeleteSms._t < 1500) return;   // 防止长按+右键菜单重复触发
@@ -5854,8 +6942,10 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 const arr = phoneChatHistories[contact] || [];
                 const idx = arr.indexOf(msg);
                 if (idx >= 0) arr.splice(idx, 1);
+                removeLogForPhoneMsg(contact, msg);
                 autoSaveGame();
                 renderPhoneMessages();
+                if (document.getElementById('pane-tab-log').classList.contains('active')) renderHistoryLog();
             }
             confirmDeleteSms._t = Date.now();
         }
@@ -5947,8 +7037,9 @@ ${userActionText || '（玩家静静等待对方说话）'}
             input.value = '';
 
             if (!phoneChatHistories[currentPhoneContact]) phoneChatHistories[currentPhoneContact] = [];
-            phoneChatHistories[currentPhoneContact].push({ sender: 'me', text: val });
-            historyLog.push({ id: Date.now(), speaker: gameState.profile.name, content: `[发送给${currentPhoneContact}的短信] ${val}`, raw: `[短信] ${gameState.profile.name}: ${val}` });
+            const sid = newSmsId();
+            phoneChatHistories[currentPhoneContact].push({ id: sid, sender: 'me', text: val });
+            historyLog.push({ id: Date.now(), smsId: sid, contact: currentPhoneContact, speaker: gameState.profile.name, content: `[发送给${currentPhoneContact}的短信] ${val}`, raw: `[短信] ${gameState.profile.name}: ${val}` });
             autoSaveGame();
             renderPhoneMessages();
             input.focus();
@@ -5985,8 +7076,12 @@ ${userActionText || '（玩家静静等待对方说话）'}
             if (!cfgStr) { gameToast('请先在设置里配置 API'); return; }
             const config = JSON.parse(cfgStr);
 
-            const contactHistory = hist.slice(-12).map(m => `${m.sender === 'me' ? gameState.profile.name : target}: ${m.text}`).join('\n');
-            const mainContext = getHistoryContext(10);
+            // 玩家刚发来、还没被回复的那几条
+            let k = hist.length;
+            while (k > 0 && hist[k - 1].sender === 'me') k--;
+            const pending = hist.slice(k).map(m => `${gameState.profile.name}: ${m.text}`).join('\n') || '（玩家没有新消息，可以顺着刚才的话再补一句）';
+            // 时间线：外面的剧情和你们的短信按真实先后混排，越靠下越新
+            const mainContext = getPhoneContext(target, 16);
 
             const smsPrompt = `你正在《逆转裁判》世界中，通过手机短信与玩家（${gameState.profile.name}）发信息。
 你的身份是：${target}。
@@ -5998,12 +7093,13 @@ ${userActionText || '（玩家静静等待对方说话）'}
 [短信] 晚点我过去找你。
 4. 只输出 [短信] 行。严禁输出任何思考过程、分析、解释、动作描写、[发言] 或其他前缀。
 
-【外部当前发生的剧情参考】
+【当前时间线（按发生先后排列，越靠下越新；包含外面的现场剧情，以及你与${gameState.profile.name}的短信往来）】
 ${mainContext}
 
-【你与${gameState.profile.name}的近期短信往来】
-${contactHistory}
+【${gameState.profile.name}刚发来、等你回复的短信】
+${pending}
 
+请务必接续时间线最末尾的最新状态来回复：如果外面的剧情已经往后发展（时间、地点、事件有变化），短信内容要符合现在的情境，不要停留在更早的短信话题上。
 请以${target}的身份，按上述格式直接输出回复短信：`;
 
             phoneTyping[target] = true;
@@ -6025,8 +7121,9 @@ ${contactHistory}
                 if (!phoneChatHistories[target]) phoneChatHistories[target] = [];
                 for (let i = 0; i < parts.length; i++) {
                     if (i > 0) await new Promise(r => setTimeout(r, 500 + Math.min(parts[i].length * 30, 900)));
-                    phoneChatHistories[target].push({ sender: target, text: parts[i] });
-                    historyLog.push({ id: Date.now() + i, speaker: target, content: `[${target}的短信回复] ${parts[i]}`, raw: `[短信] ${target}: ${parts[i]}` });
+                    const sid = newSmsId();
+                    phoneChatHistories[target].push({ id: sid, sender: target, text: parts[i] });
+                    historyLog.push({ id: Date.now() + i, smsId: sid, contact: target, speaker: target, content: `[${target}的短信回复] ${parts[i]}`, raw: `[短信] ${target}: ${parts[i]}` });
                     renderPhoneMessages();
                 }
             } catch (err) {
@@ -6165,8 +7262,35 @@ ${contactHistory}
         }
 
         // ================= 10. 存读档与数据导出 =================
+        const SAVE_SLOT_COUNT = 10;   // 存档位数量（想再多就改这个数字）
+
+        function renderSaveSlots() {
+            const box = document.getElementById('save-slot-list');
+            if (!box) return;
+            let html = '';
+            for (let i = 1; i <= SAVE_SLOT_COUNT; i++) {
+                html += `
+                        <div class="affinity-row">
+                            <div>
+                                <div style="color: #fff; font-weight: bold;">存档位 ${i}</div>
+                                <div id="slot-info-${i}" style="font-size: 11px; color: #7696be;">空记录</div>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-sub" onclick="saveToSlot(${i})">覆盖保存</button>
+                                <button class="btn-prime" style="padding: 6px 14px;" onclick="loadFromSlot(${i})">载入</button>
+                            </div>
+                        </div>`;
+            }
+            box.innerHTML = html;
+        }
+
         function saveToSlot(id) {
-            localStorage.setItem(`ace_save_${id}`, JSON.stringify({ time: new Date().toLocaleString(), data: gameState, history: historyLog, phone: phoneChatHistories }));
+            try {
+                localStorage.setItem(`ace_save_${id}`, JSON.stringify({ time: new Date().toLocaleString(), data: gameState, history: historyLog, phone: phoneChatHistories }));
+            } catch (e) {
+                alert('保存失败：浏览器存储空间已满（头像图片过大时常见）。可以先用「导出 .json」备份，再清理旧存档位。');
+                return;
+            }
             updateSaveLabels();
             alert(`已成功保存至 存档位 ${id}！`);
         }
@@ -6188,12 +7312,15 @@ ${contactHistory}
             loadDialogueQueue([`[发言] 系统提示: 已成功载入【存档位 ${id}】的案情数据！`]);
         }
         function updateSaveLabels() {
-            for (let i = 1; i <= 3; i++) {
+            if (!document.getElementById('slot-info-1')) renderSaveSlots();
+            for (let i = 1; i <= SAVE_SLOT_COUNT; i++) {
                 const s = localStorage.getItem(`ace_save_${i}`);
                 const el = document.getElementById(`slot-info-${i}`);
-                if (s) {
-                    const obj = JSON.parse(s);
-                    el.innerText = `${obj.time} - ${obj.data.profile.name} (${obj.data.profile.role})`;
+                if (s && el) {
+                    try {
+                        const obj = JSON.parse(s);
+                        el.innerText = `${obj.time} - ${obj.data.profile.name} (${obj.data.profile.role})`;
+                    } catch (_) { el.innerText = '存档数据损坏'; }
                 }
             }
         }
