@@ -4968,7 +4968,7 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
 2. 必须保留：关键事件与因果；人物关系与好感变化；重要的承诺、约定、秘密和未完成的待办；当前所处地点与时间线；案件相关的线索、证物、证词、矛盾点和已排除的嫌疑；尚未解决的悬念；玩家「${me}」做过的重要决定与表现；角色之间称呼和说话习惯上的变化。
 3. 人物称呼统一用常用名（成步堂、御剑、真宵……）。私人短信只简记事实，并注明是谁和玩家的私下联系。
 4. 如果给出了「旧前情提要」，要把它和新剧情合并成一份完整、连贯的新提要，不要丢掉旧提要里仍然重要的信息。
-5. 400~800 字，纯文本分段，不要 Markdown 符号，不要任何解释或开场白，直接输出提要正文。
+5. 不限制字数，篇幅随剧情的长短和重要信息的多少而定，宁可详细也不要遗漏关键信息。纯文本分段，不要 Markdown 符号，不要任何解释或开场白，直接输出提要正文。
 
 ${prevSummary ? '【旧前情提要】\n' + prevSummary.summaryText + '\n\n' : ''}【需要整理的新剧情】
 ${material}`;
@@ -4992,13 +4992,13 @@ ${material}`;
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
                     body: JSON.stringify({
                         model: config.model,
-                        max_tokens: 2048,
                         temperature: 0.3,
                         messages: [{ role: 'user', content: sumPrompt }]
                     })
                 });
                 const data = await res.json();
                 if (!data.choices || !data.choices[0]) throw new Error(JSON.stringify(data.error || data).slice(0, 200));
+                if (data.choices[0].finish_reason === 'length') throw new Error('总结被模型的输出长度上限截断了，已放弃本次总结（剧情记录没有被改动）');
                 let txt = String(data.choices[0].message.content || '')
                     .replace(/<(think|thinking|thought|reasoning)>[\s\S]*?<\/\1>/gi, '')
                     .replace(/```[a-zA-Z]*\n?/g, '').trim();
@@ -6812,7 +6812,6 @@ ${knownPeople.join('、') || '（暂无）'}
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
                     body: JSON.stringify({
                         model: config.model,
-                        max_tokens: 6000,
                         temperature: 0.9,
                         messages: [
                             { role: "system", content: document.getElementById('world-prompt').value },
