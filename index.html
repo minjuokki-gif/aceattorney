@@ -409,13 +409,23 @@
             max-width: 82%; max-height: 78%; object-fit: contain;
             filter: drop-shadow(0 0 25px rgba(255, 50, 0, 0.85));
             /* 核心动画：超大尺寸从画面外极速扎进中央，带有猛烈急停感 */
-            animation: shoutSlamIn 0.85s cubic-bezier(0.1, 0.95, 0.2, 1.05) forwards;
+            animation: shoutSlamIn 2.2s cubic-bezier(0.1, 0.95, 0.2, 1.05) forwards;
         }
+        /* 图片加载失败时的文字气泡（避免出现裂图/什么都不显示） */
+        .shout-bubble-fallback {
+            display: none; padding: 18px 46px; font-size: 64px; font-weight: 900; letter-spacing: 6px;
+            color: #fff; background: #c0201a; border: 6px solid #fff; border-radius: 12px;
+            transform: rotate(-4deg); text-shadow: 3px 3px 0 #5a0b08;
+            filter: drop-shadow(0 0 25px rgba(255, 50, 0, 0.85));
+            animation: shoutSlamIn 2.2s cubic-bezier(0.1, 0.95, 0.2, 1.05) forwards;
+        }
+        .shout-bubble-fallback.shout-fb-hold_it { background: #1d6fb8; }
+        .shout-bubble-fallback.shout-fb-take_that { background: #d9731a; }
         @keyframes shoutSlamIn {
             0% { transform: scale(3.2); opacity: 0; }
-            18% { transform: scale(1.0); opacity: 1; }
-            82% { transform: scale(1.0); opacity: 1; }
-            100% { transform: scale(1.08); opacity: 0; }
+            8% { transform: scale(1.0); opacity: 1; }
+            88% { transform: scale(1.0); opacity: 1; }
+            100% { transform: scale(1.06); opacity: 0; }
         }
 
         /* ================= ⚖️ 有罪 / 无罪 经典分步猛砸动画（砸完停留，点屏幕才消失） ================= */
@@ -551,6 +561,7 @@
         <!-- 💥 异议 / 等等 / 看招 尖刺气泡扎入层 -->
         <div class="shout-bubble-overlay" id="shout-bubble-overlay">
             <img class="shout-bubble-img" id="shout-bubble-img" src="" alt="气泡">
+            <div class="shout-bubble-fallback" id="shout-bubble-fallback"></div>
         </div>
 
         <!-- ⚖️ 有罪 / 无罪 从天而降超大判决层 -->
@@ -2867,6 +2878,12 @@
             "take_that": "https://i.postimg.cc/9Fh0dZKb/etc1012(st)-(Take-that-).png"  // くらえ！(看招)
         };
 
+        const SHOUT_BUBBLE_MS = 2200;   // 气泡停留总时长（毫秒），想更久就改大，同时改 CSS 里 shoutSlamIn 的 2.2s
+        const SHOUT_FALLBACK_TEXT = { objection: '异议！', hold_it: '等等！', take_that: '看招！' };
+        var _shoutHideTimer = null;
+        // 预加载三张气泡图，避免第一次喊的时候图还没下载好、一闪而过或显示裂图
+        try { Object.keys(SHOUT_BUBBLE_URLS).forEach(k => { const _im = new Image(); _im.src = SHOUT_BUBBLE_URLS[k]; }); } catch (e) {}
+
         // 角色专属语音插槽 (成步堂 / 御剑 / 千寻与主角)
         const SHOUT_VOICE_MAP = {
             "成步堂": {
@@ -3020,6 +3037,11 @@
             const img = document.getElementById('shout-bubble-img');
             const url = SHOUT_BUBBLE_URLS[type];
             if (!overlay || !img || !url) return;
+            const fb = document.getElementById('shout-bubble-fallback');
+            if (_shoutHideTimer) { clearTimeout(_shoutHideTimer); _shoutHideTimer = null; }
+            if (fb) { fb.style.display = 'none'; fb.className = 'shout-bubble-fallback shout-fb-' + type; fb.textContent = SHOUT_FALLBACK_TEXT[type] || ''; }
+            img.style.display = '';
+            img.onerror = () => { img.style.display = 'none'; if (fb) fb.style.display = 'block'; };
             img.src = url;
             overlay.classList.remove('active');
             void overlay.offsetWidth;
@@ -3065,7 +3087,7 @@
                 setTimeout(() => { onSlamCallback(); }, 240);
             }
 
-            setTimeout(() => { overlay.classList.remove('active'); }, 850);
+            _shoutHideTimer = setTimeout(() => { overlay.classList.remove('active'); _shoutHideTimer = null; }, SHOUT_BUBBLE_MS);
         }
 
         // ================= ⚖️ 有罪 / 无罪 两个超大字同步从天而降 =================
@@ -4931,7 +4953,12 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             historyLog = migrateHistoryLog(historyLog);
             const active = historyLog.filter(it => !it.summarized);
             const sum = active.filter(it => it.isSummary).pop();
-            const rest = active.filter(it => !it.isSummary).slice(-n);
+            // 没总结过：AI 能看到全部剧情；总结过：前情提要 + 总结后仍保留的/新增的全部记录。
+            // 只有总长度超过安全上限（防止超出模型上下文）时，才从最旧的开始丢。
+            let rest = active.filter(it => !it.isSummary);
+            const CTX_CHAR_LIMIT = 90000;
+            let total = rest.reduce((s, it) => s + formatLogItemForAI(it).length, 0);
+            while (rest.length > 3 && total > CTX_CHAR_LIMIT) { total -= formatLogItemForAI(rest[0]).length; rest.shift(); }
             const head = sum ? `【前情提要（此前全部剧情的压缩总结，以此为准保持连贯）】\n${sum.summaryText}\n\n【最近剧情】\n` : '';
             return head + rest.map(formatLogItemForAI).join('\n\n');
         }
@@ -6122,12 +6149,13 @@ ${buildActionRegistryText()}
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
    - 证物更新：[证物更新: 已有证物名 | 新的完整介绍]（搜查/调查中发现某件已持有的证物与原本认知不同、或有了新发现时，单独输出这一行，改写它的介绍；名称必须与「持有证物」里的完全一致。若证物本身要改名，写成 [证物更新: 旧名 -> 新名 | 新的完整介绍]）
    - 新人物登记：[人物: 人物姓名 | 身份背景描述]
+   - 【法庭记录簿铁律（案件搜查篇必须执行）】：①每当玩家或角色在搜查/询问中新发现、取得、出示一件此前没有的物证（凶器、照片、记录、物品、报告等），必须在该句之后单独输出一行 [证物: 名称 | 描述]；已在下方「记录簿」里的不要重复。②每当有新的证人、嫌疑人、被害人、关键相关者首次登场或被提到，必须单独输出一行 [人物: 姓名 | 身份与与案件的关系]，写到证人席作证的人也一样。③证人在法庭上作出了新的重要证词、或某证物有了新发现，用 [人物: 已有姓名 | 更新后的描述] 或 [证物更新: ...] 把最新内容记进去（只写玩家已经知道的信息，不要泄露机密档案）。案件开场时已经在机密档案里定好了本案的证人、嫌疑人和关键证物：它们要等到剧情里真正登场、被发现的那一轮才登记，不要提前登记，也不要漏掉；没有新发现的轮次不用输出任何记录指令。这些指令行不计入 10~15 行的篇幅限制。
 9.5 【法庭席位与职业规则】（仅在法庭场景生效）：
    - 玩家职业为「检事」时：开庭后玩家站在检察席，是公诉方，主导询问证人、论告、反驳辩方异议；辩护席由成步堂/王泥喜等NPC担任，严禁把玩家写成辩护人。
    - 玩家职业为「刑警」时：开庭后玩家通常以证人身份站上证人席作证，由审判长、检察官、辩护律师轮流询问玩家；玩家可[出示证物]说明搜查成果；严禁把玩家写成辩护人或检察官。
    - 席位标记：角色站在非默认席位时，冒号前的方括号里要写席位名，并一直沿用到“离开某某席”：①证人席——任何角色（除成步堂龙一）被传唤作证，如 [发言] 绫里 春美[证人席·紧张]: ……；②辩护席——绫里千寻亲自担任辩护律师站在辩护席时，如 [发言] 绫里 千寻[辩护席·自信]: ……；③助手席——牙琉雾人早期以前辈/老师身份站在助手席时，如 [发言] 牙琉 雾人[助手席·微笑]: ……。结束时方括号写“离开证人席/辩护席/助手席”。
 10. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
-            const recent = getHistoryContext(5);
+            const recent = getHistoryContext(8);
 
             const isDaily = gameState.mode === 'daily';
             let modeRules;
@@ -6161,7 +6189,7 @@ ${JSON.stringify(gameState.hiddenCase)}`;
 - 现场允许出场角色：严格依据当前地点与前文情节判断！
   * 如果在事务所/个人办公室：仅限真正同驻该处的伙伴，外部律师（如牙琉雾人）或检察官未经主动来访情节严禁出现在场景中！
   * 如果是玩家与某人单独外出（如与真宵逛街）：现场仅限玩家与该名同行角色，其他无关人员严禁插嘴！
-${isDaily ? '' : '持有证物：' + (gameState.evidence.map(e => e.name).join('、') || '无') + '\n'}
+${isDaily ? '' : '【法庭记录簿（已登记，是你的长期记忆；这里已有的不要重复登记，新发现的要补登）】\n证物：' + (gameState.evidence.map(e => e.name + '（' + String(e.desc || '').slice(0, 40) + '）').join('；') || '无') + '\n人物：' + ((gameState.profiles || []).map(p => p.name + '（' + String(p.desc || '').slice(0, 30) + '）').join('；') || '无') + '\n'}
 【此前剧情（供你保持连贯）】
 ${recent || '（刚刚开始）'}
 
@@ -6456,10 +6484,12 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 let speaker = "旁白";
                 let action = "";
                 let content = line;
+                let _seatRaw = '';
 
                 if (m && m[3] && m[3].trim()) {
                     speaker = m[1].trim();
                     action = m[2] ? m[2].trim() : '';
+                    _seatRaw = action;
                     content = m[3].trim();
                     // 冒号前只留注册表里的立绘动作；其余剧情动作挪到台词里，用（）括起来显示
                     const sane = sanitizeStageAction(speaker, action);
@@ -6472,6 +6502,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
 
                 if (playerName && speaker === playerName.trim()) continue;
                 maybeAutoContact(speaker, content, playerName);
+                autoRegisterCaseSpeaker(speaker, _seatRaw);
 
 
                 const sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
@@ -6496,6 +6527,31 @@ ${userActionText || '（玩家静静等待对方说话）'}
             }
 
             return out;
+        }
+
+        // 保底：AI 漏写 [人物:] 时，程序自己把「站上证人席的人」和「机密档案里的证人/嫌疑人」首次发言时登记进人物档案
+        function autoRegisterCaseSpeaker(speaker, seatRaw) {
+            try {
+                if (!speaker || speaker === '旁白' || speaker.includes('系统')) return;
+                if (speaker.includes('审判长') || speaker.includes('裁判长') || speaker.includes('法官')) return;
+                if (gameState.mode === 'daily') return;
+                if (gameState.profile && speaker === gameState.profile.name) return;
+                if (!gameState.profiles) gameState.profiles = [];
+                if (gameState.profiles.some(p => sameChar(p.name, speaker))) return;
+                let desc = '';
+                const hc = gameState.hiddenCase;
+                if (hc) {
+                    const hit = []
+                        .concat((hc.witnesses || []).map(w => ({ n: w.name, d: '本案证人。' })))
+                        .concat((hc.suspects || []).map(s => ({ n: s.name, d: (s.relation ? s.relation + '。' : '本案相关人员。') })))
+                        .find(x => x.n && (x.n === speaker || x.n.includes(speaker) || speaker.includes(x.n)));
+                    if (hit) desc = hit.d;
+                }
+                if (!desc && /证人席/.test(seatRaw || '')) desc = '出庭证人。';
+                if (!desc) return;
+                gameState.profiles.push({ name: speaker, desc: desc, icon: matchProfileIcon(speaker) });
+                renderRecordAll();
+            } catch (e) { console.warn('autoRegisterCaseSpeaker', e); }
         }
 
         // ================= 7. 📜 剧情回放 (Log) 管理 =================
