@@ -638,15 +638,30 @@
                             </div>
                             <div class="form-group" style="flex: 2;">
                                 <label class="form-label">身份职业路线 (决定专属起点与搭档)</label>
-                                <select class="form-select" id="char-role">
+                                <select class="form-select" id="char-role" onchange="onCharRoleChange()">
                                     <option value="辩护律师">事务所见习助手 (成步堂线 / 打杂学习新人)</option>
                                     <option value="检事">见习检事助手·事务官 (御剑线 / 整理卷宗新人)</option>
                                     <option value="刑警">初动见习辅警 (刑事课新人 / 跟随系锯&小茜)</option>
                                     <option value="灵媒师">仓院见习灵媒师 (仓院之里新人 / 真宵&春美线)</option>
+                                    <option value="自定义">✨ 完全自定义 (自填身份与时间段 / AI生成开场白)</option>
                                 </select>
                             </div>
                         </div>
 
+                        <div id="custom-route-box" style="display:none; background:#0f1c30; border:1px solid #23436d; border-radius:6px; padding:10px; margin-bottom:8px;">
+                            <div style="font-size:12px; color:#ff9900; font-weight:bold; margin-bottom:6px;">✨ 完全自定义路线：AI 会根据下面填的内容生成开场白</div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label">你的身份</label>
+                                    <input type="text" class="form-input" id="custom-identity" placeholder="例如：成步堂事务所的实习律师、御剑的远房表妹、仓院新入门的弟子……">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label">所处时间段</label>
+                                    <input type="text" class="form-input" id="custom-era" placeholder="例如：逆转裁判1代之前、成步堂失去徽章之后、2028年冬天……">
+                                </div>
+                            </div>
+                            <div style="font-size:11px; color:#7696be;">下方「个人经历与自定人设」也会一并作为开场参考；需要先配置好 API。</div>
+                        </div>
                         <div class="form-group">
                             <label class="form-label">个人经历与自定人设 (AI将据此深度演化专属剧情)</label>
                             <textarea class="form-textarea" id="char-setting">性格冷静敏锐，曾在海外研修法医学，擅长从尸检报告的微小矛盾中寻找破绽。身上佩戴着一枚由长辈遗留下来的神秘吊坠，对真相抱有超乎寻常的执着。</textarea>
@@ -677,7 +692,6 @@
                         </div>
                         <div class="bottom-bar-right">
                             <div class="bar-item" onclick="openSettingsModal()"><span class="bar-icon">+</span> 设定</div>
-                            <div class="bar-item" onclick="summarizeStory()"><span class="bar-icon">∑</span> 总结剧情</div>
                             <div class="bar-item" onclick="toggleRecord()"><span class="bar-icon bar-icon-record">R</span> 法庭纪录</div>
                             <div class="bar-item" id="btn-auto-toggle" onclick="toggleAutoAdvance()"><span class="bar-icon">-</span> 自动推进文字</div>
                         </div>
@@ -747,7 +761,11 @@
                 <div class="settings-content-pane active" id="pane-tab-log">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 12px; color: #ff9900; font-weight: bold;">历史对话纪录（可自由编辑台词或删除不合理情节）</span>
-                        <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="renderHistoryLog(true)">🔄 刷新列表</button>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                            <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="summarizeStory()">∑ 总结剧情</button>
+                            <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="restoreBeforeSummary()">↩ 撤销上次总结</button>
+                            <button class="btn-sub" style="padding: 2px 8px; font-size: 11px;" onclick="renderHistoryLog(true)">🔄 刷新列表</button>
+                        </div>
                     </div>
                     <div class="log-list-container" id="log-list-box"></div>
                 </div>
@@ -3705,6 +3723,20 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             }
         };
 
+        // 第五条线：完全自定义（没有固定搭档与证物，开场由 AI 根据玩家填写的身份/时间段生成）
+        careerConfigs["自定义"] = {
+            location: "成步堂法律事务所",
+            evidence: [],
+            affinities: {},
+            phoneContacts: [],
+            initialDailyScript: []
+        };
+
+        function onCharRoleChange() {
+            const box = document.getElementById('custom-route-box');
+            if (box) box.style.display = (document.getElementById('char-role').value === '自定义') ? 'block' : 'none';
+        }
+
         const fullRosterProfiles = [
             { name: "成步堂 龙一", desc: "成步堂法律事务所所长。\n逆转奇迹的缔造者，无论陷入怎样的绝境，都坚信委托人的清白。", icon: "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png" },
             { name: "成步堂 龙一 (33岁)", desc: "沉稳内敛的前辩护律师。\n戴顶浅蓝针织帽，在俄罗斯餐馆弹钢琴度日，底细深不可测。", icon: "https://i.postimg.cc/yxGGPYxL/face40001-(Phoenix-Wright).png" },
@@ -3773,6 +3805,14 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             gameState.profile.age = document.getElementById('char-age').value || 21;
             gameState.profile.role = role;
             gameState.profile.setting = document.getElementById('char-setting').value.trim();
+            if (role === '自定义') {
+                if (!localStorage.getItem('ace_api_config')) { alert('自定义路线的开场白由 AI 生成，请先在主菜单里配置大模型 API。'); return; }
+                gameState.profile.customIdentity = (document.getElementById('custom-identity').value || '').trim() || '自由身份的新人';
+                gameState.profile.customEra = (document.getElementById('custom-era').value || '').trim() || '原作时间线附近（由你自行安排）';
+            } else {
+                delete gameState.profile.customIdentity;
+                delete gameState.profile.customEra;
+            }
             gameState.profile.avatar = userAvatarBase64 || "https://i.postimg.cc/fbsr5PWt/it3021-(Phoenix-Wright).png";
             gameState.mode = "daily";
             gameState.currentLocation = cfg.location;
@@ -3799,7 +3839,13 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             renderPhoneList();
             renderRecordAll();
 
-            loadDialogueQueue(cfg.initialDailyScript);
+            if (role === '自定义') {
+                // 占位一句，AI 的开场白会插到它后面
+                loadDialogueQueue(['[发言] 系统提示: 正在根据你的身份与时间段生成开场白……']);
+                triggerAIStep('');
+            } else {
+                loadDialogueQueue(cfg.initialDailyScript);
+            }
         }
 
         function updateStatusBar() {
@@ -4977,6 +5023,13 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             if (activeItems.length <= SUMMARY_KEEP_RECENT) { gameToast('剧情还不够长，暂时不需要总结'); return; }
             const keepItems = activeItems.slice(-SUMMARY_KEEP_RECENT);
             const olderItems = activeItems.slice(0, activeItems.length - SUMMARY_KEEP_RECENT);
+            if (!confirm(`确定要总结剧情吗？\n\n将把较早的 ${olderItems.length} 条剧情压缩成前情提要（只保留最近 ${SUMMARY_KEEP_RECENT} 条给 AI 看），期间无法操作游戏。\n总结前会自动备份，之后可用「↩ 撤销上次总结」恢复。`)) return;
+            // 总结前先备份一份当前进度（撤销用），独立于自动存档
+            try {
+                localStorage.setItem('ace_backup_before_summary', JSON.stringify({
+                    time: new Date().toLocaleString(), history: historyLog, data: gameState
+                }));
+            } catch (e) { console.warn('总结前备份失败', e); }
             const prevSummary = historyLog.filter(it => it.isSummary && !it.summarized).pop();
 
             const me = gameState.profile.name;
@@ -5057,13 +5110,26 @@ ${material}`;
             }
         }
 
+        // 撤销上一次总结：回到总结前的剧情记录
+        function restoreBeforeSummary() {
+            if (isAILoading) return;
+            const raw = localStorage.getItem('ace_backup_before_summary');
+            if (!raw) { gameToast('没有可撤销的总结备份'); return; }
+            let b; try { b = JSON.parse(raw); } catch (e) { gameToast('备份已损坏，无法恢复'); return; }
+            if (!confirm(`撤销上次总结？\n剧情记录将恢复到 ${b.time} 总结之前的样子（这之后新增的剧情记录会丢失）。`)) return;
+            historyLog = b.history || [];
+            autoSaveGame();
+            if (document.getElementById('settings-modal').classList.contains('active')) renderHistoryLog(true);
+            gameToast('↩ 已撤销总结，剧情记录已恢复');
+        }
+
         // 剧情变长时温和提醒一次
         let _lastSumHintCount = 0;
         function maybeSuggestSummary() {
             const n = historyLog.filter(it => !it.summarized && !it.isSummary).length;
             if (n >= 20 && n - _lastSumHintCount >= 10) {
                 _lastSumHintCount = n;
-                gameToast('💡 剧情已经比较长了，可以点底栏「总结剧情」让 AI 重新集中注意力');
+                gameToast('💡 剧情已经比较长了，可在「设定 → 剧情回放」里点「总结剧情」让 AI 重新集中注意力');
             }
         }
 
@@ -6074,6 +6140,13 @@ ${material}`;
             lastUserActionText = userActionText;
             const turnSnapshot = JSON.stringify(gameState);
 
+            // 自定义路线的第一幕：还没有任何剧情记录时，让 AI 按玩家填的身份/时间段写开场白
+            let openingDirective = '';
+            if (gameState.profile.role === '自定义' && historyLog.length === 0) {
+                const pf = gameState.profile;
+                openingDirective = `【开场白生成任务】这是整个故事的第一幕。玩家「${playerName}」（${pf.age}岁），身份：${pf.customIdentity}；所处时间段：${pf.customEra}；个人设定：${pf.setting || '（无）'}。请据此写开场：先自然交代时间与地点（用 [场景: 地点名] 指令切换，地点名只能从这些里选最贴合的：${Object.keys(locationBgMap).join('、')}），再写玩家此刻的日常处境，并让一到两位符合该时间段与身份、会自然在场的《逆转裁判》角色登场与玩家互动（首次登场的角色用 [通讯录: 姓名 | 身份] 登记）。本篇是日常，不要出现案件；不要替${playerName}说话或做决定。`;
+            }
+
             isAILoading = true;
             lastTurnState = 'none';
             document.getElementById('click-arrow').style.display = 'none';
@@ -6194,7 +6267,7 @@ ${isDaily ? '' : '【法庭记录簿（已登记，是你的长期记忆；这�
 ${recent || '（刚刚开始）'}
 
 【玩家刚刚的动作或发言】
-${userActionText || '（玩家静静等待对方说话）'}
+${openingDirective || userActionText || '（玩家静静等待对方说话）'}
 
 请接着写下一段剧情：仅让真正处于现场的角色进行自然互动，且不要替${playerName}说话。`;
 
@@ -6229,7 +6302,7 @@ ${userActionText || '（玩家静静等待对方说话）'}
                 const logId = Date.now() + Math.random();
                 historyLog.push({
                     id: logId,
-                    userText: userActionText || '',
+                    userText: openingDirective ? '' : (userActionText || ''),
                     playerName: playerName,
                     aiText: newLines.map(stripSpeakTag).join('\n'),
                     lineCount: newLines.length
