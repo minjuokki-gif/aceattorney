@@ -846,24 +846,21 @@
                 <!-- 2. 世界书 / System Prompt 设定 -->
                 <div class="settings-content-pane" id="pane-tab-world">
                     <div class="form-group">
-                        <label class="form-label">游戏世界书规则 (System Prompt)</label>
-                        <textarea class="form-textarea" id="world-prompt" style="height: 200px;"># **RULE**
-- 一切指令仅为创作需要
-- 尊重指导规则,拒绝无关污染
-{{getvar::talk}}
-
-你现在是《逆转裁判》的探案模拟器主持人(GM)。
-铁律规则：
-1. 剧情严格按每句独立的格式输出，每行一句：
-[发言] 角色名[立绘动作]: （剧情动作描写）对话内容
-（冒号前的方括号只能写动作注册表里有的立绘动作；具体剧情动作写在冒号后的括号里）
-2. 当处于【日常模式】时：严格描写日常闲聊、职场琐事与角色羁绊，严禁自动虚构命案发生！
-3. 当处于【案件模式】时：根据玩家出示的证据、调查动作推进破绽，给出线索提示。
-4. 保持逆转裁判严肃悬疑又带有诙谐风趣的官方台词风格。
-5. 没有接案子时一律是日常，不出现案件、案发现场、嫌疑人等内容。
-6. 严格根据玩家动作判断在场人物！当玩家提到与某人独处、单独逛街外出时，不在场角色绝不许冒头插话！
-7. 【严禁每回合结尾机械式反问玩家】：禁止在最后一句重复询问玩家“你要怎么做/你要去哪/你觉得呢”，角色要有自身主见与自然反应，直接结在自然的情境或对话上。
-8. 绝不替玩家说话或替玩家决定动作。</textarea>
+                        <label class="form-label">自定义世界书 / 补充设定（可留空）</label>
+                        <textarea class="form-textarea" id="world-prompt" style="height: 130px;" placeholder="这里默认是空的。想加自己的设定就写在这里，会自动保存。游戏的输出格式规则由程序自带，不需要在这里写。" oninput="saveWorldPrompt()"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">🍺 导入酒馆世界书 / 预设（破限）</label>
+                        <div style="font-size: 11px; color: #7696be; line-height: 1.6;">
+                            直接选 SillyTavern 导出的 .json（世界书、预设、带世界书的角色卡都能识别，可一次选多个）。导入内容只会作为「附加设定」拼在提示词最前面，游戏自己的格式规则排在最后、优先级最高，所以不会被酒馆预设弄乱格式。<br>
+                            世界书：「常驻」条目每次都带上，「关键词触发」条目在最近剧情或你的发言里出现关键词时才带上。预设里的 main（酒馆的扮演主提示）默认关闭，其余按预设原本的开关；每一条都可以在下面单独勾选。
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-top: 8px;">
+                            <button class="btn-sub" onclick="document.getElementById('tavern-file-input').click()">⬆ 导入酒馆文件</button>
+                            <button class="btn-sub" onclick="clearAllImports()">清空全部</button>
+                        </div>
+                        <input type="file" id="tavern-file-input" accept=".json,application/json" multiple style="display: none;" onchange="handleTavernFile(event)">
+                        <div id="import-list"></div>
                     </div>
                 </div>
 
@@ -4104,8 +4101,8 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             const file = e.target.files[0];
             if (!file) return;
             const r = new FileReader();
-            r.onload = (evt) => {
-                userAvatarBase64 = evt.target.result;
+            r.onload = async (evt) => {
+                userAvatarBase64 = await shrinkImage(evt.target.result, 256);   // 压成 256px 小图，几十 KB
                 document.getElementById('avatar-preview').src = userAvatarBase64;
                 document.getElementById('avatar-preview').style.display = 'block';
                 document.getElementById('avatar-tip').style.display = 'none';
@@ -5411,9 +5408,9 @@ const DEFAULT_UNKNOWN_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w
             if (!confirm(`确定要总结剧情吗？\n\n将把较早的 ${olderItems.length} 条剧情压缩成前情提要（只保留最近 ${SUMMARY_KEEP_RECENT} 条给 AI 看），期间无法操作游戏。\n总结前会自动备份，之后可用「↩ 撤销上次总结」恢复。`)) return;
             // 总结前先备份一份当前进度（撤销用），独立于自动存档
             try {
-                localStorage.setItem('ace_backup_before_summary', JSON.stringify({
+                Store.set('ace_backup_before_summary', JSON.stringify({
                     time: new Date().toLocaleString(), history: historyLog, data: gameState
-                }));
+                })).catch(e => console.warn('总结前备份失败', e));
             } catch (e) { console.warn('总结前备份失败', e); }
             const prevSummary = historyLog.filter(it => it.isSummary && !it.summarized).pop();
 
@@ -5496,9 +5493,10 @@ ${material}`;
         }
 
         // 撤销上一次总结：回到总结前的剧情记录
-        function restoreBeforeSummary() {
+        async function restoreBeforeSummary() {
             if (isAILoading) return;
-            const raw = localStorage.getItem('ace_backup_before_summary');
+            let raw = null;
+            try { raw = await Store.get('ace_backup_before_summary'); } catch (e) {}
             if (!raw) { gameToast('没有可撤销的总结备份'); return; }
             let b; try { b = JSON.parse(raw); } catch (e) { gameToast('备份已损坏，无法恢复'); return; }
             if (!confirm(`撤销上次总结？\n剧情记录将恢复到 ${b.time} 总结之前的样子（这之后新增的剧情记录会丢失）。`)) return;
@@ -6625,6 +6623,7 @@ ${material}`;
 
             // 代码层追加的硬性规范：即使玩家改了上面的世界观文本，这些规则也始终生效
             const hardRules = `
+你是《逆转裁判》的探案模拟器主持人（GM），负责主持这场互动剧情，并严格遵守下面的规范输出。
 
 <execution_framework version="4.0">
   <contextual_sovereignty>
@@ -6745,7 +6744,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
                         max_tokens: 4096,
                         temperature: 0.9,
                         messages: [
-                            { role: "system", content: worldPrompt + hardRules + modeRules },
+                            { role: "system", content: buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + hardRules + modeRules },
                             { role: "user", content: prompt }
                         ]
                     })
@@ -7306,6 +7305,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
             if (tabId === 'tab-log') renderHistoryLog(true);
             if (tabId === 'tab-phone') renderPhoneList();
             if (tabId === 'tab-affinity') renderAffinityList();
+            if (tabId === 'tab-world') renderImportList();
         }
 
         const CASE_CAST_POOL = ['市之谷响华', '罪门恭介', '华宫雾绪', '荷星三郎', '天杉优作', '天杉希华', '鹿羽里美', '小池惠子', '叶中未实', '堀田院长', '王都楼真悟', '星影宇宙之介', '零木真子', '雾崎哲郎', '绘濑真琴', '服务生', '大场香', '矢张政志', '宝月巴', '美柳千奈美'];
@@ -7407,7 +7407,7 @@ ${knownPeople.join('、') || '（暂无）'}
                         model: config.model,
                         temperature: 0.9,
                         messages: [
-                            { role: "system", content: document.getElementById('world-prompt').value },
+                            { role: "system", content: buildTavernInjection(genPrompt, gameState.profile.name) + (document.getElementById('world-prompt').value.trim() || '你是《逆转裁判》的探案模拟器主持人（GM）。') },
                             { role: "user", content: genPrompt }
                         ]
                     })
@@ -8058,8 +8058,96 @@ ${pending}
             triggerAIStep(promptText);
         }
 
-        // ================= 10. 存读档与数据导出 =================
+        // ================= 10. 存读档与数据导出（IndexedDB 版）=================
+        // 存档不再放进 localStorage（只有约 5MB，两个存档就满了），改放 IndexedDB（容量是几百 MB 起步）。
         const SAVE_SLOT_COUNT = 10;   // 存档位数量（想再多就改这个数字）
+
+        const Store = (() => {
+            let dbp = null;
+            const api = { mode: 'idb' };
+            function open() {
+                if (dbp) return dbp;
+                dbp = new Promise((res, rej) => {
+                    if (typeof indexedDB === 'undefined') { rej(new Error('no indexedDB')); return; }
+                    const r = indexedDB.open('ace_attorney_db', 1);
+                    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+                    r.onsuccess = () => res(r.result);
+                    r.onerror = () => rej(r.error);
+                    r.onblocked = () => rej(new Error('indexedDB blocked'));
+                });
+                return dbp;
+            }
+            async function db() {
+                try { return await open(); } catch (e) { api.mode = 'ls'; return null; }
+            }
+            function run(d, mode, fn) {
+                return new Promise((res, rej) => {
+                    const t = d.transaction('kv', mode);
+                    let out;
+                    const rq = fn(t.objectStore('kv'));
+                    rq.onsuccess = () => { out = rq.result; };
+                    t.oncomplete = () => res(out);
+                    t.onerror = () => rej(t.error);
+                    t.onabort = () => rej(t.error || new Error('transaction aborted'));
+                });
+            }
+            api.get = async (k) => { const d = await db(); return d ? run(d, 'readonly', s => s.get(k)) : localStorage.getItem(k); };
+            api.set = async (k, v) => { const d = await db(); if (d) return run(d, 'readwrite', s => s.put(v, k)); localStorage.setItem(k, v); };
+            api.del = async (k) => { const d = await db(); if (d) return run(d, 'readwrite', s => s.delete(k)); localStorage.removeItem(k); };
+            api.ready = db();
+            return api;
+        })();
+
+        // 申请"持久存储"，避免浏览器空间紧张时自动清掉存档
+        try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (_) {}
+
+        // 把旧版放在 localStorage 里的存档搬进 IndexedDB（搬成功后删掉旧的，腾出空间）
+        async function migrateLegacySaves() {
+            try {
+                await Store.ready;
+                if (Store.mode !== 'idb') return;
+                const keys = ['ace_autosave', 'ace_backup_before_summary'];
+                for (let i = 1; i <= 50; i++) keys.push('ace_save_' + i);
+                for (const k of keys) {
+                    const v = localStorage.getItem(k);
+                    if (v === null) continue;
+                    if ((await Store.get(k)) == null) await Store.set(k, v);
+                    if ((await Store.get(k)) != null) localStorage.removeItem(k);
+                }
+            } catch (e) { console.warn('旧存档迁移失败', e); }
+        }
+
+        // 把过大的头像图片压成小图（手机相册原图常有几 MB，base64 之后更大）
+        function shrinkImage(dataUrl, maxSide) {
+            maxSide = maxSide || 256;
+            return new Promise((resolve) => {
+                try {
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            const s = Math.min(1, maxSide / Math.max(img.width, img.height));
+                            const c = document.createElement('canvas');
+                            c.width = Math.max(1, Math.round(img.width * s));
+                            c.height = Math.max(1, Math.round(img.height * s));
+                            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                            const keepAlpha = /^data:image\/(png|gif|webp|svg)/i.test(dataUrl);
+                            resolve(keepAlpha ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.85));
+                        } catch (e) { resolve(dataUrl); }
+                    };
+                    img.onerror = () => resolve(dataUrl);
+                    img.src = dataUrl;
+                } catch (e) { resolve(dataUrl); }
+            });
+        }
+        // 读档时顺手把旧存档里的超大头像也压小
+        async function slimLoadedState() {
+            try {
+                const p = gameState && gameState.profile;
+                if (p && typeof p.avatar === 'string' && p.avatar.startsWith('data:image') && p.avatar.length > 150000) {
+                    p.avatar = await shrinkImage(p.avatar, 256);
+                }
+            } catch (_) {}
+        }
 
         function renderSaveSlots() {
             const box = document.getElementById('save-slot-list');
@@ -8081,24 +8169,27 @@ ${pending}
             box.innerHTML = html;
         }
 
-        function saveToSlot(id) {
+        async function saveToSlot(id) {
             try {
-                localStorage.setItem(`ace_save_${id}`, JSON.stringify({ time: new Date().toLocaleString(), data: gameState, history: historyLog, phone: phoneChatHistories }));
+                await Store.set(`ace_save_${id}`, JSON.stringify({ time: new Date().toLocaleString(), data: gameState, history: historyLog, phone: phoneChatHistories }));
             } catch (e) {
-                alert('保存失败：浏览器存储空间已满（头像图片过大时常见）。可以先用「导出 .json」备份，再清理旧存档位。');
+                alert('保存失败：' + ((e && e.message) || e) + '\n可以先用「导出 .json」备份一下。');
                 return;
             }
-            updateSaveLabels();
+            await updateSaveLabels();
             alert(`已成功保存至 存档位 ${id}！`);
         }
-        function loadFromSlot(id) {
-            const s = localStorage.getItem(`ace_save_${id}`);
+        async function loadFromSlot(id) {
+            let s = null;
+            try { s = await Store.get(`ace_save_${id}`); } catch (e) {}
             if (!s) { alert("此槽位为空！"); return; }
-            const parsed = JSON.parse(s);
+            let parsed;
+            try { parsed = JSON.parse(s); } catch (e) { alert('这个存档数据损坏了，无法载入。'); return; }
             gameState = parsed.data;
             historyLog = parsed.history || [];
             phoneChatHistories = parsed.phone || {};
             currentPhoneContact = "";
+            await slimLoadedState();
             closeModal('settings-modal');
             navigateTo('view-game');
             changeLocation(gameState.currentLocation);
@@ -8108,10 +8199,11 @@ ${pending}
             renderRecordAll();
             loadDialogueQueue([`[发言] 系统提示: 已成功载入【存档位 ${id}】的案情数据！`]);
         }
-        function updateSaveLabels() {
+        async function updateSaveLabels() {
             if (!document.getElementById('slot-info-1')) renderSaveSlots();
             for (let i = 1; i <= SAVE_SLOT_COUNT; i++) {
-                const s = localStorage.getItem(`ace_save_${i}`);
+                let s = null;
+                try { s = await Store.get(`ace_save_${i}`); } catch (_) {}
                 const el = document.getElementById(`slot-info-${i}`);
                 if (s && el) {
                     try {
@@ -8121,7 +8213,6 @@ ${pending}
                 }
             }
         }
-        updateSaveLabels();
 
         function exportSaveFile() {
             const blob = new Blob([JSON.stringify({ data: gameState, history: historyLog, phone: phoneChatHistories }, null, 2)], { type: "application/json" });
@@ -8136,13 +8227,14 @@ ${pending}
             const f = e.target.files[0];
             if (!f) return;
             const r = new FileReader();
-            r.onload = (evt) => {
+            r.onload = async (evt) => {
                 try {
                     const parsed = JSON.parse(evt.target.result);
                     gameState = parsed.data || parsed;
                     historyLog = parsed.history || [];
                     phoneChatHistories = parsed.phone || {};
                     currentPhoneContact = "";
+                    await slimLoadedState();
                     closeModal('settings-modal');
                     navigateTo('view-game');
                     changeLocation(gameState.currentLocation);
@@ -8155,35 +8247,53 @@ ${pending}
             };
             r.readAsText(f);
         }
+
         // ================= 11. 自动存档系统 =================
+        let _autoSaveChain = Promise.resolve();   // 写入排队：保证"后写的一定覆盖先写的"，不会乱序回档
+        let _lastAutoCore = '';
+        let _lastAutoFailToast = 0;
         function autoSaveGame() {
             // 只有在已经建立好档案进入游戏时，才进行自动保存
-            if (gameState && gameState.profile && gameState.profile.name) {
-                try {
-                    localStorage.setItem('ace_autosave', JSON.stringify({
-                        time: new Date().toLocaleString(),
-                        data: gameState,
-                        history: historyLog,
-                        phone: phoneChatHistories,
-                        queue: dialogueQueue,
-                        queueIndex: currentQueueIndex
-                    }));
-                } catch (e) {
-                    console.warn('自动存档失败（可能是浏览器存储空间已满，头像图片过大时常见）', e);
-                }
-            }
+            if (!(gameState && gameState.profile && gameState.profile.name)) return;
+            let coreJson;
+            try {
+                coreJson = JSON.stringify({
+                    data: gameState,
+                    history: historyLog,
+                    phone: phoneChatHistories,
+                    queue: dialogueQueue,
+                    queueIndex: currentQueueIndex
+                });
+            } catch (e) { console.warn('自动存档序列化失败', e); return; }
+            if (coreJson === _lastAutoCore) return;   // 没有任何变化就不写，省电省性能
+            const whole = `{"time":${JSON.stringify(new Date().toLocaleString())},` + coreJson.slice(1);
+            _autoSaveChain = _autoSaveChain
+                .then(() => Store.set('ace_autosave', whole))
+                .then(() => { _lastAutoCore = coreJson; })
+                .catch((e) => {
+                    console.warn('自动存档失败', e);
+                    if (Date.now() - _lastAutoFailToast > 60000) {
+                        _lastAutoFailToast = Date.now();
+                        gameToast('⚠ 自动存档失败：' + ((e && e.message) || e) + '（建议先导出 .json 备份）');
+                    }
+                });
         }
 
-        function loadAutoSave() {
-            const s = localStorage.getItem('ace_autosave');
+        async function loadAutoSave() {
+            let s = null;
+            try { s = await Store.get('ace_autosave'); } catch (e) {}
             if (!s) return;
-            const parsed = JSON.parse(s);
+            let parsed;
+            try { parsed = JSON.parse(s); } catch (e) { alert('自动存档数据损坏，无法读取。'); return; }
             gameState = parsed.data;
             historyLog = parsed.history || [];
             phoneChatHistories = parsed.phone || {};
             currentPhoneContact = "";
             dialogueQueue = parsed.queue || [];
             currentQueueIndex = parsed.queueIndex || 0;
+            await slimLoadedState();
+            // 让"没有变化就不写"的判断从读档后的状态重新开始
+            _lastAutoCore = '';
 
             // 保护案卷档案：只要在案件模式中，所有登记过的被害人、嫌疑人、证人全部原封不动永久保留！
             // 只有在回到日常篇重置时（点resetToDailyMode），才会清理案卷
@@ -8212,15 +8322,201 @@ ${pending}
             }
         }
 
-        // 每次打开网页时检查，如果有自动存档，就把橘色按钮显示出来
-        window.addEventListener('DOMContentLoaded', () => {
-            const s = localStorage.getItem('ace_autosave');
-            if (s) {
+        // 有自动存档时，把橘色"继续游戏"按钮显示出来
+        async function refreshContinueButton() {
+            try {
+                const s = await Store.get('ace_autosave');
                 const btn = document.getElementById('btn-continue');
-                if (btn) btn.style.display = 'block';
+                if (btn) btn.style.display = s ? 'block' : 'none';
+            } catch (_) {}
+        }
+
+        // ================= 12. 世界书文本持久化 + 酒馆（SillyTavern）世界书/预设导入 =================
+        function saveWorldPrompt() {
+            try { localStorage.setItem('ace_world_prompt', document.getElementById('world-prompt').value); } catch (_) {}
+        }
+        (function restoreWorldPrompt() {
+            const el = document.getElementById('world-prompt');
+            const v = localStorage.getItem('ace_world_prompt');
+            if (el && v !== null) el.value = v;
+        })();
+
+        let tavernImports = [];   // [{id, kind:'worldbook'|'preset', name, entries:[{id,name,content,enabled,constant,keys,order}]}]
+        function saveImports() {
+            Store.set('ace_imports', JSON.stringify(tavernImports)).catch(e => gameToast('导入内容保存失败：' + ((e && e.message) || e)));
+        }
+        const tvEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+        function parseTavernWorldbook(j, fname) {
+            const arr = Array.isArray(j.entries) ? j.entries : Object.values(j.entries || {});
+            const entries = arr.map((e, i) => {
+                if (!e) return null;
+                const content = String(e.content || '').trim();
+                if (!content) return null;
+                let keys = e.key !== undefined ? e.key : (e.keys !== undefined ? e.keys : []);
+                if (typeof keys === 'string') keys = keys.split(',');
+                keys = (keys || []).map(k => String(k).trim()).filter(Boolean);
+                const disabled = e.disable === true || e.enabled === false;
+                const ord = Number(e.order !== undefined ? e.order : (e.insertion_order !== undefined ? e.insertion_order : 100));
+                return {
+                    id: 'e' + i,
+                    name: String(e.comment || e.name || keys[0] || ('条目' + (i + 1))).slice(0, 60),
+                    content, enabled: !disabled, constant: e.constant === true, keys,
+                    order: isNaN(ord) ? 100 : ord
+                };
+            }).filter(Boolean).sort((a, b) => a.order - b.order);
+            return { id: 'g' + Date.now() + Math.random().toString(36).slice(2, 6), kind: 'worldbook', name: j.name || fname, entries };
+        }
+        function parseTavernPreset(j, fname) {
+            const byId = {};
+            j.prompts.forEach((p, i) => { if (p) { p._id = p.identifier || ('p' + i); byId[p._id] = p; } });
+            let seq = null;
+            if (Array.isArray(j.prompt_order) && j.prompt_order.length) {
+                const cand = j.prompt_order.find(o => o && o.character_id === 100001)
+                    || j.prompt_order.slice().sort((a, b) => ((b && b.order) || []).length - ((a && a.order) || []).length)[0];
+                if (cand && Array.isArray(cand.order)) seq = cand.order.map(o => ({ id: o.identifier, enabled: o.enabled !== false }));
             }
-            
-            // 只要你在玩（身处游戏界面），每隔 5 秒钟就在后台偷偷保存一次，完全不卡顿
+            if (!seq) seq = j.prompts.filter(Boolean).map(p => ({ id: p._id, enabled: p.enabled !== false }));
+            const entries = [];
+            seq.forEach((it, i) => {
+                const p = byId[it.id];
+                if (!p || p.marker) return;
+                const content = String(p.content || '').trim();
+                if (!content) return;
+                entries.push({
+                    id: 'e' + i, name: String(p.name || it.id).slice(0, 60), content,
+                    // 酒馆预设里的 main（"扮演角色、写下一条回复"）会和本游戏的格式打架，默认关闭，需要的话自己勾上
+                    enabled: it.enabled && it.id !== 'main', constant: true, keys: [], order: i, role: p.role || 'system'
+                });
+            });
+            return { id: 'g' + Date.now() + Math.random().toString(36).slice(2, 6), kind: 'preset', name: fname, entries };
+        }
+        function parseTavernJson(j, fname) {
+            if (!j || typeof j !== 'object') return null;
+            if (j.data && j.data.character_book) j = j.data.character_book;       // 角色卡里自带的世界书
+            else if (j.character_book) j = j.character_book;
+            if (Array.isArray(j.prompts)) return parseTavernPreset(j, fname);
+            if (j.entries) return parseTavernWorldbook(j, fname);
+            return null;
+        }
+        function handleTavernFile(e) {
+            const files = Array.from(e.target.files || []);
+            e.target.value = '';
+            files.forEach(f => {
+                const r = new FileReader();
+                r.onload = () => {
+                    try {
+                        const g = parseTavernJson(JSON.parse(r.result), f.name.replace(/\.json$/i, ''));
+                        if (!g || !g.entries.length) { alert(`「${f.name}」里没有识别到可用的世界书条目或预设提示词。`); return; }
+                        tavernImports.push(g);
+                        saveImports();
+                        renderImportList();
+                        gameToast(`已导入${g.kind === 'preset' ? '预设' : '世界书'}：${g.name}（${g.entries.length} 条）`);
+                    } catch (err) { alert(`无法解析「${f.name}」，它不是有效的酒馆 .json 文件。`); }
+                };
+                r.readAsText(f);
+            });
+        }
+        function toggleImportEntry(gi, ei, on) { tavernImports[gi].entries[ei].enabled = !!on; saveImports(); }
+        function toggleImportGroup(gi) {
+            const es = tavernImports[gi].entries;
+            const allOn = es.every(x => x.enabled);
+            es.forEach(x => x.enabled = !allOn);
+            saveImports(); renderImportList();
+        }
+        function removeImportGroup(gi) {
+            if (!confirm(`删除「${tavernImports[gi].name}」？`)) return;
+            tavernImports.splice(gi, 1);
+            saveImports(); renderImportList();
+        }
+        function clearAllImports() {
+            if (!tavernImports.length) return;
+            if (!confirm('清空所有已导入的酒馆世界书/预设？')) return;
+            tavernImports = [];
+            saveImports(); renderImportList();
+        }
+        function renderImportList() {
+            const box = document.getElementById('import-list');
+            if (!box) return;
+            if (!tavernImports.length) {
+                box.innerHTML = '<div style="font-size:12px;color:#7696be;padding:8px 0;">还没有导入任何酒馆文件</div>';
+                return;
+            }
+            box.innerHTML = tavernImports.map((g, gi) => `
+                <div style="border:1px solid #1f395b;border-radius:6px;padding:8px;margin-top:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                        <div style="color:#fff;font-weight:bold;font-size:13px;word-break:break-all;">${g.kind === 'preset' ? '🎛 预设' : '📖 世界书'}：${tvEsc(g.name)} <span style="color:#7696be;font-weight:normal;">(${g.entries.length} 条)</span></div>
+                        <div style="display:flex;gap:6px;flex-shrink:0;">
+                            <button class="btn-sub" onclick="toggleImportGroup(${gi})">全开/全关</button>
+                            <button class="btn-sub" onclick="removeImportGroup(${gi})">删除</button>
+                        </div>
+                    </div>
+                    <div style="max-height:220px;overflow-y:auto;margin-top:6px;">${g.entries.map((en, ei) => `
+                        <label style="display:flex;gap:6px;align-items:flex-start;padding:4px 0;font-size:12px;color:#c8d6ea;cursor:pointer;">
+                            <input type="checkbox" ${en.enabled ? 'checked' : ''} onchange="toggleImportEntry(${gi},${ei},this.checked)" style="margin-top:2px;">
+                            <span style="flex:1;word-break:break-all;">${tvEsc(en.name)} <span style="color:#7696be;">· ${en.content.length}字${g.kind === 'worldbook' ? (en.constant ? ' · 常驻' : ' · 关键词触发') : ''}</span></span>
+                        </label>`).join('')}
+                    </div>
+                </div>`).join('');
+        }
+
+        // 清理酒馆宏：{{user}}→玩家名，{{char}}→"剧情角色"，其余宏（setvar/getvar/random 等）直接去掉
+        function tavernMacro(s, playerName) {
+            return String(s)
+                .replace(/\{\{\s*\/\/[\s\S]*?\}\}/g, '')
+                .replace(/\{\{\s*(setvar|addvar|incvar|decvar|setglobalvar|addglobalvar)\s*::[\s\S]*?\}\}/gi, '')
+                .replace(/\{\{\s*user\s*\}\}/gi, playerName || '玩家')
+                .replace(/\{\{\s*char\s*\}\}/gi, '剧情角色')
+                .replace(/<USER>/gi, playerName || '玩家')
+                .replace(/<(BOT|CHAR)>/gi, '剧情角色')
+                .replace(/\{\{[^{}]*\}\}/g, '')
+                .replace(/<!--[\s\S]*?-->/g, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        }
+        function tavernKeyMatch(keys, text) {
+            if (!keys || !keys.length) return false;
+            const low = text.toLowerCase();
+            return keys.some(k => {
+                const m = k.match(/^\/(.+)\/([gimsuy]*)$/);
+                if (m) { try { return new RegExp(m[1], m[2].replace('g', '') || 'i').test(text); } catch (_) { return false; } }
+                return low.includes(k.toLowerCase());
+            });
+        }
+        // 生成要拼在系统提示词最前面的"附加设定"。游戏自己的格式规则始终排在它后面，冲突时以游戏规则为准。
+        function buildTavernInjection(contextText, playerName) {
+            if (!tavernImports.length) return '';
+            const ctx = String(contextText || '').slice(-4000);
+            const presetParts = [], always = [], triggered = [];
+            tavernImports.forEach(g => g.entries.forEach(en => {
+                if (!en.enabled) return;
+                const text = tavernMacro(en.content, playerName);
+                if (!text) return;
+                if (g.kind === 'preset') presetParts.push(text);
+                else if (en.constant) always.push(text);
+                else if (tavernKeyMatch(en.keys, ctx)) triggered.push(text);
+            }));
+            const parts = [];
+            if (presetParts.length) parts.push(presetParts.join('\n\n'));
+            if (always.length || triggered.length) parts.push('【附加世界书设定】\n' + always.concat(triggered).join('\n\n'));
+            if (!parts.length) return '';
+            return parts.join('\n\n') + '\n\n【以上为附加的风格/世界观设定，仅作补充。若与下方的「输出硬性规范」「当前模式」冲突（尤其是输出格式、行数、立绘动作标签、日常/案件模式限制），一律以下方为准。】\n\n';
+        }
+
+        // 启动：先搬旧存档 → 刷新存档列表 → 读取导入的酒馆内容 → 显示"继续游戏"
+        (async function bootStorage() {
+            await migrateLegacySaves();
+            await updateSaveLabels();
+            try {
+                const raw = await Store.get('ace_imports');
+                if (raw) tavernImports = JSON.parse(raw) || [];
+            } catch (e) { console.warn('读取导入内容失败', e); }
+            renderImportList();
+            refreshContinueButton();
+        })();
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshContinueButton();
+            // 只要你在玩（身处游戏界面），每隔 5 秒钟就在后台保存一次（没变化会自动跳过）
             setInterval(() => {
                 if (document.getElementById('view-game').classList.contains('active')) {
                     autoSaveGame();
