@@ -855,6 +855,12 @@
                         </div>
                         <div id="reply-len-hint" style="font-size: 12px; color: #7696be; margin-top: 4px; line-height: 1.5;"></div>
                     </div>
+                    <div class="form-group">
+                        <label style="display: flex; gap: 8px; align-items: center; color: #e6eefb; font-size: 13px; font-weight: bold; cursor: pointer;">
+                            <input type="checkbox" id="sim-format-check" onchange="onSimFormatChange()"> 🎮 使用模拟器格式
+                        </label>
+                        <div id="sim-format-hint" style="font-size: 12px; color: #7696be; margin-top: 4px; line-height: 1.5;"></div>
+                    </div>
                     <div style="display: flex; justify-content: flex-end;">
                         <button class="btn-prime" onclick="saveApiConfig()">保 存 配 置</button>
                     </div>
@@ -6765,8 +6771,15 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
 
 请接着写下一段剧情：仅让真正处于现场的角色进行自然互动，且不要替${playerName}说话。`;
 
-            const _sysContent = buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + hardRules + modeRules;
-            try { window.__lastPromptPreview = '【SYSTEM】\n' + _sysContent + '\n\n【USER】\n' + prompt; } catch (_) {}
+            const liteRules = `
+你是互动剧情的主持人（GM），按上方的设定与要求来写这一段剧情。
+【输出格式（仅有的硬性要求）】
+1. 篇幅：本次回复写 ${_len.min} 至 ${_len.max} 行左右，可按剧情灵活，不必死凑行数。
+2. 每一行都必须以「[发言] 旁白: 」开头；一行只写一小段（不超过 60 字，尽量在句号处分行），不要把大段文字塞进同一行。角色开口说话时，可写成「[发言] 角色名: （动作）台词」。
+3. 严禁替玩家「${playerName}」说话、做决定。
+4. 不要使用 Markdown，不要多余的解释或开场白。${tavernThinkNote() ? '\n5. ' + tavernThinkNote() : ''}`;
+            const _sysContent = buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + (simFormatOn() ? hardRules : liteRules) + modeRules;
+            try { window.__lastPromptPreview = '【SYSTEM】\n' + _sysContent + '\n\n【USER】\n' + prompt + buildTavernPost(playerName); } catch (_) {}
             let failed = false;
             try {
                 const res = await fetch(config.endpoint.replace(/\/+$/, '') + '/chat/completions', {
@@ -6778,7 +6791,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
                         temperature: 0.9,
                         messages: [
                             { role: "system", content: _sysContent },
-                            { role: "user", content: prompt }
+                            { role: "user", content: prompt + buildTavernPost(playerName) }
                         ]
                     })
                 });
@@ -6940,6 +6953,16 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
             if (!reply) return out;
 
             let cleanReply = reply.replace(/\*\*/g, '').replace(/###/g, '');
+            const _free = !simFormatOn();
+            if (_free) {
+                // 预设模式：没有 [发言] 前缀的行一律当旁白；自动指令行（[好感…]等）保持原样
+                cleanReply = cleanReply.split('\n').map(l => {
+                    const t = l.trim();
+                    if (!t) return '';
+                    if (/^\[发言\]/.test(t) || /^\[(通讯录|联系方式|加联系人|好感|场景|BGM|证物更新|证物|人物)/.test(t)) return t;
+                    return '[发言] 旁白: ' + t;
+                }).join('\n');
+            }
             const rawLines = cleanReply.split('\n').map(s => s.trim()).filter(Boolean);
 
             for (let line of rawLines) {
@@ -7074,7 +7097,18 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
                 autoRegisterCaseSpeaker(speaker, _seatRaw);
 
 
-                const sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
+                let sentences = content.match(/[^。！？!?…]+[。！？!?…]*[”」』）)]*/g) || [content];
+                if (_free) {
+                    // 单句太长时，先按逗号、分号再拆，实在还长就硬切，保证每个对话框不会塞几百个字
+                    sentences = sentences.flatMap(sen => {
+                        if (sen.length <= MAX_LEN) return [sen];
+                        const pieces = sen.match(/[^，、；,;]+[，、；,;]?/g) || [sen];
+                        const merged = []; let b = '';
+                        pieces.forEach(pc => { if ((b + pc).length > MAX_LEN && b) { merged.push(b); b = pc; } else b += pc; });
+                        if (b) merged.push(b);
+                        return merged.flatMap(m2 => { const r = []; for (let k = 0; k < m2.length; k += MAX_LEN) r.push(m2.slice(k, k + MAX_LEN)); return r; });
+                    });
+                }
                 let buf = '';
                 const chunks = [];
                 for (const sen of sentences) {
@@ -7442,7 +7476,7 @@ ${knownPeople.join('、') || '（暂无）'}
                         temperature: 0.9,
                         messages: [
                             { role: "system", content: buildTavernInjection(genPrompt, gameState.profile.name) + (document.getElementById('world-prompt').value.trim() || '你是《逆转裁判》的探案模拟器主持人（GM）。') },
-                            { role: "user", content: genPrompt }
+                            { role: "user", content: genPrompt + buildTavernPost(gameState.profile.name) }
                         ]
                     })
                 });
@@ -7550,6 +7584,15 @@ ${knownPeople.join('、') || '（暂无）'}
             const m = REPLY_LEN_MODES[c.mode] ? c.mode : 'light';
             return Object.assign({ mode: m }, REPLY_LEN_MODES[m]);
         }
+        // 「模拟器格式」开关：开（默认）＝游戏的完整规则；关＝以预设为主，只保留最简的行格式（每行都有 [发言] 旁白: 前缀）
+        function simFormatOn() { return localStorage.getItem('ace_sim_format') !== '0'; }
+        function onSimFormatChange() {
+            const on = document.getElementById('sim-format-check').checked;
+            try { localStorage.setItem('ace_sim_format', on ? '1' : '0'); } catch (_) {}
+            document.getElementById('sim-format-hint').textContent = on
+                ? '已开启：使用游戏完整的格式规则（立绘动作、称谓、好感度/通讯录/证物等自动指令都正常）。'
+                : '已关闭：以预设为主，只要求每行都以「旁白」开头并分行显示。好感度、通讯录、证物等自动指令在这个模式下不会生成。选完立即生效。';
+        }
         function onReplyLenChange() {
             const mode = document.getElementById('reply-len-select').value;
             const cu = document.getElementById('reply-len-custom');
@@ -7570,6 +7613,8 @@ ${knownPeople.join('、') || '（暂无）'}
             document.getElementById('reply-len-min').value = c.min || 20;
             document.getElementById('reply-len-max').value = c.max || 30;
             onReplyLenChange();
+            document.getElementById('sim-format-check').checked = simFormatOn();
+            onSimFormatChange();
         })();
 
         function onModelSelectChange(val) { if (val) document.getElementById('api-model').value = val; }
@@ -8469,7 +8514,9 @@ ${pending}
             }
             if (!seq) seq = j.prompts.filter(Boolean).map(p => ({ id: p._id, enabled: p.enabled !== false }));
             const entries = [];
+            let afterHist = false;    // 酒馆里排在「聊天记录」占位符之后的条目，是贴在对话最末尾发给模型的
             seq.forEach((it, i) => {
+                if (it.id === 'chatHistory') { afterHist = true; return; }
                 const p = byId[it.id];
                 if (!p || p.marker) return;
                 const content = String(p.content || '').trim();
@@ -8477,7 +8524,7 @@ ${pending}
                 entries.push({
                     id: 'e' + i, name: String(p.name || it.id).slice(0, 60), content,
                     // 酒馆预设里的 main（"扮演角色、写下一条回复"）会和本游戏的格式打架，默认关闭，需要的话自己勾上
-                    enabled: it.enabled && it.id !== 'main', constant: true, keys: [], order: i, role: p.role || 'system'
+                    enabled: it.enabled && it.id !== 'main', constant: true, keys: [], order: i, role: p.role || 'system', pos: afterHist ? 'after' : 'before'
                 });
             });
             return { id: 'g' + Date.now() + Math.random().toString(36).slice(2, 6), kind: 'preset', name: fname, entries };
@@ -8545,10 +8592,17 @@ ${pending}
             return t;
         }
         function cleanAIOutput(text) {
-            return applyTavernRegex(text)
+            let t = applyTavernRegex(text)
                 .replace(/<(think|thinking|thought|thoughts|reasoning|analysis|cot)>[\s\S]*?<\/\1>/gi, '')
                 .replace(/<(think|thinking|thought|thoughts|reasoning|analysis|cot)>[\s\S]*$/gi, '')
                 .replace(/^[\s\S]*?<\/(think|thinking|thought|reasoning)>/i, '');
+            // 预设常要求把正文包在 <content>…</content> 里：只取标签里面的内容（多个就依次拼起来），标签外的杂话丢掉
+            if (/<content>/i.test(t)) {
+                const blocks = [...t.matchAll(/<content>([\s\S]*?)<\/content>/gi)].map(m => m[1].trim()).filter(Boolean);
+                if (blocks.length) t = blocks.join('\n');
+                else t = t.replace(/^[\s\S]*<content>/i, '');      // 只有开头标签、结尾被截断：取标签后面的全部
+            }
+            return t.replace(/<\/?content>/gi, '');
         }
         function toggleImportRegex(gi, ri, on) { tavernImports[gi].regexes[ri].enabled = !!on; saveImports(); }
         let importFold = {};     // 展开中的区块：'g0'（整个预设）、'se0'（条目区）、'sr0'（正则区）；默认全部折叠
@@ -8785,7 +8839,20 @@ ${pending}
         function tavernThinkNote() {
             if (!tavernHasPreset()) return '';
             const tags = tavernThinkTags().map(t => `<${t}>…</${t}>`).join(' 或 ');
-            return `若上方附加设定要求你先思考、推理或写思维链，请照做：把思考内容完整写在 ${tags} 里，放在剧情行【之前】。这部分会被游戏自动过滤、不显示给玩家，也不计入篇幅限制；标签之外只能是本规范要求的剧情行与指令。`;
+            return `若附加设定要求你先思考、推理或写思维链，请照做：把思考内容完整写在 ${tags} 里，放在剧情行【之前】。这部分会被游戏自动过滤、不显示给玩家，也不计入篇幅限制；标签之外只能是本规范要求的剧情行与指令。思考要精简：只做附加设定要求的步骤，每一步一两句话，不要逐条复述游戏规则。`;
+        }
+        // 预设里排在聊天记录之后的条目（多半是思维链、输出要求之类）：像酒馆一样贴在整条请求的最末尾，模型对结尾的指令最敏感
+        function buildTavernPost(playerName) {
+            const parts = [];
+            tavernImports.forEach(g => { if (g.kind !== 'preset') return; g.entries.forEach(en => {
+                if (!en.enabled || en.pos !== 'after') return;
+                const t = tavernMacro(en.content, playerName);
+                if (t) parts.push(t);
+            }); });
+            const on = simFormatOn();
+            const tail = !on ? '\n\n【输出格式提醒】每一行都以「[发言] 旁白: 」开头（角色说话可写「[发言] 角色名: 台词」），一行只写一小段、不超过 60 字，不要把大段文字塞进同一行；其余一切写法按上面的附加指令。' : '\n\n【最后提醒——格式优先】无论上面的附加设定怎么要求，最终的剧情正文必须逐行写成「[发言] 角色名[立绘动作]: 内容」或「[发言] 旁白: 内容」，不要把整段写成一大段旁白，也不要省略 [发言] 标签。如果附加设定要求用某个标签（如 <content>）包裹正文，就把这些符合格式的行整体放进那个标签里。';
+            if (!parts.length) return tavernHasPreset() ? tail : '';
+            return '\n\n【附加指令（来自预设，请遵守）】\n' + parts.join('\n\n') + (on ? '\n【以上附加指令若与前面的「输出硬性规范」「当前模式」冲突，一律以「输出硬性规范」「当前模式」为准。】' : '') + '\n' + tavernThinkNote() + tail;
         }
         // 生成要拼在系统提示词最前面的"附加设定"。游戏自己的格式规则始终排在它后面，冲突时以游戏规则为准。
         function buildTavernInjection(contextText, playerName) {
@@ -8796,7 +8863,7 @@ ${pending}
                 if (!en.enabled) return;
                 const text = tavernMacro(en.content, playerName);
                 if (!text) return;
-                if (g.kind === 'preset') presetParts.push(text);
+                if (g.kind === 'preset') { if (en.pos !== 'after') presetParts.push(text); }
                 else if (en.constant) always.push(text);
                 else if (tavernKeyMatch(en.keys, ctx)) triggered.push(text);
             }));
@@ -8804,6 +8871,7 @@ ${pending}
             if (presetParts.length) parts.push(presetParts.join('\n\n'));
             if (always.length || triggered.length) parts.push('【附加世界书设定】\n' + always.concat(triggered).join('\n\n'));
             if (!parts.length) return '';
+            if (!simFormatOn()) return parts.join('\n\n') + '\n\n【以上是本次写作的主要设定与要求，请优先、完整地遵循。下方只规定输出的行格式与人物/场景边界。】\n\n';
             return parts.join('\n\n') + '\n\n【以上为附加的风格/世界观设定，仅作补充。若与下方的「输出硬性规范」「当前模式」冲突（尤其是输出格式、行数、立绘动作标签、日常/案件模式限制），一律以下方为准。】' + (presetParts.length ? '\n【关于思考过程】' + tavernThinkNote() : '') + '\n\n';
         }
 
