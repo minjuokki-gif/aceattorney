@@ -6647,6 +6647,7 @@ ${material}`;
             // 代码层追加的硬性规范：即使玩家改了上面的世界观文本，这些规则也始终生效
             // 幼年相关规则：只有最近剧情/玩家这次的输入里明确出现回忆、幼年等字眼时才附带，
             // 其余回合（尤其是成人向的私密场景）完全不把幼年设定发给模型
+            const recent = getHistoryContext(8);
             const childCtx = (recent + '\n' + (openingDirective || userActionText || ''));
             const childNeeded = /(幼年|小时候|小時候|童年|年幼|回忆|回憶|7年前|七年前|美贯|美貫|真敷)/.test(childCtx);
             const childRuleText = childNeeded
@@ -6704,7 +6705,6 @@ ${buildActionRegistryText(childNeeded, childCtx)}
    - 玩家职业为「刑警」时：开庭后玩家通常以证人身份站上证人席作证，由审判长、检察官、辩护律师轮流询问玩家；玩家可[出示证物]说明搜查成果；严禁把玩家写成辩护人或检察官。
    - 席位标记：角色站在非默认席位时，冒号前的方括号里要写席位名，并一直沿用到“离开某某席”：①证人席——任何角色（除成步堂龙一）被传唤作证，如 [发言] 绫里 真宵[证人席·紧张]: ……；②辩护席——绫里千寻亲自担任辩护律师站在辩护席时，如 [发言] 绫里 千寻[辩护席·自信]: ……；③助手席——牙琉雾人早期以前辈/老师身份站在助手席时，如 [发言] 牙琉 雾人[助手席·微笑]: ……。结束时方括号写“离开证人席/辩护席/助手席”。
 10. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
-            const recent = getHistoryContext(8);
 
             const isDaily = gameState.mode === 'daily';
             let modeRules;
