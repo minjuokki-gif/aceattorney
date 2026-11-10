@@ -6704,7 +6704,7 @@ ${buildActionRegistryText(childNeeded, childCtx)}
    - 玩家职业为「检事」时：开庭后玩家站在检察席，是公诉方，主导询问证人、论告、反驳辩方异议；辩护席由成步堂/王泥喜等NPC担任，严禁把玩家写成辩护人。
    - 玩家职业为「刑警」时：开庭后玩家通常以证人身份站上证人席作证，由审判长、检察官、辩护律师轮流询问玩家；玩家可[出示证物]说明搜查成果；严禁把玩家写成辩护人或检察官。
    - 席位标记：角色站在非默认席位时，冒号前的方括号里要写席位名，并一直沿用到“离开某某席”：①证人席——任何角色（除成步堂龙一）被传唤作证，如 [发言] 绫里 真宵[证人席·紧张]: ……；②辩护席——绫里千寻亲自担任辩护律师站在辩护席时，如 [发言] 绫里 千寻[辩护席·自信]: ……；③助手席——牙琉雾人早期以前辈/老师身份站在助手席时，如 [发言] 牙琉 雾人[助手席·微笑]: ……。结束时方括号写“离开证人席/辩护席/助手席”。
-10. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。`;
+10. 只输出上述剧情行与指令，禁止任何 Markdown 格式或额外解释。${tavernThinkNote() ? '\n   （唯一例外：' + tavernThinkNote() + '）' : ''}`;
 
             const isDaily = gameState.mode === 'daily';
             let modeRules;
@@ -6756,7 +6756,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
                     body: JSON.stringify({
                         model: config.model,
-                        max_tokens: 4096,
+                        max_tokens: tavernHasPreset() ? 8192 : 4096,   // 要写思维链时多给些输出空间
                         temperature: 0.9,
                         messages: [
                             { role: "system", content: _sysContent },
@@ -8493,6 +8493,22 @@ ${pending}
                 .replace(/^[\s\S]*?<\/(think|thinking|thought|reasoning)>/i, '');
         }
         function toggleImportRegex(gi, ri, on) { tavernImports[gi].regexes[ri].enabled = !!on; saveImports(); }
+        let importFold = {};     // 展开中的区块：'g0'（整个预设）、'se0'（条目区）、'sr0'（正则区）；默认全部折叠
+        function toggleFold(key) { importFold[key] = !importFold[key]; renderImportList(); }
+        function toggleGroupRegexes(gi) {
+            const rs = tavernImports[gi].regexes || [];
+            const allOn = rs.every(x => x.enabled);
+            rs.forEach(x => x.enabled = !allOn);
+            saveImports(); renderImportList();
+        }
+        function clearGroupRegexes(gi) {
+            const g = tavernImports[gi];
+            if (!(g.regexes || []).length) return;
+            if (!confirm(`删除「${g.name}」下的全部 ${g.regexes.length} 条正则？`)) return;
+            g.regexes = [];
+            importOpen = '';
+            saveImports(); renderImportList();
+        }
         function handleTavernFile(e) {
             const files = Array.from(e.target.files || []);
             e.target.value = '';
@@ -8503,6 +8519,7 @@ ${pending}
                         const g = parseTavernJson(JSON.parse(r.result), f.name.replace(/\.json$/i, ''));
                         if (!g || (!g.entries.length && !(g.regexes && g.regexes.length))) { alert(`「${f.name}」里没有识别到可用的世界书条目、预设提示词或正则脚本。`); return; }
                         tavernImports.push(g);
+                        importFold['g' + (tavernImports.length - 1)] = true;
                         saveImports();
                         renderImportList();
                         const rn = (g.regexes || []).length;
@@ -8522,12 +8539,14 @@ ${pending}
         function removeImportGroup(gi) {
             if (!confirm(`删除「${tavernImports[gi].name}」？`)) return;
             tavernImports.splice(gi, 1);
+            importFold = {}; importOpen = '';
             saveImports(); renderImportList();
         }
         function clearAllImports() {
             if (!tavernImports.length) return;
             if (!confirm('清空所有已导入的酒馆世界书/预设？')) return;
             tavernImports = [];
+            importFold = {}; importOpen = '';
             saveImports(); renderImportList();
         }
         // ---- 条目 / 正则的展开、编辑、新增、删除 ----
@@ -8546,6 +8565,7 @@ ${pending}
             const g = tavernImports[gi];
             g.entries.push({ id: 'e' + Date.now(), name: '新条目', content: '', enabled: true, constant: true, keys: [], order: 9999, role: 'system' });
             importOpen = 'e-' + gi + '-' + (g.entries.length - 1);
+            importFold['g' + gi] = true; importFold['se' + gi] = true;
             saveImports(); renderImportList();
         }
         function removeImportEntry(gi, ei) {
@@ -8565,6 +8585,7 @@ ${pending}
             if (!g.regexes) g.regexes = [];
             g.regexes.push({ id: 'r' + Date.now(), name: '新正则', find: '', replace: '', trim: [], enabled: true });
             importOpen = 'r-' + gi + '-' + (g.regexes.length - 1);
+            importFold['g' + gi] = true; importFold['sr' + gi] = true;
             saveImports(); renderImportList();
         }
         function removeImportRegex(gi, ri) {
@@ -8580,75 +8601,91 @@ ${pending}
                 box.innerHTML = '<div style="font-size:12px;color:#7696be;padding:8px 0;">还没有导入任何酒馆文件</div>';
                 return;
             }
-            // 重绘前记住各列表的滚动位置，免得展开/收起时跳回顶部
             const scrolls = {};
             box.querySelectorAll('[data-impscroll]').forEach(el => { scrolls[el.dataset.impscroll] = el.scrollTop; });
             const inp = 'width:100%;box-sizing:border-box;background:#0d1b2f;color:#e6eefb;border:1px solid #2a4a75;border-radius:4px;padding:5px;font-size:12px;';
             const lab = 'font-size:11px;color:#7696be;margin:6px 0 2px;';
-            box.innerHTML = tavernImports.map((g, gi) => `
+            const arrow = (key, label, extra) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                    <div onclick="toggleFold('${key}')" style="cursor:pointer;flex:1;min-width:0;color:#c8d6ea;font-size:12px;font-weight:bold;word-break:break-all;"><span style="display:inline-block;width:14px;color:#7696be;">${importFold[key] ? '▼' : '▶'}</span>${label}</div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;">${extra || ''}</div></div>`;
+            const entryHtml = (g, gi, en, ei) => {
+                const key = `e-${gi}-${ei}`, open = importOpen === key;
+                return `
+                <div style="padding:4px 0;border-bottom:1px solid #14284a;">
+                    <div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;color:#c8d6ea;">
+                        <input type="checkbox" ${en.enabled ? 'checked' : ''} onchange="toggleImportEntry(${gi},${ei},this.checked)" style="margin-top:2px;">
+                        <span style="flex:1;word-break:break-all;">${tvEsc(en.name)} <span style="color:#7696be;">· ${en.content.length}字${g.kind === 'worldbook' ? (en.constant ? ' · 常驻' : ' · 关键词触发') : ''}</span></span>
+                        <button class="btn-sub" style="flex-shrink:0;" onclick="toggleImportOpen('${key}')">${open ? '收起' : '展开'}</button>
+                    </div>
+                    ${open ? `
+                    <div style="margin:6px 0 4px 20px;">
+                        <div style="${lab}">名称</div>
+                        <input type="text" value="${tvEsc(en.name)}" oninput="editImportEntry(${gi},${ei},'name',this.value)" style="${inp}">
+                        ${g.kind === 'worldbook' ? `
+                        <label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px;color:#c8d6ea;">
+                            <input type="checkbox" ${en.constant ? 'checked' : ''} onchange="setImportConstant(${gi},${ei},this.checked)"> 常驻（每次都带上）
+                        </label>
+                        ${en.constant ? '' : `<div style="${lab}">触发关键词（用逗号分隔，可写 /正则/）</div>
+                        <input type="text" value="${tvEsc((en.keys || []).join(', '))}" oninput="editImportEntry(${gi},${ei},'keys',this.value)" style="${inp}">`}` : ''}
+                        <div style="${lab}">内容</div>
+                        <textarea rows="8" oninput="editImportEntry(${gi},${ei},'content',this.value)" style="${inp}resize:vertical;max-height:300px;line-height:1.5;">${tvEsc(en.content)}</textarea>
+                        <div style="margin-top:6px;"><button class="btn-sub" onclick="removeImportEntry(${gi},${ei})">🗑 删除此条目</button></div>
+                    </div>` : ''}
+                </div>`;
+            };
+            const regexHtml = (g, gi, r, ri) => {
+                const key = `r-${gi}-${ri}`, open = importOpen === key;
+                return `
+                <div style="padding:4px 0;border-bottom:1px solid #14284a;">
+                    <div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;color:#c8d6ea;">
+                        <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleImportRegex(${gi},${ri},this.checked)" style="margin-top:2px;">
+                        <span style="flex:1;word-break:break-all;">${tvEsc(r.name)} <span style="color:#7696be;">· ${tvEsc(String(r.find).slice(0, 40))}</span></span>
+                        <button class="btn-sub" style="flex-shrink:0;" onclick="toggleImportOpen('${key}')">${open ? '收起' : '展开'}</button>
+                    </div>
+                    ${open ? `
+                    <div style="margin:6px 0 4px 20px;">
+                        <div style="${lab}">名称</div>
+                        <input type="text" value="${tvEsc(r.name)}" oninput="editImportRegex(${gi},${ri},'name',this.value)" style="${inp}">
+                        <div style="${lab}">匹配（写法如 /&lt;think&gt;[\\s\\S]*?&lt;\\/think&gt;/g）</div>
+                        <textarea rows="3" oninput="editImportRegex(${gi},${ri},'find',this.value)" style="${inp}resize:vertical;font-family:monospace;">${tvEsc(r.find)}</textarea>
+                        <div style="${lab}">替换为（留空就是直接删掉）</div>
+                        <textarea rows="2" oninput="editImportRegex(${gi},${ri},'replace',this.value)" style="${inp}resize:vertical;font-family:monospace;">${tvEsc(r.replace)}</textarea>
+                        <div style="${lab}">额外要删掉的字符串（一行一个，可留空）</div>
+                        <textarea rows="2" oninput="editImportRegex(${gi},${ri},'trim',this.value)" style="${inp}resize:vertical;font-family:monospace;">${tvEsc((r.trim || []).join('\n'))}</textarea>
+                        <div style="margin-top:6px;"><button class="btn-sub" onclick="removeImportRegex(${gi},${ri})">🗑 删除此正则</button></div>
+                    </div>` : ''}
+                </div>`;
+            };
+            box.innerHTML = tavernImports.map((g, gi) => {
+                const rs = g.regexes || [];
+                const gOpen = !!importFold['g' + gi];
+                const icon = g.kind === 'preset' ? '🎛 预设' : g.kind === 'regex' ? '🧹 正则' : '📖 世界书';
+                const entOn = g.entries.filter(e => e.enabled).length, rgOn = rs.filter(x => x.enabled).length;
+                const sub = [g.entries.length ? `条目 ${entOn}/${g.entries.length}` : '', rs.length ? `正则 ${rgOn}/${rs.length}` : ''].filter(Boolean).join(' · ');
+                let body = '';
+                if (gOpen) {
+                    if (g.entries.length || !rs.length) {
+                        const eo = !!importFold['se' + gi];
+                        body += `<div style="margin-top:8px;">${arrow('se' + gi, `${g.kind === 'worldbook' ? '📖 世界书条目' : '📜 提示词条目'} (${g.entries.length})`, `<button class="btn-sub" onclick="toggleImportGroup(${gi})">全开/全关</button>`)}
+                            ${eo ? `<div data-impscroll="e${gi}" style="max-height:340px;overflow-y:auto;margin-top:4px;">${g.entries.map((en, ei) => entryHtml(g, gi, en, ei)).join('')}</div>
+                            <div style="margin-top:6px;"><button class="btn-sub" onclick="addImportEntry(${gi})">＋ 新增条目</button></div>` : ''}</div>`;
+                    }
+                    {
+                        const ro = !!importFold['sr' + gi];
+                        body += `<div style="margin-top:8px;">${arrow('sr' + gi, `🧹 「${tvEsc(g.name)}」的正则 (${rs.length})`, `<button class="btn-sub" onclick="toggleGroupRegexes(${gi})">全开/全关</button><button class="btn-sub" onclick="clearGroupRegexes(${gi})">清空</button>`)}
+                            ${ro ? `<div data-impscroll="r${gi}" style="max-height:340px;overflow-y:auto;margin-top:4px;">${rs.map((r, ri) => regexHtml(g, gi, r, ri)).join('') || '<div style="font-size:12px;color:#7696be;padding:6px 0;">这里还没有正则</div>'}</div>
+                            <div style="margin-top:6px;"><button class="btn-sub" onclick="addImportRegex(${gi})">＋ 新增正则</button></div>` : ''}</div>`;
+                    }
+                }
+                return `
                 <div style="border:1px solid #1f395b;border-radius:6px;padding:8px;margin-top:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-                        <div style="color:#fff;font-weight:bold;font-size:13px;word-break:break-all;">${g.kind === 'preset' ? '🎛 预设' : g.kind === 'regex' ? '🧹 正则' : '📖 世界书'}：${tvEsc(g.name)} <span style="color:#7696be;font-weight:normal;">(${g.entries.length} 条${(g.regexes || []).length ? '，正则 ' + g.regexes.length + ' 条' : ''})</span></div>
-                        <div style="display:flex;gap:6px;flex-shrink:0;">
-                            <button class="btn-sub" onclick="toggleImportGroup(${gi})">全开/全关</button>
-                            <button class="btn-sub" onclick="removeImportGroup(${gi})">删除</button>
-                        </div>
+                        <div onclick="toggleFold('g${gi}')" style="cursor:pointer;flex:1;min-width:0;color:#fff;font-weight:bold;font-size:13px;word-break:break-all;"><span style="display:inline-block;width:16px;color:#7696be;">${gOpen ? '▼' : '▶'}</span>${icon}：${tvEsc(g.name)} <span style="color:#7696be;font-weight:normal;">(${sub})</span></div>
+                        <div style="flex-shrink:0;"><button class="btn-sub" onclick="removeImportGroup(${gi})">删除</button></div>
                     </div>
-                    <div data-impscroll="e${gi}" style="max-height:340px;overflow-y:auto;margin-top:6px;">${g.entries.map((en, ei) => {
-                        const key = `e-${gi}-${ei}`, open = importOpen === key;
-                        return `
-                        <div style="padding:4px 0;border-bottom:1px solid #14284a;">
-                            <div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;color:#c8d6ea;">
-                                <input type="checkbox" ${en.enabled ? 'checked' : ''} onchange="toggleImportEntry(${gi},${ei},this.checked)" style="margin-top:2px;">
-                                <span style="flex:1;word-break:break-all;">${tvEsc(en.name)} <span style="color:#7696be;">· ${en.content.length}字${g.kind === 'worldbook' ? (en.constant ? ' · 常驻' : ' · 关键词触发') : ''}</span></span>
-                                <button class="btn-sub" style="flex-shrink:0;" onclick="toggleImportOpen('${key}')">${open ? '收起' : '展开'}</button>
-                            </div>
-                            ${open ? `
-                            <div style="margin:6px 0 4px 20px;">
-                                <div style="${lab}">名称</div>
-                                <input type="text" value="${tvEsc(en.name)}" oninput="editImportEntry(${gi},${ei},'name',this.value)" style="${inp}">
-                                ${g.kind === 'worldbook' ? `
-                                <label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px;color:#c8d6ea;">
-                                    <input type="checkbox" ${en.constant ? 'checked' : ''} onchange="setImportConstant(${gi},${ei},this.checked)"> 常驻（每次都带上）
-                                </label>
-                                ${en.constant ? '' : `<div style="${lab}">触发关键词（用逗号分隔，可写 /正则/）</div>
-                                <input type="text" value="${tvEsc((en.keys || []).join(', '))}" oninput="editImportEntry(${gi},${ei},'keys',this.value)" style="${inp}">`}` : ''}
-                                <div style="${lab}">内容</div>
-                                <textarea rows="8" oninput="editImportEntry(${gi},${ei},'content',this.value)" style="${inp}resize:vertical;max-height:300px;line-height:1.5;">${tvEsc(en.content)}</textarea>
-                                <div style="margin-top:6px;"><button class="btn-sub" onclick="removeImportEntry(${gi},${ei})">🗑 删除此条目</button></div>
-                            </div>` : ''}
-                        </div>`;
-                    }).join('')}
-                        ${(g.regexes || []).length ? '<div style="font-size:12px;color:#7696be;padding:6px 0 2px;margin-top:4px;">正则脚本（作用于 AI 的输出，用来去掉思维链等）</div>' : ''}
-                        ${(g.regexes || []).map((r, ri) => {
-                            const key = `r-${gi}-${ri}`, open = importOpen === key;
-                            return `
-                        <div style="padding:4px 0;border-bottom:1px solid #14284a;">
-                            <div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;color:#c8d6ea;">
-                                <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleImportRegex(${gi},${ri},this.checked)" style="margin-top:2px;">
-                                <span style="flex:1;word-break:break-all;">🧹 ${tvEsc(r.name)} <span style="color:#7696be;">· ${tvEsc(String(r.find).slice(0, 40))}</span></span>
-                                <button class="btn-sub" style="flex-shrink:0;" onclick="toggleImportOpen('${key}')">${open ? '收起' : '展开'}</button>
-                            </div>
-                            ${open ? `
-                            <div style="margin:6px 0 4px 20px;">
-                                <div style="${lab}">名称</div>
-                                <input type="text" value="${tvEsc(r.name)}" oninput="editImportRegex(${gi},${ri},'name',this.value)" style="${inp}">
-                                <div style="${lab}">匹配（写法如 /&lt;think&gt;[\\s\\S]*?&lt;\\/think&gt;/g）</div>
-                                <textarea rows="3" oninput="editImportRegex(${gi},${ri},'find',this.value)" style="${inp}resize:vertical;font-family:monospace;">${tvEsc(r.find)}</textarea>
-                                <div style="${lab}">替换为（留空就是直接删掉）</div>
-                                <textarea rows="2" oninput="editImportRegex(${gi},${ri},'replace',this.value)" style="${inp}resize:vertical;font-family:monospace;">${tvEsc(r.replace)}</textarea>
-                                <div style="${lab}">额外要删掉的字符串（一行一个，可留空）</div>
-                                <textarea rows="2" oninput="editImportRegex(${gi},${ri},'trim',this.value)" style="${inp}resize:vertical;font-family:monospace;">${tvEsc((r.trim || []).join('\n'))}</textarea>
-                                <div style="margin-top:6px;"><button class="btn-sub" onclick="removeImportRegex(${gi},${ri})">🗑 删除此正则</button></div>
-                            </div>` : ''}
-                        </div>`;
-                        }).join('')}
-                    </div>
-                    <div style="display:flex;gap:6px;margin-top:8px;">
-                        <button class="btn-sub" onclick="addImportEntry(${gi})">＋ 新增条目</button>
-                        <button class="btn-sub" onclick="addImportRegex(${gi})">＋ 新增正则</button>
-                    </div>
-                </div>`).join('');
+                    ${body}
+                </div>`;
+            }).join('');
             box.querySelectorAll('[data-impscroll]').forEach(el => { if (scrolls[el.dataset.impscroll] != null) el.scrollTop = scrolls[el.dataset.impscroll]; });
         }
 
@@ -8675,6 +8712,23 @@ ${pending}
                 return low.includes(k.toLowerCase());
             });
         }
+        // 预设里有已启用的提示词时，允许（并要求遵守预设的）思考过程；从已启用的正则里猜出思考标签名
+        function tavernHasPreset() { return tavernImports.some(g => g.kind === 'preset' && g.entries.some(e => e.enabled)); }
+        function tavernThinkTags() {
+            const skip = new Set(['br', 'p', 'div', 'span', 'b', 'i', 'u', 'a', 'img', 'html', 'body', 'style', 'script', 'details', 'summary', 'hr', 'ul', 'li', 'table', 'tr', 'td']);
+            const set = new Set();
+            tavernImports.forEach(g => (g.regexes || []).forEach(r => {
+                if (!r.enabled) return;
+                (String(r.find).match(/<([A-Za-z_][\w-]*)>/g) || []).forEach(x => { const n = x.slice(1, -1); if (!skip.has(n.toLowerCase())) set.add(n); });
+            }));
+            if (!set.size) set.add('think');
+            return [...set];
+        }
+        function tavernThinkNote() {
+            if (!tavernHasPreset()) return '';
+            const tags = tavernThinkTags().map(t => `<${t}>…</${t}>`).join(' 或 ');
+            return `若上方附加设定要求你先思考、推理或写思维链，请照做：把思考内容完整写在 ${tags} 里，放在剧情行【之前】。这部分会被游戏自动过滤、不显示给玩家，也不计入篇幅限制；标签之外只能是本规范要求的剧情行与指令。`;
+        }
         // 生成要拼在系统提示词最前面的"附加设定"。游戏自己的格式规则始终排在它后面，冲突时以游戏规则为准。
         function buildTavernInjection(contextText, playerName) {
             if (!tavernImports.length) return '';
@@ -8692,7 +8746,7 @@ ${pending}
             if (presetParts.length) parts.push(presetParts.join('\n\n'));
             if (always.length || triggered.length) parts.push('【附加世界书设定】\n' + always.concat(triggered).join('\n\n'));
             if (!parts.length) return '';
-            return parts.join('\n\n') + '\n\n【以上为附加的风格/世界观设定，仅作补充。若与下方的「输出硬性规范」「当前模式」冲突（尤其是输出格式、行数、立绘动作标签、日常/案件模式限制），一律以下方为准。】\n\n';
+            return parts.join('\n\n') + '\n\n【以上为附加的风格/世界观设定，仅作补充。若与下方的「输出硬性规范」「当前模式」冲突（尤其是输出格式、行数、立绘动作标签、日常/案件模式限制），一律以下方为准。】' + (presetParts.length ? '\n【关于思考过程】' + tavernThinkNote() : '') + '\n\n';
         }
 
         // 启动：先搬旧存档 → 刷新存档列表 → 读取导入的酒馆内容 → 显示"继续游戏"
