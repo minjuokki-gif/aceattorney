@@ -838,6 +838,23 @@
                             <option value="">-- 点击拉取后在此下拉选择 --</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">✍ 回复长度（AI 每一轮写多少行）</label>
+                        <select class="form-select" id="reply-len-select" onchange="onReplyLenChange()">
+                            <option value="light">日常轻量 · 10~15 行</option>
+                            <option value="mid">中度交流 · 20~30 行</option>
+                            <option value="deep">深度交流 · 35~50 行</option>
+                            <option value="immersive">沉浸长篇 · 60~80 行</option>
+                            <option value="custom">自定义…</option>
+                        </select>
+                        <div id="reply-len-custom" style="display: none; gap: 8px; margin-top: 6px; align-items: center;">
+                            <input type="number" class="form-input" id="reply-len-min" min="3" max="150" style="flex: 1;" oninput="onReplyLenChange()">
+                            <span style="color: #a9c5ea;">~</span>
+                            <input type="number" class="form-input" id="reply-len-max" min="3" max="150" style="flex: 1;" oninput="onReplyLenChange()">
+                            <span style="color: #a9c5ea;">行</span>
+                        </div>
+                        <div id="reply-len-hint" style="font-size: 12px; color: #7696be; margin-top: 4px; line-height: 1.5;"></div>
+                    </div>
                     <div style="display: flex; justify-content: flex-end;">
                         <button class="btn-prime" onclick="saveApiConfig()">保 存 配 置</button>
                     </div>
@@ -6653,13 +6670,14 @@ ${material}`;
             const childRuleText = childNeeded
                 ? "3.5 【幼年角色标注】：当剧情回到成步堂美贯/真敷美贯的幼年时期，发言人写成「美贯[幼年]」，或在冒号前的方括号里带上“幼年”二字，例如：[发言] 美贯[幼年·开心]: ……\n"
                 : "";
+            const _len = getReplyLen();
             const hardRules = `
 你是《逆转裁判》的探案模拟器主持人（GM），负责主持这场互动剧情，并严格遵守下面的规范输出。
 
 命案现场请严肃还原（尸体、凶器、血迹），不要把血迹写成红墨水、番茄汁、颜料或恶作剧假死。
 
 【输出硬性规范——最高优先级】
-1. 篇幅严控：本次回复只写 10 至 15 行（每行一两句话，不超过 40 字），严禁超过 15 行！
+1. 篇幅严控：本次回复只写 ${_len.min} 至 ${_len.max} 行（每行一两句话，不超过 40 字），严禁超过 ${_len.max} 行！${_len.mode === 'light' ? '' : `\n   本轮是「${_len.label}」：把节奏放慢，把情绪与互动写足（神态、动作、停顿、你来我往的对话），不要为了凑行数而重复或拖沓，也不要急着推进剧情、抛出新事件。`}
 2. 称谓铁律：
    - 默认一律称呼【姓氏】（如：成步堂、御剑、系锯、宝月、歌德）。
    - 仅在同姓氏冲突时称呼全名或名字：
@@ -6699,7 +6717,7 @@ ${buildActionRegistryText(childNeeded, childCtx)}
    - 新证物获得：[证物: 证物名称 | 证物详细描述]
    - 证物更新：[证物更新: 已有证物名 | 新的完整介绍]（搜查/调查中发现某件已持有的证物与原本认知不同、或有了新发现时，单独输出这一行，改写它的介绍；名称必须与「持有证物」里的完全一致。若证物本身要改名，写成 [证物更新: 旧名 -> 新名 | 新的完整介绍]）
    - 新人物登记：[人物: 人物姓名 | 身份背景描述]
-   - 【法庭记录簿铁律（案件搜查篇必须执行）】：①每当玩家或角色在搜查/询问中新发现、取得、出示一件此前没有的物证（凶器、照片、记录、物品、报告等），必须在该句之后单独输出一行 [证物: 名称 | 描述]；已在下方「记录簿」里的不要重复。②每当有新的证人、嫌疑人、被害人、关键相关者首次登场或被提到，必须单独输出一行 [人物: 姓名 | 身份与与案件的关系]，写到证人席作证的人也一样。③证人在法庭上作出了新的重要证词、或某证物有了新发现，用 [人物: 已有姓名 | 更新后的描述] 或 [证物更新: ...] 把最新内容记进去（只写玩家已经知道的信息，不要泄露机密档案）。案件开场时已经在机密档案里定好了本案的证人、嫌疑人和关键证物：它们要等到剧情里真正登场、被发现的那一轮才登记，不要提前登记，也不要漏掉；没有新发现的轮次不用输出任何记录指令。这些指令行不计入 10~15 行的篇幅限制。
+   - 【法庭记录簿铁律（案件搜查篇必须执行）】：①每当玩家或角色在搜查/询问中新发现、取得、出示一件此前没有的物证（凶器、照片、记录、物品、报告等），必须在该句之后单独输出一行 [证物: 名称 | 描述]；已在下方「记录簿」里的不要重复。②每当有新的证人、嫌疑人、被害人、关键相关者首次登场或被提到，必须单独输出一行 [人物: 姓名 | 身份与与案件的关系]，写到证人席作证的人也一样。③证人在法庭上作出了新的重要证词、或某证物有了新发现，用 [人物: 已有姓名 | 更新后的描述] 或 [证物更新: ...] 把最新内容记进去（只写玩家已经知道的信息，不要泄露机密档案）。案件开场时已经在机密档案里定好了本案的证人、嫌疑人和关键证物：它们要等到剧情里真正登场、被发现的那一轮才登记，不要提前登记，也不要漏掉；没有新发现的轮次不用输出任何记录指令。这些指令行不计入 ${_len.min}~${_len.max} 行的篇幅限制。
 9.5 【法庭席位与职业规则】（仅在法庭场景生效）：
    - 玩家职业为「检事」时：开庭后玩家站在检察席，是公诉方，主导询问证人、论告、反驳辩方异议；辩护席由成步堂/王泥喜等NPC担任，严禁把玩家写成辩护人。
    - 玩家职业为「刑警」时：开庭后玩家通常以证人身份站上证人席作证，由审判长、检察官、辩护律师轮流询问玩家；玩家可[出示证物]说明搜查成果；严禁把玩家写成辩护人或检察官。
@@ -6756,7 +6774,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
                     body: JSON.stringify({
                         model: config.model,
-                        max_tokens: tavernHasPreset() ? 8192 : 4096,   // 要写思维链时多给些输出空间
+                        max_tokens: Math.min(12288, _len.tokens + (tavernHasPreset() ? 4096 : 0)),   // 篇幅越长、要写思维链时，输出空间越大
                         temperature: 0.9,
                         messages: [
                             { role: "system", content: _sysContent },
@@ -7513,6 +7531,46 @@ ${knownPeople.join('、') || '（暂无）'}
                 `[发言] 系统提示: 案件圆满结束！临时证物与案情涉案人员档案已封存归档，场景重归平淡职场生活。`
             ]);
         }
+
+        // ---- 回复长度档位：选完立即生效，不用点「保存配置」 ----
+        const REPLY_LEN_MODES = {
+            light:     { label: '日常轻量', min: 10, max: 15, tokens: 4096 },
+            mid:       { label: '中度交流', min: 20, max: 30, tokens: 6144 },
+            deep:      { label: '深度交流', min: 35, max: 50, tokens: 8192 },
+            immersive: { label: '沉浸长篇', min: 60, max: 80, tokens: 8192 }
+        };
+        function getReplyLen() {
+            let c = {};
+            try { c = JSON.parse(localStorage.getItem('ace_reply_len') || '{}') || {}; } catch (_) {}
+            if (c.mode === 'custom') {
+                let mn = Math.max(3, Math.min(150, parseInt(c.min, 10) || 10));
+                let mx = Math.max(mn, Math.min(150, parseInt(c.max, 10) || 15));
+                return { mode: 'custom', label: '自定义', min: mn, max: mx, tokens: Math.max(4096, Math.min(8192, mx * 100)) };
+            }
+            const m = REPLY_LEN_MODES[c.mode] ? c.mode : 'light';
+            return Object.assign({ mode: m }, REPLY_LEN_MODES[m]);
+        }
+        function onReplyLenChange() {
+            const mode = document.getElementById('reply-len-select').value;
+            const cu = document.getElementById('reply-len-custom');
+            cu.style.display = mode === 'custom' ? 'flex' : 'none';
+            const c = { mode };
+            if (mode === 'custom') {
+                c.min = document.getElementById('reply-len-min').value;
+                c.max = document.getElementById('reply-len-max').value;
+            }
+            try { localStorage.setItem('ace_reply_len', JSON.stringify(c)); } catch (_) {}
+            const L = getReplyLen();
+            document.getElementById('reply-len-hint').textContent = `当前：${L.label}，每轮 ${L.min}~${L.max} 行。选完立即生效，下一轮回复就按这个长度；越长越慢、越耗额度。`;
+        }
+        (function initReplyLen() {
+            let c = {};
+            try { c = JSON.parse(localStorage.getItem('ace_reply_len') || '{}') || {}; } catch (_) {}
+            document.getElementById('reply-len-select').value = (c.mode === 'custom' || REPLY_LEN_MODES[c.mode]) ? c.mode : 'light';
+            document.getElementById('reply-len-min').value = c.min || 20;
+            document.getElementById('reply-len-max').value = c.max || 30;
+            onReplyLenChange();
+        })();
 
         function onModelSelectChange(val) { if (val) document.getElementById('api-model').value = val; }
         function saveApiConfig() {
