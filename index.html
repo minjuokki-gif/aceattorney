@@ -6779,7 +6779,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
 3. 严禁替玩家「${playerName}」说话、做决定。
 4. 不要使用 Markdown，不要多余的解释或开场白。${tavernThinkNote() ? '\n5. ' + tavernThinkNote() : ''}`;
             const _sysContent = buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + (simFormatOn() ? hardRules : liteRules) + modeRules;
-            try { window.__lastPromptPreview = '【SYSTEM】\n' + _sysContent + '\n\n【USER】\n' + prompt + buildTavernPost(playerName); } catch (_) {}
+            try { window.__lastPromptPreview = '【SYSTEM】\n' + _sysContent + '\n\n【USER】\n' + prompt + buildTavernPost(playerName) + styleGuard(); } catch (_) {}
             let failed = false;
             try {
                 const res = await fetch(config.endpoint.replace(/\/+$/, '') + '/chat/completions', {
@@ -6791,7 +6791,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
                         temperature: 0.9,
                         messages: [
                             { role: "system", content: _sysContent },
-                            { role: "user", content: prompt + buildTavernPost(playerName) }
+                            { role: "user", content: prompt + buildTavernPost(playerName) + styleGuard() }
                         ]
                     })
                 });
@@ -8840,6 +8840,10 @@ ${pending}
             if (!tavernHasPreset()) return '';
             const tags = tavernThinkTags().map(t => `<${t}>…</${t}>`).join(' 或 ');
             return `若附加设定要求你先思考、推理或写思维链，请照做：把思考内容完整写在 ${tags} 里，放在剧情行【之前】。这部分会被游戏自动过滤、不显示给玩家，也不计入篇幅限制；标签之外只能是本规范要求的剧情行与指令。思考要精简：只做附加设定要求的步骤，每一步一两句话，不要逐条复述游戏规则。`;
+        }
+        // 文风约束：贴在整条请求的最末尾（模型最敏感的位置），专门压住「结尾反问/总结/升华」和「每轮句式雷同」
+        function styleGuard() {
+            return '\n\n【文风约束】\n1. 结尾禁止用反问句、总结句、感悟升华或点题收尾；回复要停在一个具体的动作、对白或画面上，自然收住，不必留悬念、不必抛问题。\n2. 不要重复前几轮回复的句式、开头方式和段落结构，每一轮的写法都要有变化。\n3. 不要替玩家总结或点评刚才发生的事。';
         }
         // 预设里排在聊天记录之后的条目（多半是思维链、输出要求之类）：像酒馆一样贴在整条请求的最末尾，模型对结尾的指令最敏感
         function buildTavernPost(playerName) {
