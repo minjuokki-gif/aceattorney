@@ -861,6 +861,12 @@
                         </label>
                         <div id="sim-format-hint" style="font-size: 12px; color: #7696be; margin-top: 4px; line-height: 1.5;"></div>
                     </div>
+                    <div class="form-group">
+                        <label style="display: flex; gap: 8px; align-items: center; color: #e6eefb; font-size: 13px; font-weight: bold; cursor: pointer;">
+                            <input type="checkbox" id="soft-style-check" onchange="onSoftStyleChange()"> 💗 角色对玩家保持尊重体贴（防大男子主义）
+                        </label>
+                        <div style="font-size: 12px; color: #7696be; margin-top: 4px; line-height: 1.5;">开启后，会在每次请求的最末尾加一条保底约束：角色可以有棱角、傲娇，但不霸道命令、不说教、不替你拿主意。不管有没有导入预设都生效。</div>
+                    </div>
                     <div style="display: flex; justify-content: flex-end;">
                         <button class="btn-prime" onclick="saveApiConfig()">保 存 配 置</button>
                     </div>
@@ -6778,7 +6784,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
 2. 每一行都必须以「[发言] 旁白: 」开头；一行只写一小段（不超过 60 字，尽量在句号处分行），不要把大段文字塞进同一行。角色开口说话时，可写成「[发言] 角色名: （动作）台词」。
 3. 严禁替玩家「${playerName}」说话、做决定。
 4. 不要使用 Markdown，不要多余的解释或开场白。${tavernThinkNote() ? '\n5. ' + tavernThinkNote() : ''}`;
-            const _sysContent = buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + (simFormatOn() ? hardRules : liteRules) + modeRules;
+            const _sysContent = buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + (simFormatOn() ? hardRules : liteRules) + modeRules + buildTavernPresetBlock(playerName);
             try { window.__lastPromptPreview = '【SYSTEM】\n' + _sysContent + '\n\n【USER】\n' + prompt + buildTavernPost(playerName) + styleGuard(); } catch (_) {}
             let failed = false;
             try {
@@ -7475,7 +7481,7 @@ ${knownPeople.join('、') || '（暂无）'}
                         model: config.model,
                         temperature: 0.9,
                         messages: [
-                            { role: "system", content: buildTavernInjection(genPrompt, gameState.profile.name) + (document.getElementById('world-prompt').value.trim() || '你是《逆转裁判》的探案模拟器主持人（GM）。') },
+                            { role: "system", content: buildTavernInjection(genPrompt, gameState.profile.name) + (document.getElementById('world-prompt').value.trim() || '你是《逆转裁判》的探案模拟器主持人（GM）。') + buildTavernPresetBlock(gameState.profile.name) },
                             { role: "user", content: genPrompt + buildTavernPost(gameState.profile.name) }
                         ]
                     })
@@ -7586,6 +7592,10 @@ ${knownPeople.join('、') || '（暂无）'}
         }
         // 「模拟器格式」开关：开（默认）＝游戏的完整规则；关＝以预设为主，只保留最简的行格式（每行都有 [发言] 旁白: 前缀）
         function simFormatOn() { return localStorage.getItem('ace_sim_format') !== '0'; }
+        function softStyleOn() { return localStorage.getItem('ace_soft_style') !== '0'; }
+        function onSoftStyleChange() {
+            try { localStorage.setItem('ace_soft_style', document.getElementById('soft-style-check').checked ? '1' : '0'); } catch (_) {}
+        }
         function onSimFormatChange() {
             const on = document.getElementById('sim-format-check').checked;
             try { localStorage.setItem('ace_sim_format', on ? '1' : '0'); } catch (_) {}
@@ -7615,6 +7625,7 @@ ${knownPeople.join('、') || '（暂无）'}
             onReplyLenChange();
             document.getElementById('sim-format-check').checked = simFormatOn();
             onSimFormatChange();
+            document.getElementById('soft-style-check').checked = softStyleOn();
         })();
 
         function onModelSelectChange(val) { if (val) document.getElementById('api-model').value = val; }
@@ -8578,7 +8589,7 @@ ${pending}
         // 把已启用的正则依次作用在 AI 的原始输出上，再兜底剔除常见的思维链标签
         function applyTavernRegex(text) {
             let t = String(text == null ? '' : text);
-            tavernImports.forEach(g => (g.regexes || []).forEach(r => {
+            tavernImports.forEach(g => g.disabled ? 0 : (g.regexes || []).forEach(r => {
                 if (!r.enabled || !r.find) return;
                 try {
                     let re;
@@ -8640,6 +8651,12 @@ ${pending}
                 };
                 r.readAsText(f);
             });
+        }
+        // 整个导入组「关闭」：下面所有条目和正则都不生效，但每条自己的开关状态原样保留，重新「开启」就恢复
+        function toggleImportDisabled(gi) {
+            tavernImports[gi].disabled = !tavernImports[gi].disabled;
+            saveImports(); renderImportList();
+            gameToast(tavernImports[gi].disabled ? `已关闭「${tavernImports[gi].name}」（条目的勾选状态都保留着）` : `已重新开启「${tavernImports[gi].name}」`);
         }
         function toggleImportEntry(gi, ei, on) { tavernImports[gi].entries[ei].enabled = !!on; saveImports(); }
         function toggleImportGroup(gi) {
@@ -8733,6 +8750,7 @@ ${pending}
                     <div style="margin:6px 0 4px 20px;">
                         <div style="${lab}">名称</div>
                         <input type="text" value="${tvEsc(en.name)}" oninput="editImportEntry(${gi},${ei},'name',this.value)" style="${inp}">
+
                         ${g.kind === 'worldbook' ? `
                         <label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px;color:#c8d6ea;">
                             <input type="checkbox" ${en.constant ? 'checked' : ''} onchange="setImportConstant(${gi},${ei},this.checked)"> 常驻（每次都带上）
@@ -8790,10 +8808,10 @@ ${pending}
                     }
                 }
                 return `
-                <div style="border:1px solid #1f395b;border-radius:6px;padding:8px;margin-top:8px;">
+                <div style="border:1px solid #1f395b;border-radius:6px;padding:8px;margin-top:8px;${g.disabled ? 'opacity:.55;' : ''}">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-                        <div onclick="toggleFold('g${gi}')" style="cursor:pointer;flex:1;min-width:0;color:#fff;font-weight:bold;font-size:13px;word-break:break-all;"><span style="display:inline-block;width:16px;color:#7696be;">${gOpen ? '▼' : '▶'}</span>${icon}：${tvEsc(g.name)} <span style="color:#7696be;font-weight:normal;">(${sub})</span></div>
-                        <div style="flex-shrink:0;"><button class="btn-sub" onclick="removeImportGroup(${gi})">删除</button></div>
+                        <div onclick="toggleFold('g${gi}')" style="cursor:pointer;flex:1;min-width:0;color:#fff;font-weight:bold;font-size:13px;word-break:break-all;"><span style="display:inline-block;width:16px;color:#7696be;">${gOpen ? '▼' : '▶'}</span>${icon}：${tvEsc(g.name)} <span style="color:#7696be;font-weight:normal;">(${sub})</span>${g.disabled ? ' <span style="color:#e8a14a;font-weight:normal;">· 已关闭，不生效</span>' : ''}</div>
+                        <div style="flex-shrink:0;display:flex;gap:6px;"><button class="btn-sub" onclick="toggleImportDisabled(${gi})">${g.disabled ? '开启' : '关闭'}</button><button class="btn-sub" onclick="removeImportGroup(${gi})">删除</button></div>
                     </div>
                     ${body}
                 </div>`;
@@ -8825,11 +8843,11 @@ ${pending}
             });
         }
         // 预设里有已启用的提示词时，允许（并要求遵守预设的）思考过程；从已启用的正则里猜出思考标签名
-        function tavernHasPreset() { return tavernImports.some(g => g.kind === 'preset' && g.entries.some(e => e.enabled)); }
+        function tavernHasPreset() { return tavernImports.some(g => !g.disabled && g.kind === 'preset' && g.entries.some(e => e.enabled)); }
         function tavernThinkTags() {
             const skip = new Set(['br', 'p', 'div', 'span', 'b', 'i', 'u', 'a', 'img', 'html', 'body', 'style', 'script', 'details', 'summary', 'hr', 'ul', 'li', 'table', 'tr', 'td']);
             const set = new Set();
-            tavernImports.forEach(g => (g.regexes || []).forEach(r => {
+            tavernImports.forEach(g => g.disabled ? 0 : (g.regexes || []).forEach(r => {
                 if (!r.enabled) return;
                 (String(r.find).match(/<([A-Za-z_][\w-]*)>/g) || []).forEach(x => { const n = x.slice(1, -1); if (!skip.has(n.toLowerCase())) set.add(n); });
             }));
@@ -8843,12 +8861,16 @@ ${pending}
         }
         // 文风约束：贴在整条请求的最末尾（模型最敏感的位置），专门压住「结尾反问/总结/升华」和「每轮句式雷同」
         function styleGuard() {
-            return '\n\n【文风约束】\n1. 结尾禁止用反问句、总结句、感悟升华或点题收尾；回复要停在一个具体的动作、对白或画面上，自然收住，不必留悬念、不必抛问题。\n2. 不要重复前几轮回复的句式、开头方式和段落结构，每一轮的写法都要有变化。\n3. 不要替玩家总结或点评刚才发生的事。';
+            let s = '\n\n【文风约束】\n1. 结尾禁止用反问句、总结句、感悟升华或点题收尾；回复要停在一个具体的动作、对白或画面上，自然收住，不必留悬念、不必抛问题。\n2. 不要重复前几轮回复的句式、开头方式和段落结构，每一轮的写法都要有变化。\n3. 不要替玩家总结或点评刚才发生的事。';
+            let n = 4;
+            if (softStyleOn()) s += `\n${n++}. 角色对玩家的态度要尊重、体贴，说话有分寸；可以有性格棱角、傲娇或嘴硬，但不要霸道命令、居高临下、说教、替玩家拿主意、自以为是地“掌控”对方，避免油腻的大男子主义腔调。`;
+            if (tavernHasPreset()) s += `\n${n++}. 动笔前先对照系统提示词末尾「写作预设」里关于语气、措辞、温柔程度和禁忌的要求，逐条落实，不要滑回默认的写法。`;
+            return s;
         }
         // 预设里排在聊天记录之后的条目（多半是思维链、输出要求之类）：像酒馆一样贴在整条请求的最末尾，模型对结尾的指令最敏感
         function buildTavernPost(playerName) {
             const parts = [];
-            tavernImports.forEach(g => { if (g.kind !== 'preset') return; g.entries.forEach(en => {
+            tavernImports.forEach(g => { if (g.disabled || g.kind !== 'preset') return; g.entries.forEach(en => {
                 if (!en.enabled || en.pos !== 'after') return;
                 const t = tavernMacro(en.content, playerName);
                 if (t) parts.push(t);
@@ -8858,25 +8880,35 @@ ${pending}
             if (!parts.length) return tavernHasPreset() ? tail : '';
             return '\n\n【附加指令（来自预设，请遵守）】\n' + parts.join('\n\n') + (on ? '\n【以上附加指令若与前面的「输出硬性规范」「当前模式」冲突，一律以「输出硬性规范」「当前模式」为准。】' : '') + '\n' + tavernThinkNote() + tail;
         }
-        // 生成要拼在系统提示词最前面的"附加设定"。游戏自己的格式规则始终排在它后面，冲突时以游戏规则为准。
+        // 世界书（常驻 / 关键词触发）：放在系统提示词最前面，属于「背景资料」
         function buildTavernInjection(contextText, playerName) {
             if (!tavernImports.length) return '';
             const ctx = String(contextText || '').slice(-4000);
-            const presetParts = [], always = [], triggered = [];
-            tavernImports.forEach(g => g.entries.forEach(en => {
+            const always = [], triggered = [];
+            tavernImports.forEach(g => { if (g.disabled || g.kind === 'preset') return; g.entries.forEach(en => {
                 if (!en.enabled) return;
                 const text = tavernMacro(en.content, playerName);
                 if (!text) return;
-                if (g.kind === 'preset') { if (en.pos !== 'after') presetParts.push(text); }
-                else if (en.constant) always.push(text);
+                if (en.constant) always.push(text);
                 else if (tavernKeyMatch(en.keys, ctx)) triggered.push(text);
-            }));
+            }); });
+            if (!always.length && !triggered.length) return '';
+            return '【附加世界书设定】\n' + always.concat(triggered).join('\n\n') + '\n\n【以上为世界观/背景设定，仅作补充；输出格式以下方规范为准。】\n\n';
+        }
+        // 预设（「前部」条目）：放在系统提示词的最后，紧挨着剧情和玩家动作——
+        // 这样前面是游戏的格式规则、动作注册表、案件档案，后面才是写作风格、人物塑造、禁忌，离生成点最近
+        function buildTavernPresetBlock(playerName) {
             const parts = [];
-            if (presetParts.length) parts.push(presetParts.join('\n\n'));
-            if (always.length || triggered.length) parts.push('【附加世界书设定】\n' + always.concat(triggered).join('\n\n'));
+            tavernImports.forEach(g => { if (g.disabled || g.kind !== 'preset') return; g.entries.forEach(en => {
+                if (!en.enabled || en.pos === 'after') return;
+                const t = tavernMacro(en.content, playerName);
+                if (t) parts.push(t);
+            }); });
             if (!parts.length) return '';
-            if (!simFormatOn()) return parts.join('\n\n') + '\n\n【以上是本次写作的主要设定与要求，请优先、完整地遵循。下方只规定输出的行格式与人物/场景边界。】\n\n';
-            return parts.join('\n\n') + '\n\n【以上为附加的风格/世界观设定，仅作补充。若与下方的「输出硬性规范」「当前模式」冲突（尤其是输出格式、行数、立绘动作标签、日常/案件模式限制），一律以下方为准。】' + (presetParts.length ? '\n【关于思考过程】' + tavernThinkNote() : '') + '\n\n';
+            const think = tavernThinkNote() ? '\n【关于思考过程】' + tavernThinkNote() : '';
+            if (!simFormatOn()) return '\n\n' + parts.join('\n\n') + '\n\n【以上是本次写作的主要设定与要求，请优先、完整地遵循。前面只规定输出的行格式与人物/场景边界。】' + think + '\n';
+            return '\n\n══════ 写作预设（人物塑造、语气、文风、禁忌——请重点遵循） ══════\n' + parts.join('\n\n')
+                + '\n══════ 预设结束 ══════\n【说明】上面的预设负责人物的性格、说话语气、对玩家的态度与措辞、禁忌用语和文风，请完整、认真地遵循；输出的行格式（[发言] 标签、立绘动作）和日常/案件模式的场景限制，按前面的「输出硬性规范」「当前模式」来写。两者并不冲突，要同时做到。' + think + '\n';
         }
 
         // 启动：先搬旧存档 → 刷新存档列表 → 读取导入的酒馆内容 → 显示"继续游戏"
