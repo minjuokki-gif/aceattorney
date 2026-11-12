@@ -6784,8 +6784,9 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
 2. 每一行都必须以「[发言] 旁白: 」开头；一行只写一小段（不超过 60 字，尽量在句号处分行），不要把大段文字塞进同一行。角色开口说话时，可写成「[发言] 角色名: （动作）台词」。
 3. 严禁替玩家「${playerName}」说话、做决定。
 4. 不要使用 Markdown，不要多余的解释或开场白。${tavernThinkNote() ? '\n5. ' + tavernThinkNote() : ''}`;
-            const _sysContent = buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + (simFormatOn() ? hardRules : liteRules) + modeRules + buildTavernPresetBlock(playerName);
-            try { window.__lastPromptPreview = '【SYSTEM】\n' + _sysContent + '\n\n【USER】\n' + prompt + buildTavernPost(playerName) + styleGuard(); } catch (_) {}
+            const _sysContent = buildTavernInjection(recent + '\n' + (openingDirective || userActionText || ''), playerName) + worldPrompt + (simFormatOn() ? hardRules : liteRules) + modeRules;
+            const _msgs = buildTavernMessages({ playerName, sys: _sysContent, user: prompt, tail: tavernTailText() + styleGuard() });
+            try { window.__lastPromptPreview = _msgs.map(m => '【' + m.role.toUpperCase() + '】\n' + m.content).join('\n\n'); } catch (_) {}
             let failed = false;
             try {
                 const res = await fetch(config.endpoint.replace(/\/+$/, '') + '/chat/completions', {
@@ -6795,10 +6796,7 @@ ${openingDirective || userActionText || '（玩家静静等待对方说话）'}
                         model: config.model,
                         max_tokens: Math.min(12288, _len.tokens + (tavernHasPreset() ? 4096 : 0)),   // 篇幅越长、要写思维链时，输出空间越大
                         temperature: 0.9,
-                        messages: [
-                            { role: "system", content: _sysContent },
-                            { role: "user", content: prompt + buildTavernPost(playerName) + styleGuard() }
-                        ]
+                        messages: _msgs
                     })
                 });
                 const data = await res.json();
@@ -7480,10 +7478,7 @@ ${knownPeople.join('、') || '（暂无）'}
                     body: JSON.stringify({
                         model: config.model,
                         temperature: 0.9,
-                        messages: [
-                            { role: "system", content: buildTavernInjection(genPrompt, gameState.profile.name) + (document.getElementById('world-prompt').value.trim() || '你是《逆转裁判》的探案模拟器主持人（GM）。') + buildTavernPresetBlock(gameState.profile.name) },
-                            { role: "user", content: genPrompt + buildTavernPost(gameState.profile.name) }
-                        ]
+                        messages: buildTavernMessages({ playerName: gameState.profile.name, sys: buildTavernInjection(genPrompt, gameState.profile.name) + (document.getElementById('world-prompt').value.trim() || '你是《逆转裁判》的探案模拟器主持人（GM）。'), user: genPrompt, tail: '' })
                     })
                 });
                 const data = await res.json();
@@ -8534,8 +8529,7 @@ ${pending}
                 if (!content) return;
                 entries.push({
                     id: 'e' + i, name: String(p.name || it.id).slice(0, 60), content,
-                    // 酒馆预设里的 main（"扮演角色、写下一条回复"）会和本游戏的格式打架，默认关闭，需要的话自己勾上
-                    enabled: it.enabled && it.id !== 'main', constant: true, keys: [], order: i, role: p.role || 'system', pos: afterHist ? 'after' : 'before'
+                    enabled: it.enabled, constant: true, keys: [], order: i, role: p.role || 'system', pos: afterHist ? 'after' : 'before'
                 });
             });
             return { id: 'g' + Date.now() + Math.random().toString(36).slice(2, 6), kind: 'preset', name: fname, entries };
@@ -8820,14 +8814,32 @@ ${pending}
         }
 
         // 清理酒馆宏：{{user}}→玩家名，{{char}}→"剧情角色"，其余宏（setvar/getvar/random 等）直接去掉
-        function tavernMacro(s, playerName) {
-            return String(s)
+        function tavernMacro(s, playerName, vars) {
+            vars = vars || {};
+            const pick = arr => { arr = arr.map(x => x.trim()).filter(x => x !== ''); return arr.length ? arr[Math.floor(Math.random() * arr.length)] : ''; };
+            const num = x => (x !== undefined && String(x).trim() !== '' && !isNaN(x));
+            let t = String(s)
                 .replace(/\{\{\s*\/\/[\s\S]*?\}\}/g, '')
-                .replace(/\{\{\s*(setvar|addvar|incvar|decvar|setglobalvar|addglobalvar)\s*::[\s\S]*?\}\}/gi, '')
                 .replace(/\{\{\s*user\s*\}\}/gi, playerName || '玩家')
                 .replace(/\{\{\s*char\s*\}\}/gi, '剧情角色')
                 .replace(/<USER>/gi, playerName || '玩家')
                 .replace(/<(BOT|CHAR)>/gi, '剧情角色')
+                .replace(/\{\{\s*random\s*::([\s\S]*?)\}\}/gi, (m, a) => pick(a.split('::')))
+                .replace(/\{\{\s*random\s*:([^{}:][^{}]*?)\}\}/gi, (m, a) => pick(a.split(',')))
+                .replace(/\{\{\s*roll\s*[: ]\s*(\d*)d(\d+)\s*\}\}/gi, (m, n, d) => { let r = 0; for (let i = 0; i < (Number(n) || 1); i++) r += 1 + Math.floor(Math.random() * Number(d)); return String(r); })
+                .replace(/\{\{\s*newline\s*\}\}/gi, '\n')
+                .replace(/\{\{\s*trim\s*\}\}/gi, '');
+            t = t.replace(/\{\{\s*(?:setvar|setglobalvar)\s*::\s*([^:{}]+?)\s*::([\s\S]*?)\}\}/gi, (m, n, v) => { vars[n.trim()] = v; return ''; });
+            t = t.replace(/\{\{\s*(?:addvar|addglobalvar)\s*::\s*([^:{}]+?)\s*::([\s\S]*?)\}\}/gi, (m, n, v) => {
+                const k = n.trim(), cur = vars[k];
+                vars[k] = (num(cur) && num(v)) ? String(Number(cur) + Number(v)) : String(cur === undefined ? '' : cur) + v; return '';
+            });
+            t = t.replace(/\{\{\s*(incvar|decvar)\s*::\s*([^:{}]+?)\s*\}\}/gi, (m, op, n) => {
+                const k = n.trim(), cur = num(vars[k]) ? Number(vars[k]) : 0;
+                vars[k] = String(op.toLowerCase() === 'incvar' ? cur + 1 : cur - 1); return '';
+            });
+            t = t.replace(/\{\{\s*(?:getvar|getglobalvar)\s*::\s*([^{}]+?)\s*\}\}/gi, (m, n) => vars[n.trim()] !== undefined ? vars[n.trim()] : '');
+            return t
                 .replace(/\{\{[^{}]*\}\}/g, '')
                 .replace(/<!--[\s\S]*?-->/g, '')
                 .replace(/\n{3,}/g, '\n\n')
@@ -8864,21 +8876,48 @@ ${pending}
             let s = '\n\n【文风约束】\n1. 结尾禁止用反问句、总结句、感悟升华或点题收尾；回复要停在一个具体的动作、对白或画面上，自然收住，不必留悬念、不必抛问题。\n2. 不要重复前几轮回复的句式、开头方式和段落结构，每一轮的写法都要有变化。\n3. 不要替玩家总结或点评刚才发生的事。';
             let n = 4;
             if (softStyleOn()) s += `\n${n++}. 角色对玩家的态度要尊重、体贴，说话有分寸；可以有性格棱角、傲娇或嘴硬，但不要霸道命令、居高临下、说教、替玩家拿主意、自以为是地“掌控”对方，避免油腻的大男子主义腔调。`;
-            if (tavernHasPreset()) s += `\n${n++}. 动笔前先对照系统提示词末尾「写作预设」里关于语气、措辞、温柔程度和禁忌的要求，逐条落实，不要滑回默认的写法。`;
+            if (tavernHasPreset()) s += `\n${n++}. 动笔前先对照前面预设里关于语气、措辞、温柔程度和禁忌的要求，逐条落实，不要滑回默认的写法。`;
             return s;
         }
-        // 预设里排在聊天记录之后的条目（多半是思维链、输出要求之类）：像酒馆一样贴在整条请求的最末尾，模型对结尾的指令最敏感
-        function buildTavernPost(playerName) {
-            const parts = [];
+        // 最末一条用户消息里的格式提醒（预设里没有任何格式要求，格式由本游戏规定）
+        function tavernTailText() {
+            if (!tavernHasPreset()) return '';
+            return !simFormatOn()
+                ? '\n\n【输出格式提醒】每一行都以「[发言] 旁白: 」开头（角色说话可写「[发言] 角色名: 台词」），一行只写一小段、不超过 60 字，不要把大段文字塞进同一行。'
+                : '\n\n【输出格式提醒】最终的剧情正文必须逐行写成「[发言] 角色名[立绘动作]: 内容」或「[发言] 旁白: 内容」，不要把整段写成一大段旁白，也不要省略 [发言] 标签。如果预设要求用某个标签（如 <content>）包裹正文，就把这些符合格式的行整体放进那个标签里。';
+        }
+        // 像酒馆一样发给模型：预设的每个条目是一条独立消息，保留各自的身份（系统/用户/AI）和先后顺序，
+        //   [系统：游戏规则+世界书 + 预设里「系统」身份的前部条目]
+        //   [预设里「用户」「AI」身份的前部条目，如假回复]
+        //   [用户：剧情记录 + 玩家这一步]
+        //   [预设里排在聊天记录之后的条目]
+        //   [用户：格式提醒 + 文风约束]
+        // 相邻同身份的消息会合并；中间出现的「系统」条目按「用户」身份发，兼容各种中转 / 接口。
+        function buildTavernMessages(o) {
+            const vars = {}, before = [], after = [];
             tavernImports.forEach(g => { if (g.disabled || g.kind !== 'preset') return; g.entries.forEach(en => {
-                if (!en.enabled || en.pos !== 'after') return;
-                const t = tavernMacro(en.content, playerName);
-                if (t) parts.push(t);
+                if (!en.enabled) return;
+                const t = tavernMacro(en.content, o.playerName, vars);
+                if (!t) return;
+                (en.pos === 'after' ? after : before).push({ role: (en.role === 'user' || en.role === 'assistant') ? en.role : 'system', content: t });
             }); });
-            const on = simFormatOn();
-            const tail = !on ? '\n\n【输出格式提醒】每一行都以「[发言] 旁白: 」开头（角色说话可写「[发言] 角色名: 台词」），一行只写一小段、不超过 60 字，不要把大段文字塞进同一行；其余一切写法按上面的附加指令。' : '\n\n【最后提醒——格式优先】无论上面的附加设定怎么要求，最终的剧情正文必须逐行写成「[发言] 角色名[立绘动作]: 内容」或「[发言] 旁白: 内容」，不要把整段写成一大段旁白，也不要省略 [发言] 标签。如果附加设定要求用某个标签（如 <content>）包裹正文，就把这些符合格式的行整体放进那个标签里。';
-            if (!parts.length) return tavernHasPreset() ? tail : '';
-            return '\n\n【附加指令（来自预设，请遵守）】\n' + parts.join('\n\n') + (on ? '\n【以上附加指令若与前面的「输出硬性规范」「当前模式」冲突，一律以「输出硬性规范」「当前模式」为准。】' : '') + '\n' + tavernThinkNote() + tail;
+            const msgs = [{ role: 'system', content: o.sys }];
+            const push = (role, content) => {
+                if (!content) return;
+                const last = msgs[msgs.length - 1];
+                if (last.role === role && msgs.length > 1) last.content += '\n\n' + content; else msgs.push({ role, content });
+            };
+            let sysOpen = true;
+            before.forEach(m => {
+                if (m.role === 'system' && sysOpen) { msgs[0].content += '\n\n' + m.content; return; }
+                sysOpen = false;
+                push(m.role === 'system' ? 'user' : m.role, m.content);
+            });
+            if (msgs.length > 1 && msgs[1].role === 'assistant') msgs.splice(1, 0, { role: 'user', content: '[开始]' });
+            push('user', o.user);
+            after.forEach(m => push(m.role === 'system' ? 'user' : m.role, m.content));
+            push('user', o.tail);
+            return msgs;
         }
         // 世界书（常驻 / 关键词触发）：放在系统提示词最前面，属于「背景资料」
         function buildTavernInjection(contextText, playerName) {
@@ -8895,22 +8934,6 @@ ${pending}
             if (!always.length && !triggered.length) return '';
             return '【附加世界书设定】\n' + always.concat(triggered).join('\n\n') + '\n\n【以上为世界观/背景设定，仅作补充；输出格式以下方规范为准。】\n\n';
         }
-        // 预设（「前部」条目）：放在系统提示词的最后，紧挨着剧情和玩家动作——
-        // 这样前面是游戏的格式规则、动作注册表、案件档案，后面才是写作风格、人物塑造、禁忌，离生成点最近
-        function buildTavernPresetBlock(playerName) {
-            const parts = [];
-            tavernImports.forEach(g => { if (g.disabled || g.kind !== 'preset') return; g.entries.forEach(en => {
-                if (!en.enabled || en.pos === 'after') return;
-                const t = tavernMacro(en.content, playerName);
-                if (t) parts.push(t);
-            }); });
-            if (!parts.length) return '';
-            const think = tavernThinkNote() ? '\n【关于思考过程】' + tavernThinkNote() : '';
-            if (!simFormatOn()) return '\n\n' + parts.join('\n\n') + '\n\n【以上是本次写作的主要设定与要求，请优先、完整地遵循。前面只规定输出的行格式与人物/场景边界。】' + think + '\n';
-            return '\n\n══════ 写作预设（人物塑造、语气、文风、禁忌——请重点遵循） ══════\n' + parts.join('\n\n')
-                + '\n══════ 预设结束 ══════\n【说明】上面的预设负责人物的性格、说话语气、对玩家的态度与措辞、禁忌用语和文风，请完整、认真地遵循；输出的行格式（[发言] 标签、立绘动作）和日常/案件模式的场景限制，按前面的「输出硬性规范」「当前模式」来写。两者并不冲突，要同时做到。' + think + '\n';
-        }
-
         // 启动：先搬旧存档 → 刷新存档列表 → 读取导入的酒馆内容 → 显示"继续游戏"
         (async function bootStorage() {
             await migrateLegacySaves();
